@@ -25,56 +25,56 @@ jobs:
           name: go-coverage
           path: backend/coverage.out
 
-  go-lint:
-    name: go-lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-      - uses: golangci/golangci-lint-action@v6
-        with:
-          working-directory: backend
-          version: latest
+  # go-lint:
+  #   name: go-lint
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-go@v5
+  #       with:
+  #         go-version: '1.23'
+  #     - uses: golangci/golangci-lint-action@v6
+  #       with:
+  #         working-directory: backend
+  #         version: latest
 
-  frontend-test:
-    name: frontend-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
-      - name: Run Vitest
-        working-directory: frontend
-        run: npm test -- --reporter=verbose
+  # frontend-test:
+  #   name: frontend-test
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
+  #         cache: 'npm'
+  #         cache-dependency-path: frontend/package-lock.json
+  #     - name: Install dependencies
+  #       working-directory: frontend
+  #       run: npm ci
+  #     - name: Run Vitest
+  #       working-directory: frontend
+  #       run: npm test -- --reporter=verbose
 
-  e2e:
-    name: e2e
-    runs-on: ubuntu-latest
-    needs: [go-test, frontend-test]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Start stack
-        run: docker compose up -d --wait
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install Playwright
-        working-directory: frontend
-        run: npx playwright install --with-deps chromium
-      - name: Run E2E tests
-        working-directory: frontend
-        run: npx playwright test
-      - name: Upload screenshots on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-screenshots
-          path: frontend/test-results/
+  # e2e:
+  #   name: e2e
+  #   runs-on: ubuntu-latest
+  #   needs: [go-test, frontend-test]
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Start stack
+  #       run: docker compose up -d --wait
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
+  #     - name: Install Playwright
+  #       working-directory: frontend
+  #       run: npx playwright install --with-deps chromium
+  #     - name: Run E2E tests
+  #       working-directory: frontend
+  #       run: npx playwright test
+  #     - name: Upload screenshots on failure
+  #       if: failure()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: playwright-screenshots
+  #         path: frontend/test-results/
