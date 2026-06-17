@@ -1,5 +1,6 @@
 ---
 name: Bug report
+<<<<<<< HEAD
 about: Create a report to help us improve
 title: ''
 labels: ''
@@ -36,3 +37,43 @@ If applicable, add screenshots to help explain your problem.
 
 **Additional context**
 Add any other context about the problem here.
+=======
+about: Something is broken
+title: '[bug] '
+labels: bug
+assignees: ''
+---
+
+## What happened
+
+
+
+## Steps to reproduce
+
+1.
+2.
+3.
+
+## Expected behaviour
+
+
+
+## Actual behaviour
+
+
+
+## Environment
+
+- OS:
+- Go version: (run `go version`)
+- Node version: (run `node --version`)
+- temflowral version / commit:
+
+## Relevant logs
+
+```
+paste logs here
+```
+
+## Additional context
+>>>>>>> 979a133 (docs: add README, LICENSE, OSS docs, CI, and dependabot config)

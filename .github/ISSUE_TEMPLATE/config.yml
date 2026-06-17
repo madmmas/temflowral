@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question
+    url: https://github.com/yourusername/temflowral/discussions/new?category=q-a
+    about: Not a bug? Ask here instead of opening an issue.
+  - name: Documentation
+    url: https://github.com/yourusername/temflowral/tree/main/docs
+    about: Check the docs first.
