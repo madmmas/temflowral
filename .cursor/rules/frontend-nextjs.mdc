@@ -1,0 +1,25 @@
+---
+globs: frontend/**/*.ts,frontend/**/*.tsx
+alwaysApply: false
+---
+
+# Frontend (Next.js + React Flow) conventions
+
+- API calls go through the generated client (openapi-typescript / orval output
+  from `api/openapi.yaml`), not hand-written `fetch` calls with inline types.
+  If an endpoint you need isn't in the generated client, the contract is
+  missing it — fix `api/openapi.yaml`, don't work around it locally.
+- Default the client's base URL to the Prism mock server during local dev
+  until the real backend endpoint is confirmed working; swap via env var, not
+  by hardcoding a different URL in code.
+- The node palette and node type config forms should be driven by the
+  `GET /node-types` response, not a hardcoded list — adding a node type on the
+  backend shouldn't require a matching hardcoded frontend change beyond the
+  custom node's rendering component.
+- React Flow (xyflow) custom node components live alongside their config form;
+  keep node-type-specific logic isolated per node type rather than growing a
+  single switch statement across the canvas code.
+- Named exports, not default exports, for shared components.
+- Server state (graph data, run status) via the generated client + your
+  existing data-fetching pattern once one is chosen — don't introduce a second
+  state-management library without discussing it first.

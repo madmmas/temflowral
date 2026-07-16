@@ -1,0 +1,29 @@
+---
+globs: api/**/*.yaml,api/**/*.yml,openapi.yaml
+alwaysApply: false
+---
+
+# Editing the OpenAPI contract
+
+`api/openapi.yaml` is consumed by three things: the Go server codegen, the
+TypeScript client codegen, and the Prism mock server the Playwright contributor
+tests against. Treat every change as a breaking-change review, not a normal edit.
+
+- Additive changes (new endpoint, new optional field) are low-risk — fine to
+  make directly.
+- Renaming or removing a field, changing a field's type, or changing a status
+  code is a breaking change. Call it out explicitly when proposing the diff,
+  and note it in `DEVLOG.md` so the frontend and testing tracks aren't
+  surprised by it.
+- Every path needs a schema-typed request and response — no free-form
+  `additionalProperties: true` blobs unless genuinely dynamic (e.g. node
+  `config` fields, which are intentionally schema-per-node-type).
+- Keep examples in the spec realistic — Prism uses them (or generates from the
+  schema if absent) to serve mock responses, so a bad example becomes a bad
+  mock response for everyone downstream.
+- After editing, mentally check it against what the CI spec-lint job (Spectral)
+  would flag: consistent casing, every response has a description, no orphaned
+  schemas.
+- Core schemas to keep in sync as node types are added: `Graph`, `Node`,
+  `Edge`, `NodeType`, `Run`, `RunStatus`. New node types extend `NodeType`'s
+  config schema — they don't require new top-level schemas.

@@ -1,0 +1,26 @@
+# Dependencies
+frontend/node_modules/
+backend/vendor/
+
+# Build output
+frontend/.next/
+frontend/out/
+frontend/test-results/
+frontend/playwright-report/
+backend/coverage.out
+backend/*.out
+
+# Secrets / env
+.env
+.env.*
+!.env.example
+
+# Local Temporal / data
+.temporal/
+*.db
+
+# Logs
+*.log
+
+# OS / editor cruft
+.DS_Store

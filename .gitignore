@@ -1,0 +1,46 @@
+# Note: generated OpenAPI client/server code (oapi-codegen, openapi-typescript
+# output) is intentionally NOT ignored here — it's committed so `go build` and
+# `npm run build` work without requiring the codegen tool on every machine.
+# Revisit if a "regenerate on install" step gets added later.
+
+### Go (backend) ###
+backend/coverage.out
+backend/*.out
+backend/vendor/
+backend/bin/
+
+### Node / Next.js (frontend) ###
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/build/
+frontend/test-results/
+frontend/playwright-report/
+frontend/.turbo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+### Env / secrets ###
+.env
+.env.local
+.env.*.local
+!.env.example
+
+### Temporal / local dev data ###
+.temporal/
+*.db
+
+### Docker ###
+docker-compose.override.yml
+
+### OS / editor ###
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+### Logs ###
+*.log
