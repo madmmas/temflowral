@@ -1,0 +1,29 @@
+---
+globs: frontend/tests/**/*.ts,frontend/e2e/**/*.ts,**/*.spec.ts
+alwaysApply: false
+---
+
+# Automated testing (Playwright) conventions
+
+For the contributor working on automated testing, largely independent of the
+backend/frontend implementation tracks.
+
+- Point test config at the Prism mock server
+  (`npx @stoplight/prism-cli mock api/openapi.yaml`) by default, not the real
+  backend — this is what lets testing proceed in parallel with backend/frontend
+  work instead of blocking on it. Real-backend runs are a separate CI/local
+  config, not the default.
+- Contract conformance tests (asserting real backend responses match
+  `api/openapi.yaml` schemas) are a distinct test suite from UI e2e tests —
+  don't mix them into the same spec files.
+- The full end-to-end happy path (build a graph → run it → see the result) is
+  intentionally gated: the CI workflow's `e2e` job stays commented out until
+  the underlying stack (graph translator, run endpoint, canvas save/run) is
+  far enough along to support it. Write the test against the mock in the
+  meantime so it's ready to enable, but don't fight to make it pass against a
+  backend that isn't there yet.
+- Use `data-testid` attributes for React Flow canvas interactions rather than
+  relying on generated class names or DOM structure, which will shift as the
+  canvas UI evolves.
+- Each test should be runnable in isolation — no test that depends on state
+  left behind by a previous test in the same file.

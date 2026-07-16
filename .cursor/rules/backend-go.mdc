@@ -1,0 +1,28 @@
+---
+globs: backend/**/*.go
+alwaysApply: false
+---
+
+# Backend (Go) conventions
+
+- Module is `github.com/madmmas/temflowral/backend`, Go 1.25.7. Follow whatever
+  `go.mod`'s toolchain directive says if it's changed since.
+- HTTP request/response types come from the OpenAPI codegen output, not
+  hand-written structs — see the generated-code directory's "DO NOT EDIT"
+  header. If a type you need doesn't exist, the fix is adding it to
+  `api/openapi.yaml` and regenerating, not writing a parallel struct.
+- Temporal workflows must stay deterministic: no direct time.Now(), no raw
+  goroutines, no random values, no network calls inside workflow code — those
+  belong in activities. If you're not sure whether something belongs in a
+  workflow or an activity, it almost certainly belongs in an activity.
+- The graph → workflow translator is the core piece: it walks the `Graph`
+  schema (nodes + edges) and dispatches to one Temporal activity per node
+  type. New node types should mean a new activity implementation, not changes
+  to the translator's control flow, unless the node introduces a genuinely new
+  execution pattern (e.g. branching, parallelism).
+- Activities that make outbound HTTP calls (the HTTP node) must validate
+  target URLs before requesting — no SSRF via user-supplied config. This is
+  called out in `SECURITY.md`; don't defer it to a follow-up PR.
+- Run `golangci-lint run` before considering a change done — CI enforces it
+  once `.golangci.yml` exists (`ISSUES.md` #20).
+- Table-driven tests, `go test -race` — matches the Makefile's `test` target.
