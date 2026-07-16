@@ -1,0 +1,481 @@
+openapi: 3.1.0
+info:
+  title: temflowral API
+  version: 0.1.0
+  license:
+    name: MIT
+    identifier: MIT
+  description: |
+    Visual workflow engine API. Users design graphs (nodes + edges) in the
+    frontend; the backend translates them into Temporal workflows and runs them.
+
+# v0.1 has no authentication; declare explicitly for spec linters.
+security: []
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: graphs
+    description: Workflow graph CRUD
+  - name: runs
+    description: Workflow execution
+  - name: node-types
+    description: Available node type registry
+
+paths:
+  /graphs:
+    post:
+      operationId: createGraph
+      tags: [graphs]
+      summary: Create a graph
+      description: Persist a new workflow graph (nodes and edges).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGraphRequest'
+            example:
+              name: Hello workflow
+              nodes:
+                - id: start-1
+                  type: start
+                  label: Start
+                  position: { x: 0, y: 0 }
+                  config: {}
+                - id: http-1
+                  type: http
+                  label: Fetch data
+                  position: { x: 200, y: 0 }
+                  config:
+                    method: GET
+                    url: https://httpbin.org/get
+              edges:
+                - id: e-start-http
+                  source: start-1
+                  target: http-1
+      responses:
+        '201':
+          description: Graph created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Graph'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /graphs/{graphId}:
+    get:
+      operationId: getGraph
+      tags: [graphs]
+      summary: Fetch a graph by ID
+      parameters:
+        - $ref: '#/components/parameters/GraphId'
+      responses:
+        '200':
+          description: Graph found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Graph'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /graphs/{graphId}/run:
+    post:
+      operationId: startGraphRun
+      tags: [graphs, runs]
+      summary: Start a workflow run from a graph
+      description: |
+        Translates the graph into a Temporal workflow and starts execution.
+        Returns immediately with a run record; poll GET /runs/{id} for status.
+      parameters:
+        - $ref: '#/components/parameters/GraphId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartRunRequest'
+            example:
+              input:
+                message: hello
+      responses:
+        '202':
+          description: Run accepted and started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Graph cannot be run (e.g. invalid structure)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /runs/{runId}:
+    get:
+      operationId: getRun
+      tags: [runs]
+      summary: Poll run status and result
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Run found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /node-types:
+    get:
+      operationId: listNodeTypes
+      tags: [node-types]
+      summary: List available node types
+      description: |
+        Registry of node types and their config schemas. The frontend uses this
+        to render the palette and per-node config forms without hardcoding types.
+      responses:
+        '200':
+          description: Node type registry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeTypeList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    GraphId:
+      name: graphId
+      in: path
+      required: true
+      description: Graph identifier
+      schema:
+        type: string
+        format: uuid
+      example: 550e8400-e29b-41d4-a716-446655440000
+
+    RunId:
+      name: runId
+      in: path
+      required: true
+      description: Workflow run identifier
+      schema:
+        type: string
+        format: uuid
+      example: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+
+  responses:
+    BadRequest:
+      description: Invalid request body or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: Human-readable error message
+        code:
+          type: string
+          description: Machine-readable error code
+      example:
+        message: graph not found
+        code: not_found
+
+    Position:
+      type: object
+      required: [x, y]
+      properties:
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+      example:
+        x: 100
+        y: 200
+
+    Node:
+      type: object
+      required: [id, type, position]
+      properties:
+        id:
+          type: string
+          description: Unique node ID within the graph (client-assigned)
+          minLength: 1
+        type:
+          type: string
+          description: Node type identifier (matches NodeType.id)
+          minLength: 1
+        label:
+          type: string
+          description: Display label on the canvas
+        position:
+          $ref: '#/components/schemas/Position'
+        config:
+          type: object
+          description: |
+            Node-type-specific configuration. Validated against the node type's
+            configSchema from GET /node-types.
+          additionalProperties: true
+      example:
+        id: http-1
+        type: http
+        label: Fetch data
+        position: { x: 200, y: 0 }
+        config:
+          method: GET
+          url: https://httpbin.org/get
+
+    Edge:
+      type: object
+      required: [id, source, target]
+      properties:
+        id:
+          type: string
+          description: Unique edge ID within the graph
+          minLength: 1
+        source:
+          type: string
+          description: Source node ID
+          minLength: 1
+        target:
+          type: string
+          description: Target node ID
+          minLength: 1
+        sourceHandle:
+          type: string
+          description: Source handle ID (for branching nodes)
+        targetHandle:
+          type: string
+          description: Target handle ID
+      example:
+        id: e-start-http
+        source: start-1
+        target: http-1
+
+    Graph:
+      type: object
+      required: [id, nodes, edges, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Node'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/Edge'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        name: Hello workflow
+        nodes:
+          - id: start-1
+            type: start
+            label: Start
+            position: { x: 0, y: 0 }
+            config: {}
+          - id: http-1
+            type: http
+            label: Fetch data
+            position: { x: 200, y: 0 }
+            config:
+              method: GET
+              url: https://httpbin.org/get
+        edges:
+          - id: e-start-http
+            source: start-1
+            target: http-1
+        createdAt: '2026-07-16T08:00:00Z'
+        updatedAt: '2026-07-16T08:00:00Z'
+
+    CreateGraphRequest:
+      type: object
+      required: [nodes, edges]
+      properties:
+        name:
+          type: string
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Node'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/Edge'
+
+    RunStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - completed
+        - failed
+        - cancelled
+      description: Current lifecycle state of a workflow run
+
+    Run:
+      type: object
+      required: [id, graphId, status, startedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        graphId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          description: Set when status is terminal (completed, failed, cancelled)
+        result:
+          type: object
+          description: Workflow output when status is completed
+          additionalProperties: true
+        error:
+          type: string
+          description: Error message when status is failed
+      example:
+        id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+        graphId: 550e8400-e29b-41d4-a716-446655440000
+        status: running
+        startedAt: '2026-07-16T08:01:00Z'
+
+    StartRunRequest:
+      type: object
+      properties:
+        input:
+          type: object
+          description: Optional input payload passed to the workflow
+          additionalProperties: true
+
+    NodeType:
+      type: object
+      required: [id, name, configSchema]
+      properties:
+        id:
+          type: string
+          description: Node type identifier (referenced by Node.type)
+          minLength: 1
+        name:
+          type: string
+          description: Human-readable name for the palette
+        description:
+          type: string
+        category:
+          type: string
+          description: Grouping label for the palette (e.g. core, integration)
+        configSchema:
+          type: object
+          description: JSON Schema describing valid Node.config for this type
+          additionalProperties: true
+      example:
+        id: http
+        name: HTTP Request
+        description: Make an outbound HTTP request
+        category: integration
+        configSchema:
+          type: object
+          required: [method, url]
+          properties:
+            method:
+              type: string
+              enum: [GET, POST, PUT, PATCH, DELETE]
+            url:
+              type: string
+              format: uri
+            headers:
+              type: object
+              additionalProperties:
+                type: string
+            body:
+              type: string
+
+    NodeTypeList:
+      type: object
+      required: [nodeTypes]
+      properties:
+        nodeTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodeType'
+      example:
+        nodeTypes:
+          - id: start
+            name: Start
+            description: Workflow entry point
+            category: core
+            configSchema:
+              type: object
+              additionalProperties: false
+          - id: http
+            name: HTTP Request
+            description: Make an outbound HTTP request
+            category: integration
+            configSchema:
+              type: object
+              required: [method, url]
+              properties:
+                method:
+                  type: string
+                  enum: [GET, POST, PUT, PATCH, DELETE]
+                url:
+                  type: string
+                  format: uri

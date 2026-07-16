@@ -5,6 +5,28 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-16 — OpenAPI v0.1 contract (#6)
+
+**Did:**
+- Added `api/openapi.yaml` v0.1 with five endpoints (`POST/GET /graphs`,
+  `POST /graphs/{id}/run`, `GET /runs/{id}`, `GET /node-types`) and core
+  schemas (`Graph`, `Node`, `Edge`, `NodeType`, `Run`, `RunStatus`).
+- Validated with Redocly CLI lint and Prism mock smoke test.
+
+**Decided / learned:**
+- OpenAPI 3.1; no auth in v0.1 (`security: []` declared explicitly).
+- `Node.config` and `NodeType.configSchema` use open objects — intentional
+  for per-node-type config; validated at runtime per node type registry.
+- Prism serves from spec examples; downstream tracks can point at mock on
+  port 4010 until #7/#8 land.
+
+**Next:**
+- #7 serve spec + Swagger UI from backend
+- #8 document Prism mock in CONTRIBUTING.md
+- #9 CI spec lint (Spectral/Redocly)
+
+---
+
 ## 2026-07-15 — Cursor rules
 
 Added `.cursor/rules/*.mdc` (project overview always-on + path-scoped rules for
