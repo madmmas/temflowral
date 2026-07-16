@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Block direct pushes to protected branches (main must move via PR).
+# Install once per clone: make hooks
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+source "${SCRIPT_DIR}/lib.sh"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [[ -z "${local_ref}" ]] && continue
+
+  branch="$(protected_branch_from_ref "${remote_ref}")"
+  if is_protected_branch "${branch}"; then
+    echo "pre-push: direct pushes to '${branch}' are not allowed." >&2
+    echo "Push a feature branch and open a pull request instead." >&2
+    exit 1
+  fi
+done
+
+exit 0
