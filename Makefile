@@ -1,4 +1,10 @@
-.PHONY: test lint run build clean
+.PHONY: test lint run build clean hooks
+
+# Point this clone at versioned hooks under .githooks/ (run once after clone)
+hooks:
+	git config core.hooksPath .githooks
+	@chmod +x .githooks/*
+	@echo "Git hooks enabled (core.hooksPath=.githooks)"
 
 # Run all tests
 test:

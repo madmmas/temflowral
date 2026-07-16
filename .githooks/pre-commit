@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Pre-commit checks for temflowral.
+# Install once per clone: make hooks
+set -euo pipefail
+
+failed=0
+
+staged_file="$(mktemp)"
+trap 'rm -f "${staged_file}"' EXIT
+git diff --cached --name-only --diff-filter=ACMR > "${staged_file}"
+
+if [[ ! -s "${staged_file}" ]]; then
+  exit 0
+fi
+
+# --- Merge conflict markers in staged hunks ---
+# Catches the exact failure that landed on main in the issue templates.
+if conflict_hits="$(
+  git diff --cached -U0 --diff-filter=ACMR |
+    grep -E '^\+<<<<<<< |^\+>>>>>>> ' || true
+)" && [[ -n "${conflict_hits}" ]]; then
+  echo "pre-commit: unresolved merge conflict markers in staged files:" >&2
+  echo "${conflict_hits}" >&2
+  failed=1
+fi
+
+# --- Obvious secrets / credential filenames ---
+secret_name_hits="$(
+  grep -E -i '(^|/)\.env($|\.|/)|(^|/)id_rsa$|(^|/)id_ed25519$|\.pem$|credentials\.json$|service.?account.*\.json$' \
+    "${staged_file}" || true
+)"
+if [[ -n "${secret_name_hits}" ]]; then
+  echo "pre-commit: refusing to commit likely secret / credential paths:" >&2
+  echo "${secret_name_hits}" >&2
+  echo "Use .env.example for templates; keep real secrets out of git." >&2
+  failed=1
+fi
+
+# Private-key / AWS access-key material added in this commit.
+if secret_content_hits="$(
+  git diff --cached -U0 --diff-filter=ACMR |
+    grep -E '^\+.*(BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY|AKIA[0-9A-Z]{16})' || true
+)" && [[ -n "${secret_content_hits}" ]]; then
+  echo "pre-commit: possible secrets in staged content:" >&2
+  echo "${secret_content_hits}" >&2
+  failed=1
+fi
+
+if [[ "${failed}" -ne 0 ]]; then
+  echo "pre-commit: commit blocked. Fix the issues above or use --no-verify only if intentional." >&2
+  exit 1
+fi
+
+exit 0
