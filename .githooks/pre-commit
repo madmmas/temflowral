@@ -3,13 +3,27 @@
 # Install once per clone: make hooks
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+source "${SCRIPT_DIR}/lib.sh"
+
 failed=0
+
+branch="$(current_branch)"
+if is_protected_branch "${branch}"; then
+  echo "pre-commit: commits on '${branch}' are not allowed." >&2
+  echo "Create a feature branch: git checkout -b your-branch-name" >&2
+  failed=1
+fi
 
 staged_file="$(mktemp)"
 trap 'rm -f "${staged_file}"' EXIT
 git diff --cached --name-only --diff-filter=ACMR > "${staged_file}"
 
 if [[ ! -s "${staged_file}" ]]; then
+  if [[ "${failed}" -ne 0 ]]; then
+    exit 1
+  fi
   exit 0
 fi
 
