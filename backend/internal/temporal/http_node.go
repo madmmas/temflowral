@@ -163,6 +163,9 @@ func ValidateNodeConfig(node api.Node) error {
 	case HTTPNodeType:
 		_, err := parseHTTPNodeConfig(node)
 		return err
+	case DelayNodeType:
+		_, err := parseDelayNodeConfig(node)
+		return err
 	default:
 		return nil
 	}

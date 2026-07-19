@@ -58,6 +58,51 @@ func TestGraphWorkflowExecutesNoopNodes(t *testing.T) {
 	}
 }
 
+func TestGraphWorkflowRunsDelayNodeTimer(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+
+	// The delay node uses a durable workflow timer; the test environment
+	// auto-advances simulated time, so assert a timer actually fired.
+	timerFired := false
+	environment.SetOnTimerFiredListener(func(string) {
+		timerFired = true
+	})
+
+	config := map[string]interface{}{"seconds": 30}
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "delay-1", Type: DelayNodeType, Config: &config},
+			},
+			Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "delay-1"}},
+		},
+	})
+	if !timerFired {
+		t.Fatal("expected a durable timer to fire for the delay node")
+	}
+	if !environment.IsWorkflowCompleted() {
+		t.Fatal("workflow did not complete")
+	}
+	if err := environment.GetWorkflowError(); err != nil {
+		t.Fatalf("workflow error = %v", err)
+	}
+
+	var result GraphWorkflowResult
+	if err := environment.GetWorkflowResult(&result); err != nil {
+		t.Fatalf("get workflow result: %v", err)
+	}
+	if len(result.Nodes) != 2 || result.Nodes[1].NodeID != "delay-1" {
+		t.Fatalf("result nodes = %#v, want delay node result", result.Nodes)
+	}
+	if got := result.Nodes[1].Value["seconds"]; got != float64(30) {
+		t.Errorf("delay seconds = %#v, want 30", got)
+	}
+}
+
 func TestGraphWorkflowDispatchesHTTPNode(t *testing.T) {
 	t.Parallel()
 

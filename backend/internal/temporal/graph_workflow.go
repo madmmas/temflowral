@@ -84,6 +84,23 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 				value = input.Input
 			}
 			result = NodeResult{NodeID: node.Id, Value: value}
+		case DelayNodeType:
+			config, err := parseDelayNodeConfig(node)
+			if err != nil {
+				return GraphWorkflowResult{}, err
+			}
+			// Durable timer: runs in workflow code so it survives worker
+			// restarts instead of blocking an activity worker.
+			if err := workflow.Sleep(ctx, delayDuration(config)); err != nil {
+				return GraphWorkflowResult{}, err
+			}
+			result = NodeResult{
+				NodeID: node.Id,
+				Value: map[string]interface{}{
+					"type":    DelayNodeType,
+					"seconds": config.Seconds,
+				},
+			}
 		default:
 			activityName, ok := activityByNodeType[node.Type]
 			if !ok {

@@ -132,6 +132,7 @@ func (apiServer *API) ListNodeTypes(
 	startDescription := "Workflow entry point"
 	noopDescription := "No-op activity used to smoke-test graph execution"
 	httpDescription := "Make an allowlisted outbound HTTP request"
+	delayDescription := "Pause the workflow with a durable Temporal timer"
 	return api.ListNodeTypes200JSONResponse{
 		NodeTypes: []api.NodeType{
 			{
@@ -184,6 +185,24 @@ func (apiServer *API) ListNodeTypes(
 						"body": map[string]interface{}{
 							"type":      "string",
 							"maxLength": 1048576,
+						},
+					},
+				},
+			},
+			{
+				Id:          temporal.DelayNodeType,
+				Name:        "Delay",
+				Description: &delayDescription,
+				Category:    &core,
+				ConfigSchema: map[string]interface{}{
+					"type":                 "object",
+					"required":             []string{"seconds"},
+					"additionalProperties": false,
+					"properties": map[string]interface{}{
+						"seconds": map[string]interface{}{
+							"type":    "number",
+							"minimum": 0,
+							"maximum": 604800,
 						},
 					},
 				},

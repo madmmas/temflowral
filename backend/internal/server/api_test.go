@@ -229,26 +229,41 @@ func TestListNodeTypes(t *testing.T) {
 	body := recorder.Body.String()
 	if !strings.Contains(body, `"id":"start"`) ||
 		!strings.Contains(body, `"id":"noop"`) ||
-		!strings.Contains(body, `"id":"http"`) {
-		t.Fatalf("body = %s, want start, noop, and http node types", body)
+		!strings.Contains(body, `"id":"http"`) ||
+		!strings.Contains(body, `"id":"delay"`) {
+		t.Fatalf("body = %s, want start, noop, http, and delay node types", body)
 	}
 
 	var registry api.NodeTypeList
 	if err := json.Unmarshal(recorder.Body.Bytes(), &registry); err != nil {
 		t.Fatalf("decode node type registry: %v", err)
 	}
+	byID := make(map[string]api.NodeType, len(registry.NodeTypes))
 	for _, nodeType := range registry.NodeTypes {
-		if nodeType.Id != temporal.HTTPNodeType {
-			continue
-		}
-		if nodeType.ConfigSchema["additionalProperties"] != false {
-			t.Errorf("HTTP config additionalProperties = %#v, want false", nodeType.ConfigSchema["additionalProperties"])
-		}
-		properties, ok := nodeType.ConfigSchema["properties"].(map[string]interface{})
-		if !ok || properties["method"] == nil || properties["url"] == nil {
-			t.Errorf("HTTP config properties = %#v, want method and url", nodeType.ConfigSchema["properties"])
-		}
-		return
+		byID[nodeType.Id] = nodeType
 	}
-	t.Fatal("HTTP node type not found")
+
+	httpType, ok := byID[temporal.HTTPNodeType]
+	if !ok {
+		t.Fatal("HTTP node type not found")
+	}
+	if httpType.ConfigSchema["additionalProperties"] != false {
+		t.Errorf("HTTP config additionalProperties = %#v, want false", httpType.ConfigSchema["additionalProperties"])
+	}
+	httpProps, ok := httpType.ConfigSchema["properties"].(map[string]interface{})
+	if !ok || httpProps["method"] == nil || httpProps["url"] == nil {
+		t.Errorf("HTTP config properties = %#v, want method and url", httpType.ConfigSchema["properties"])
+	}
+
+	delayType, ok := byID[temporal.DelayNodeType]
+	if !ok {
+		t.Fatal("delay node type not found")
+	}
+	if delayType.ConfigSchema["additionalProperties"] != false {
+		t.Errorf("delay config additionalProperties = %#v, want false", delayType.ConfigSchema["additionalProperties"])
+	}
+	delayProps, ok := delayType.ConfigSchema["properties"].(map[string]interface{})
+	if !ok || delayProps["seconds"] == nil {
+		t.Errorf("delay config properties = %#v, want seconds", delayType.ConfigSchema["properties"])
+	}
 }

@@ -80,6 +80,14 @@ type CreateGraphRequest struct {
 	Nodes []Node  `json:"nodes"`
 }
 
+// DelayNodeConfig defines model for DelayNodeConfig.
+type DelayNodeConfig struct {
+	// Seconds Delay duration in seconds (0 to 604800 = 7 days) before the workflow
+	// continues. Implemented with a durable Temporal timer, so the wait
+	// survives worker restarts.
+	Seconds float64 `json:"seconds"`
+}
+
 // Edge defines model for Edge.
 type Edge struct {
 	// Id Unique edge ID within the graph
@@ -140,7 +148,8 @@ type HttpNodeConfigMethod string
 // Node defines model for Node.
 type Node struct {
 	// Config Node-type-specific configuration. Validated against the node type's
-	// configSchema from GET /node-types. HTTP nodes use HttpNodeConfig.
+	// configSchema from GET /node-types. HTTP nodes use HttpNodeConfig;
+	// delay nodes use DelayNodeConfig.
 	Config *map[string]interface{} `json:"config,omitempty"`
 
 	// Id Unique node ID within the graph (client-assigned)
