@@ -230,8 +230,9 @@ func TestListNodeTypes(t *testing.T) {
 	if !strings.Contains(body, `"id":"start"`) ||
 		!strings.Contains(body, `"id":"noop"`) ||
 		!strings.Contains(body, `"id":"http"`) ||
-		!strings.Contains(body, `"id":"delay"`) {
-		t.Fatalf("body = %s, want start, noop, http, and delay node types", body)
+		!strings.Contains(body, `"id":"delay"`) ||
+		!strings.Contains(body, `"id":"condition"`) {
+		t.Fatalf("body = %s, want start, noop, http, delay, and condition node types", body)
 	}
 
 	var registry api.NodeTypeList
@@ -265,5 +266,14 @@ func TestListNodeTypes(t *testing.T) {
 	delayProps, ok := delayType.ConfigSchema["properties"].(map[string]interface{})
 	if !ok || delayProps["seconds"] == nil {
 		t.Errorf("delay config properties = %#v, want seconds", delayType.ConfigSchema["properties"])
+	}
+
+	conditionType, ok := byID[temporal.ConditionNodeType]
+	if !ok {
+		t.Fatal("condition node type not found")
+	}
+	conditionProps, ok := conditionType.ConfigSchema["properties"].(map[string]interface{})
+	if !ok || conditionProps["field"] == nil || conditionProps["equals"] == nil {
+		t.Errorf("condition config properties = %#v, want field and equals", conditionType.ConfigSchema["properties"])
 	}
 }

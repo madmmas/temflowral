@@ -73,6 +73,18 @@ func (e RunStatus) Valid() bool {
 	}
 }
 
+// ConditionNodeConfig defines model for ConditionNodeConfig.
+type ConditionNodeConfig struct {
+	// Equals Expected value compared with JSON equality against value[field].
+	// Missing fields do not match (the false branch is taken).
+	Equals interface{} `json:"equals"`
+
+	// Field Top-level key in the first active predecessor's value map. Nested
+	// paths and expression languages are intentionally unsupported to
+	// avoid template/injection risks.
+	Field string `json:"field"`
+}
+
 // CreateGraphRequest defines model for CreateGraphRequest.
 type CreateGraphRequest struct {
 	Edges []Edge  `json:"edges"`
@@ -96,7 +108,8 @@ type Edge struct {
 	// Source Source node ID
 	Source string `json:"source"`
 
-	// SourceHandle Source handle ID (for branching nodes)
+	// SourceHandle Source handle ID. For condition nodes this must be "true" or "false"
+	// to select which branch the edge belongs to.
 	SourceHandle *string `json:"sourceHandle,omitempty"`
 
 	// Target Target node ID
@@ -149,7 +162,7 @@ type HttpNodeConfigMethod string
 type Node struct {
 	// Config Node-type-specific configuration. Validated against the node type's
 	// configSchema from GET /node-types. HTTP nodes use HttpNodeConfig;
-	// delay nodes use DelayNodeConfig.
+	// delay nodes use DelayNodeConfig; condition nodes use ConditionNodeConfig.
 	Config *map[string]interface{} `json:"config,omitempty"`
 
 	// Id Unique node ID within the graph (client-assigned)

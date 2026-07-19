@@ -149,9 +149,9 @@ export interface components {
             position: components["schemas"]["Position"];
             /** @description Node-type-specific configuration. Validated against the node type's
              *     configSchema from GET /node-types. HTTP nodes use HttpNodeConfig;
-             *     delay nodes use DelayNodeConfig.
+             *     delay nodes use DelayNodeConfig; condition nodes use ConditionNodeConfig.
              *      */
-            config?: components["schemas"]["HttpNodeConfig"] | components["schemas"]["DelayNodeConfig"] | {
+            config?: components["schemas"]["HttpNodeConfig"] | components["schemas"]["DelayNodeConfig"] | components["schemas"]["ConditionNodeConfig"] | {
                 [key: string]: unknown;
             };
         };
@@ -167,7 +167,9 @@ export interface components {
             source: string;
             /** @description Target node ID */
             target: string;
-            /** @description Source handle ID (for branching nodes) */
+            /** @description Source handle ID. For condition nodes this must be "true" or "false"
+             *     to select which branch the edge belongs to.
+             *      */
             sourceHandle?: string;
             /** @description Target handle ID */
             targetHandle?: string;
@@ -263,6 +265,21 @@ export interface components {
              *
              */
             seconds: number;
+        };
+        /** @example {
+         *       "field": "status",
+         *       "equals": "ok"
+         *     } */
+        ConditionNodeConfig: {
+            /** @description Top-level key in the first active predecessor's value map. Nested
+             *     paths and expression languages are intentionally unsupported to
+             *     avoid template/injection risks.
+             *      */
+            field: string;
+            /** @description Expected value compared with JSON equality against value[field].
+             *     Missing fields do not match (the false branch is taken).
+             *      */
+            equals: unknown;
         };
         /**
          * @description Current lifecycle state of a workflow run

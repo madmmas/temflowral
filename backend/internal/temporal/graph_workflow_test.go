@@ -103,6 +103,150 @@ func TestGraphWorkflowRunsDelayNodeTimer(t *testing.T) {
 	}
 }
 
+func TestGraphWorkflowTakesTrueBranch(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+	environment.RegisterActivityWithOptions(NoopNodeActivity, activity.RegisterOptions{
+		Name: NoopNodeActivityName,
+	})
+
+	config := map[string]interface{}{"field": "status", "equals": "ok"}
+	trueHandle := ConditionTrueHandle
+	falseHandle := ConditionFalseHandle
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "cond-1", Type: ConditionNodeType, Config: &config},
+				{Id: "noop-true", Type: NoopNodeType},
+				{Id: "noop-false", Type: NoopNodeType},
+			},
+			Edges: []api.Edge{
+				{Id: "e0", Source: "start-1", Target: "cond-1"},
+				{Id: "e-true", Source: "cond-1", Target: "noop-true", SourceHandle: &trueHandle},
+				{Id: "e-false", Source: "cond-1", Target: "noop-false", SourceHandle: &falseHandle},
+			},
+		},
+		Input: map[string]interface{}{"status": "ok"},
+	})
+	if err := environment.GetWorkflowError(); err != nil {
+		t.Fatalf("workflow error = %v", err)
+	}
+
+	var result GraphWorkflowResult
+	if err := environment.GetWorkflowResult(&result); err != nil {
+		t.Fatalf("get workflow result: %v", err)
+	}
+	got := make([]string, 0, len(result.Nodes))
+	for _, node := range result.Nodes {
+		got = append(got, node.NodeID)
+	}
+	want := []string{"start-1", "cond-1", "noop-true"}
+	if !equalStrings(got, want) {
+		t.Fatalf("executed nodes = %v, want %v", got, want)
+	}
+	if got := result.Nodes[1].Value["branch"]; got != ConditionTrueHandle {
+		t.Errorf("branch = %#v, want %q", got, ConditionTrueHandle)
+	}
+}
+
+func TestGraphWorkflowTakesFalseBranch(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+	environment.RegisterActivityWithOptions(NoopNodeActivity, activity.RegisterOptions{
+		Name: NoopNodeActivityName,
+	})
+
+	config := map[string]interface{}{"field": "status", "equals": "ok"}
+	trueHandle := ConditionTrueHandle
+	falseHandle := ConditionFalseHandle
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "cond-1", Type: ConditionNodeType, Config: &config},
+				{Id: "noop-true", Type: NoopNodeType},
+				{Id: "noop-false", Type: NoopNodeType},
+			},
+			Edges: []api.Edge{
+				{Id: "e0", Source: "start-1", Target: "cond-1"},
+				{Id: "e-true", Source: "cond-1", Target: "noop-true", SourceHandle: &trueHandle},
+				{Id: "e-false", Source: "cond-1", Target: "noop-false", SourceHandle: &falseHandle},
+			},
+		},
+		Input: map[string]interface{}{"status": "fail"},
+	})
+	if err := environment.GetWorkflowError(); err != nil {
+		t.Fatalf("workflow error = %v", err)
+	}
+
+	var result GraphWorkflowResult
+	if err := environment.GetWorkflowResult(&result); err != nil {
+		t.Fatalf("get workflow result: %v", err)
+	}
+	got := make([]string, 0, len(result.Nodes))
+	for _, node := range result.Nodes {
+		got = append(got, node.NodeID)
+	}
+	want := []string{"start-1", "cond-1", "noop-false"}
+	if !equalStrings(got, want) {
+		t.Fatalf("executed nodes = %v, want %v", got, want)
+	}
+}
+
+func TestGraphWorkflowJoinAfterTakenBranch(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+	environment.RegisterActivityWithOptions(NoopNodeActivity, activity.RegisterOptions{
+		Name: NoopNodeActivityName,
+	})
+
+	config := map[string]interface{}{"field": "status", "equals": "ok"}
+	trueHandle := ConditionTrueHandle
+	falseHandle := ConditionFalseHandle
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "cond-1", Type: ConditionNodeType, Config: &config},
+				{Id: "noop-true", Type: NoopNodeType},
+				{Id: "noop-false", Type: NoopNodeType},
+				{Id: "join", Type: NoopNodeType},
+			},
+			Edges: []api.Edge{
+				{Id: "e0", Source: "start-1", Target: "cond-1"},
+				{Id: "e-true", Source: "cond-1", Target: "noop-true", SourceHandle: &trueHandle},
+				{Id: "e-false", Source: "cond-1", Target: "noop-false", SourceHandle: &falseHandle},
+				{Id: "e-join-t", Source: "noop-true", Target: "join"},
+				{Id: "e-join-f", Source: "noop-false", Target: "join"},
+			},
+		},
+		Input: map[string]interface{}{"status": "ok"},
+	})
+	if err := environment.GetWorkflowError(); err != nil {
+		t.Fatalf("workflow error = %v", err)
+	}
+
+	var result GraphWorkflowResult
+	if err := environment.GetWorkflowResult(&result); err != nil {
+		t.Fatalf("get workflow result: %v", err)
+	}
+	got := make([]string, 0, len(result.Nodes))
+	for _, node := range result.Nodes {
+		got = append(got, node.NodeID)
+	}
+	want := []string{"start-1", "cond-1", "noop-true", "join"}
+	if !equalStrings(got, want) {
+		t.Fatalf("executed nodes = %v, want %v", got, want)
+	}
+}
+
 func TestGraphWorkflowDispatchesHTTPNode(t *testing.T) {
 	t.Parallel()
 

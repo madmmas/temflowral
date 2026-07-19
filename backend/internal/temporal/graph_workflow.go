@@ -47,19 +47,27 @@ type GraphWorkflowResult struct {
 }
 
 // GraphWorkflow walks a validated graph in topological order and dispatches
-// one activity per executable node type.
+// one activity per executable node type. Condition nodes select a true/false
+// branch via Edge.sourceHandle; nodes on the untaken path are skipped.
 func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflowResult, error) {
 	plan, err := BuildExecutionPlan(input.Graph)
 	if err != nil {
 		return GraphWorkflowResult{}, err
 	}
 
-	incoming := make(map[string][]string, len(input.Graph.Nodes))
+	nodesByID := make(map[string]api.Node, len(input.Graph.Nodes))
+	for _, node := range input.Graph.Nodes {
+		nodesByID[node.Id] = node
+	}
+
+	incomingEdges := make(map[string][]api.Edge, len(input.Graph.Nodes))
 	for _, edge := range input.Graph.Edges {
-		incoming[edge.Target] = append(incoming[edge.Target], edge.Source)
+		incomingEdges[edge.Target] = append(incomingEdges[edge.Target], edge)
 	}
 
 	resultsByID := make(map[string]NodeResult, len(plan))
+	executed := make(map[string]struct{}, len(plan))
+	branchTaken := make(map[string]string)
 	orderedResults := make([]NodeResult, 0, len(plan))
 
 	activityCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
@@ -70,10 +78,10 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 	})
 
 	for _, node := range plan {
-		predecessorIDs := incoming[node.Id]
-		inputs := make([]NodeResult, 0, len(predecessorIDs))
-		for _, predecessorID := range predecessorIDs {
-			inputs = append(inputs, resultsByID[predecessorID])
+		inputs := activeInputs(node, incomingEdges, nodesByID, executed, branchTaken, resultsByID)
+		if node.Type != StartNodeType && len(inputs) == 0 {
+			// Not reachable via any taken edge (untaken condition branch).
+			continue
 		}
 
 		var result NodeResult
@@ -101,6 +109,23 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 					"seconds": config.Seconds,
 				},
 			}
+		case ConditionNodeType:
+			config, err := parseConditionNodeConfig(node)
+			if err != nil {
+				return GraphWorkflowResult{}, err
+			}
+			matched := evaluateCondition(config, inputs)
+			handle := conditionHandle(matched)
+			branchTaken[node.Id] = handle
+			result = NodeResult{
+				NodeID: node.Id,
+				Value: map[string]interface{}{
+					"type":    ConditionNodeType,
+					"field":   config.Field,
+					"matched": matched,
+					"branch":  handle,
+				},
+			}
 		default:
 			activityName, ok := activityByNodeType[node.Type]
 			if !ok {
@@ -119,11 +144,43 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 			}
 		}
 
+		executed[node.Id] = struct{}{}
 		resultsByID[node.Id] = result
 		orderedResults = append(orderedResults, result)
 	}
 
 	return GraphWorkflowResult{Nodes: orderedResults}, nil
+}
+
+// activeInputs returns predecessor results that reach this node on the taken
+// path. Edges leaving a condition node are filtered by the chosen handle.
+func activeInputs(
+	node api.Node,
+	incomingEdges map[string][]api.Edge,
+	nodesByID map[string]api.Node,
+	executed map[string]struct{},
+	branchTaken map[string]string,
+	resultsByID map[string]NodeResult,
+) []NodeResult {
+	edges := incomingEdges[node.Id]
+	inputs := make([]NodeResult, 0, len(edges))
+	for _, edge := range edges {
+		if _, ok := executed[edge.Source]; !ok {
+			continue
+		}
+		source := nodesByID[edge.Source]
+		if source.Type == ConditionNodeType {
+			taken, ok := branchTaken[edge.Source]
+			if !ok {
+				continue
+			}
+			if edge.SourceHandle == nil || *edge.SourceHandle != taken {
+				continue
+			}
+		}
+		inputs = append(inputs, resultsByID[edge.Source])
+	}
+	return inputs
 }
 
 // NoopNodeActivity returns a trivial success payload for smoke graph runs.

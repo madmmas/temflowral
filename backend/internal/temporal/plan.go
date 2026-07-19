@@ -15,11 +15,11 @@ const (
 )
 
 // isExecutableNodeType reports whether the graph translator can run a node
-// type: the start entry node, workflow-handled control nodes (delay), or any
-// activity-backed node type.
+// type: the start entry node, workflow-handled control nodes (delay,
+// condition), or any activity-backed node type.
 func isExecutableNodeType(nodeType string) bool {
 	switch nodeType {
-	case StartNodeType, DelayNodeType:
+	case StartNodeType, DelayNodeType, ConditionNodeType:
 		return true
 	}
 	_, ok := activityByNodeType[nodeType]
@@ -82,6 +82,10 @@ func BuildExecutionPlan(graph api.Graph) ([]api.Node, error) {
 		indegree[edge.Target]++
 	}
 
+	if err := validateConditionBranches(nodesByID, graph.Edges); err != nil {
+		return nil, err
+	}
+
 	var startNodes []api.Node
 	for _, node := range graph.Nodes {
 		if node.Type == StartNodeType {
@@ -133,4 +137,47 @@ func BuildExecutionPlan(graph api.Graph) ([]api.Node, error) {
 	}
 
 	return order, nil
+}
+
+// validateConditionBranches requires every condition node to expose both true
+// and false outgoing edges via Edge.sourceHandle.
+func validateConditionBranches(nodesByID map[string]api.Node, edges []api.Edge) error {
+	outgoing := make(map[string][]api.Edge)
+	for _, edge := range edges {
+		outgoing[edge.Source] = append(outgoing[edge.Source], edge)
+	}
+
+	for _, node := range nodesByID {
+		if node.Type != ConditionNodeType {
+			continue
+		}
+		hasTrue := false
+		hasFalse := false
+		for _, edge := range outgoing[node.Id] {
+			if edge.SourceHandle == nil || !isConditionHandle(*edge.SourceHandle) {
+				return fmt.Errorf(
+					"condition node %q edge %q requires sourceHandle %q or %q",
+					node.Id,
+					edge.Id,
+					ConditionTrueHandle,
+					ConditionFalseHandle,
+				)
+			}
+			switch *edge.SourceHandle {
+			case ConditionTrueHandle:
+				hasTrue = true
+			case ConditionFalseHandle:
+				hasFalse = true
+			}
+		}
+		if !hasTrue || !hasFalse {
+			return fmt.Errorf(
+				"condition node %q requires at least one %q and one %q outgoing edge",
+				node.Id,
+				ConditionTrueHandle,
+				ConditionFalseHandle,
+			)
+		}
+	}
+	return nil
 }
