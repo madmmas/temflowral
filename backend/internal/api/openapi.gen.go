@@ -149,9 +149,11 @@ type HttpNodeConfig struct {
 	// Method HTTP method. Activity retries are disabled to avoid replaying side effects.
 	Method HttpNodeConfigMethod `json:"method"`
 
-	// Url Absolute HTTP(S) URL. The backend only permits hostnames explicitly
-	// configured in HTTP_ALLOWED_HOSTS and rejects private, loopback,
-	// link-local, multicast, and unspecified destination addresses.
+	// Url Absolute HTTP(S) URL. Destinations are denied by default: the worker
+	// only permits hostnames listed in HTTP_ALLOWED_HOSTS (exact hostnames,
+	// no schemes/ports/wildcards) and rejects private, loopback,
+	// link-local, multicast, and unspecified destination addresses. See
+	// SECURITY.md for timeouts, size limits, and redirect policy.
 	Url string `json:"url"`
 }
 
@@ -208,12 +210,16 @@ type Run struct {
 	// CompletedAt Set when status is terminal (completed, failed, cancelled)
 	CompletedAt *time.Time `json:"completedAt,omitempty"`
 
-	// Error Error message when status is failed
+	// Error Error message when status is failed or cancelled
 	Error   *string            `json:"error,omitempty"`
 	GraphId openapi_types.UUID `json:"graphId"`
 	Id      openapi_types.UUID `json:"id"`
 
-	// Result Workflow output when status is completed
+	// Result Workflow output when status is completed. Shape:
+	// `{ "nodes": [ { "nodeId": "<id>", "value": { ... } } ] }`.
+	// `value` is node-type-specific (start echoes the run input; http
+	// includes statusCode/body; delay includes seconds; condition
+	// includes matched/branch; noop echoes type/inputs).
 	Result    *map[string]interface{} `json:"result,omitempty"`
 	StartedAt time.Time               `json:"startedAt"`
 

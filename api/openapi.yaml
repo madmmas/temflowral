@@ -378,9 +378,11 @@ components:
           format: uri
           maxLength: 2048
           description: |
-            Absolute HTTP(S) URL. The backend only permits hostnames explicitly
-            configured in HTTP_ALLOWED_HOSTS and rejects private, loopback,
-            link-local, multicast, and unspecified destination addresses.
+            Absolute HTTP(S) URL. Destinations are denied by default: the worker
+            only permits hostnames listed in HTTP_ALLOWED_HOSTS (exact hostnames,
+            no schemes/ports/wildcards) and rejects private, loopback,
+            link-local, multicast, and unspecified destination addresses. See
+            SECURITY.md for timeouts, size limits, and redirect policy.
         headers:
           type: object
           maxProperties: 32
@@ -466,11 +468,27 @@ components:
           description: Set when status is terminal (completed, failed, cancelled)
         result:
           type: object
-          description: Workflow output when status is completed
+          description: |
+            Workflow output when status is completed. Shape:
+            `{ "nodes": [ { "nodeId": "<id>", "value": { ... } } ] }`.
+            `value` is node-type-specific (start echoes the run input; http
+            includes statusCode/body; delay includes seconds; condition
+            includes matched/branch; noop echoes type/inputs).
           additionalProperties: true
+          example:
+            nodes:
+              - nodeId: start-1
+                value: { message: hello }
+              - nodeId: noop-1
+                value:
+                  type: noop
+                  config: {}
+                  inputs:
+                    - nodeId: start-1
+                      value: { message: hello }
         error:
           type: string
-          description: Error message when status is failed
+          description: Error message when status is failed or cancelled
       example:
         id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
         graphId: 550e8400-e29b-41d4-a716-446655440000
@@ -508,7 +526,7 @@ components:
       example:
         id: http
         name: HTTP Request
-        description: Make an outbound HTTP request
+        description: Make an allowlisted outbound HTTP request
         category: integration
         configSchema:
           type: object
@@ -549,9 +567,16 @@ components:
             configSchema:
               type: object
               additionalProperties: false
+          - id: noop
+            name: No-op
+            description: No-op activity used to smoke-test graph execution
+            category: core
+            configSchema:
+              type: object
+              additionalProperties: true
           - id: http
             name: HTTP Request
-            description: Make an outbound HTTP request
+            description: Make an allowlisted outbound HTTP request
             category: integration
             configSchema:
               type: object
@@ -574,3 +599,30 @@ components:
                 body:
                   type: string
                   maxLength: 1048576
+          - id: delay
+            name: Delay
+            description: Pause the workflow with a durable Temporal timer
+            category: core
+            configSchema:
+              type: object
+              required: [seconds]
+              additionalProperties: false
+              properties:
+                seconds:
+                  type: number
+                  minimum: 0
+                  maximum: 604800
+          - id: condition
+            name: Condition
+            description: Branch on a predecessor field (true/false source handles)
+            category: core
+            configSchema:
+              type: object
+              required: [field, equals]
+              additionalProperties: false
+              properties:
+                field:
+                  type: string
+                  minLength: 1
+                  maxLength: 256
+                equals: {}
