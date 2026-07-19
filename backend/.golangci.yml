@@ -1,11 +1,21 @@
 version: "2"
 
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
 linters:
   enable:
+    # Extra checks beyond golangci-lint's standard set.
+    - bodyclose
+    - durationcheck
     - errcheck
     - govet
-    - staticcheck
     - misspell
+    - nilerr
+    - noctx
+    - staticcheck
     - unconvert
     - unused
   exclusions:
@@ -13,6 +23,12 @@ linters:
       - path: _test\.go
         linters:
           - errcheck
+          - noctx
+
+issues:
+  # CI must report the full result rather than silently truncating findings.
+  max-issues-per-linter: 0
+  max-same-issues: 0
 
 formatters:
   enable:

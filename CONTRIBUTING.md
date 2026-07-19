@@ -7,6 +7,27 @@
 7. Commit message format (conventional commits)
 8. Where to ask questions (Discussions tab)
 
+## Linting
+
+Run both backend and frontend linters from the repository root:
+
+```sh
+make lint
+```
+
+The backend runner prefers an installed golangci-lint v2.12.2 and otherwise
+uses `go run` at that pinned version, so no separate linter installation is
+required. The pre-commit hook delegates to the same runner, and CI uses the
+same version.
+
+Backend rules live in `backend/.golangci.yml`. Validate configuration changes
+before opening a PR:
+
+```sh
+go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 \
+  config verify -c backend/.golangci.yml
+```
+
 ## Run the contract-backed mock API
 
 The frontend and Playwright tracks can develop against a local mock before the

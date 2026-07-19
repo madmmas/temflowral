@@ -136,6 +136,7 @@ jobs:
         uses: golangci/golangci-lint-action@v8
         with:
           working-directory: backend
+          # Keep aligned with scripts/run-golangci-lint.sh.
           version: v2.12.2
 
   # ─── frontend-test ───────────────────────────────────────────
