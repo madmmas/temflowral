@@ -56,11 +56,11 @@ temporal-smoke:
 run-backend:
 	cd backend && go run cmd/server/main.go
 
-# Run E2E tests (stack must be running)
+# Run E2E tests (Playwright starts Prism + Next.js by default)
 e2e:
-	cd frontend && npx playwright test
+	cd frontend && npm run e2e
 
 # Clean build artifacts
 clean:
 	rm -f backend/coverage.out
-	rm -rf frontend/.next frontend/test-results
+	rm -rf frontend/.next frontend/test-results frontend/playwright-report frontend/blob-report

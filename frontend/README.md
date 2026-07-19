@@ -28,6 +28,9 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run lint` | ESLint |
 | `npm test` | Vitest (add `-- --run` for CI/Makefile) |
 | `npm run generate` | Regenerate typed OpenAPI client from `../api/openapi.yaml` |
+| `npm run e2e:install` | Install Playwright's Chromium browser once |
+| `npm run e2e` | Run Playwright; automatically starts Prism + Next.js |
+| `npm run e2e:ui` | Open Playwright's interactive test UI |
 
 Point `NEXT_PUBLIC_API_BASE_URL` at the Prism mock (`http://127.0.0.1:4010`)
 or the local backend (`http://127.0.0.1:8080`). See the repo
@@ -47,3 +50,25 @@ const { data, error } = await api.GET("/node-types");
 
 From the repo root, `make generate` refreshes both the Go server interfaces and
 this TypeScript client.
+
+## Playwright
+
+Install Chromium once, then run the isolated UI tests:
+
+```bash
+npm run e2e:install
+npm run e2e
+```
+
+Playwright starts the pinned Prism mock on `http://127.0.0.1:4010` and Next.js
+on `http://127.0.0.1:3000`, with the frontend pointed at Prism. Override either
+server when needed:
+
+```bash
+API_BASE_URL=http://127.0.0.1:8080 \
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 \
+npm run e2e
+```
+
+When an override is set, Playwright assumes that server is already running.
+Real-backend runs are opt-in; the default remains contract-backed Prism.

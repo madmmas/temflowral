@@ -18,7 +18,10 @@ export function NodePalette({ onAddNodeType }: NodePaletteProps) {
   const { nodeTypes, loading, error } = useNodeTypes();
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col gap-3 overflow-y-auto border-r border-black/10 bg-black/[0.02] p-3 dark:border-white/15 dark:bg-white/[0.03]">
+    <aside
+      data-testid="node-palette"
+      className="flex w-56 shrink-0 flex-col gap-3 overflow-y-auto border-r border-black/10 bg-black/[0.02] p-3 dark:border-white/15 dark:bg-white/[0.03]"
+    >
       <h2 className="text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">
         Nodes
       </h2>
@@ -45,6 +48,7 @@ export function NodePalette({ onAddNodeType }: NodePaletteProps) {
           {types.map((nodeType) => (
             <button
               key={nodeType.id}
+              data-testid={`node-type-${nodeType.id}`}
               type="button"
               draggable
               onDragStart={(event) => {
