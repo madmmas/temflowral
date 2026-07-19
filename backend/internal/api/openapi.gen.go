@@ -19,6 +19,33 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for HttpNodeConfigMethod.
+const (
+	DELETE HttpNodeConfigMethod = "DELETE"
+	GET    HttpNodeConfigMethod = "GET"
+	PATCH  HttpNodeConfigMethod = "PATCH"
+	POST   HttpNodeConfigMethod = "POST"
+	PUT    HttpNodeConfigMethod = "PUT"
+)
+
+// Valid indicates whether the value is a known member of the HttpNodeConfigMethod enum.
+func (e HttpNodeConfigMethod) Valid() bool {
+	switch e {
+	case DELETE:
+		return true
+	case GET:
+		return true
+	case PATCH:
+		return true
+	case POST:
+		return true
+	case PUT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RunStatus.
 const (
 	Cancelled RunStatus = "cancelled"
@@ -90,10 +117,30 @@ type Graph struct {
 	UpdatedAt time.Time          `json:"updatedAt"`
 }
 
+// HttpNodeConfig defines model for HttpNodeConfig.
+type HttpNodeConfig struct {
+	// Body Optional request body, limited to 1 MiB. Template interpolation is not supported.
+	Body *string `json:"body,omitempty"`
+
+	// Headers Optional request headers. Hop-by-hop and transport-controlled headers are rejected.
+	Headers *map[string]string `json:"headers,omitempty"`
+
+	// Method HTTP method. Activity retries are disabled to avoid replaying side effects.
+	Method HttpNodeConfigMethod `json:"method"`
+
+	// Url Absolute HTTP(S) URL. The backend only permits hostnames explicitly
+	// configured in HTTP_ALLOWED_HOSTS and rejects private, loopback,
+	// link-local, multicast, and unspecified destination addresses.
+	Url string `json:"url"`
+}
+
+// HttpNodeConfigMethod HTTP method. Activity retries are disabled to avoid replaying side effects.
+type HttpNodeConfigMethod string
+
 // Node defines model for Node.
 type Node struct {
 	// Config Node-type-specific configuration. Validated against the node type's
-	// configSchema from GET /node-types.
+	// configSchema from GET /node-types. HTTP nodes use HttpNodeConfig.
 	Config *map[string]interface{} `json:"config,omitempty"`
 
 	// Id Unique node ID within the graph (client-assigned)

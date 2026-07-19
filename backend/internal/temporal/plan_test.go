@@ -56,6 +56,30 @@ func TestBuildExecutionPlanPreservesEdgeOrderForFanOut(t *testing.T) {
 	}
 }
 
+func TestBuildExecutionPlanAcceptsValidHTTPNode(t *testing.T) {
+	t.Parallel()
+
+	config := map[string]interface{}{
+		"method": "GET",
+		"url":    "https://api.example.com/items",
+	}
+	graph := api.Graph{
+		Nodes: []api.Node{
+			{Id: "start-1", Type: StartNodeType},
+			{Id: "http-1", Type: HTTPNodeType, Config: &config},
+		},
+		Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "http-1"}},
+	}
+
+	plan, err := BuildExecutionPlan(graph)
+	if err != nil {
+		t.Fatalf("BuildExecutionPlan() error = %v", err)
+	}
+	if got, want := nodeIDs(plan), []string{"start-1", "http-1"}; !equalStrings(got, want) {
+		t.Fatalf("plan = %v, want %v", got, want)
+	}
+}
+
 func TestBuildExecutionPlanRejectsInvalidGraphs(t *testing.T) {
 	t.Parallel()
 
@@ -74,9 +98,9 @@ func TestBuildExecutionPlanRejectsInvalidGraphs(t *testing.T) {
 			graph: api.Graph{
 				Nodes: []api.Node{
 					{Id: "start-1", Type: StartNodeType},
-					{Id: "http-1", Type: "http"},
+					{Id: "unknown-1", Type: "unknown"},
 				},
-				Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "http-1"}},
+				Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "unknown-1"}},
 			},
 		},
 		{

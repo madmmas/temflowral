@@ -37,6 +37,9 @@ func BuildExecutionPlan(graph api.Graph) ([]api.Node, error) {
 				return nil, fmt.Errorf("unsupported node type %q on node %q", node.Type, node.Id)
 			}
 		}
+		if err := ValidateNodeConfig(node); err != nil {
+			return nil, err
+		}
 		nodesByID[node.Id] = node
 	}
 

@@ -1,6 +1,7 @@
 package temporal
 
 import (
+	"context"
 	"testing"
 
 	"go.temporal.io/sdk/activity"
@@ -54,5 +55,46 @@ func TestGraphWorkflowExecutesNoopNodes(t *testing.T) {
 	}
 	if result.Nodes[1].NodeID != "noop-1" {
 		t.Errorf("second node = %q, want noop-1", result.Nodes[1].NodeID)
+	}
+}
+
+func TestGraphWorkflowDispatchesHTTPNode(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+	environment.RegisterActivityWithOptions(
+		func(_ context.Context, input NodeActivityInput) (NodeResult, error) {
+			return NodeResult{
+				NodeID: input.Node.Id,
+				Value:  map[string]interface{}{"statusCode": 200, "body": "ok"},
+			}, nil
+		},
+		activity.RegisterOptions{Name: HTTPNodeActivityName},
+	)
+
+	config := map[string]interface{}{"method": "GET", "url": "https://api.example.com"}
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "http-1", Type: HTTPNodeType, Config: &config},
+			},
+			Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "http-1"}},
+		},
+	})
+	if err := environment.GetWorkflowError(); err != nil {
+		t.Fatalf("workflow error = %v", err)
+	}
+
+	var result GraphWorkflowResult
+	if err := environment.GetWorkflowResult(&result); err != nil {
+		t.Fatalf("get workflow result: %v", err)
+	}
+	if len(result.Nodes) != 2 || result.Nodes[1].NodeID != "http-1" {
+		t.Fatalf("result nodes = %#v, want HTTP node result", result.Nodes)
+	}
+	if got := result.Nodes[1].Value["statusCode"]; got != float64(200) {
+		t.Errorf("statusCode = %#v, want 200", got)
 	}
 }

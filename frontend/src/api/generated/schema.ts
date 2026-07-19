@@ -148,9 +148,9 @@ export interface components {
             label?: string;
             position: components["schemas"]["Position"];
             /** @description Node-type-specific configuration. Validated against the node type's
-             *     configSchema from GET /node-types.
+             *     configSchema from GET /node-types. HTTP nodes use HttpNodeConfig.
              *      */
-            config?: {
+            config?: components["schemas"]["HttpNodeConfig"] | {
                 [key: string]: unknown;
             };
         };
@@ -225,6 +225,31 @@ export interface components {
             nodes: components["schemas"]["Node"][];
             edges: components["schemas"]["Edge"][];
         };
+        /** @example {
+         *       "method": "GET",
+         *       "url": "https://httpbin.org/get"
+         *     } */
+        HttpNodeConfig: {
+            /**
+             * @description HTTP method. Activity retries are disabled to avoid replaying side effects.
+             * @enum {string}
+             */
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+            /**
+             * Format: uri
+             * @description Absolute HTTP(S) URL. The backend only permits hostnames explicitly
+             *     configured in HTTP_ALLOWED_HOSTS and rejects private, loopback,
+             *     link-local, multicast, and unspecified destination addresses.
+             *
+             */
+            url: string;
+            /** @description Optional request headers. Hop-by-hop and transport-controlled headers are rejected. */
+            headers?: {
+                [key: string]: string;
+            };
+            /** @description Optional request body, limited to 1 MiB. Template interpolation is not supported. */
+            body?: string;
+        };
         /**
          * @description Current lifecycle state of a workflow run
          * @enum {string}
@@ -273,6 +298,7 @@ export interface components {
          *           "method",
          *           "url"
          *         ],
+         *         "additionalProperties": false,
          *         "properties": {
          *           "method": {
          *             "type": "string",
@@ -286,16 +312,20 @@ export interface components {
          *           },
          *           "url": {
          *             "type": "string",
-         *             "format": "uri"
+         *             "format": "uri",
+         *             "maxLength": 2048
          *           },
          *           "headers": {
          *             "type": "object",
+         *             "maxProperties": 32,
          *             "additionalProperties": {
-         *               "type": "string"
+         *               "type": "string",
+         *               "maxLength": 8192
          *             }
          *           },
          *           "body": {
-         *             "type": "string"
+         *             "type": "string",
+         *             "maxLength": 1048576
          *           }
          *         }
          *       }
@@ -336,6 +366,7 @@ export interface components {
          *               "method",
          *               "url"
          *             ],
+         *             "additionalProperties": false,
          *             "properties": {
          *               "method": {
          *                 "type": "string",
@@ -349,7 +380,20 @@ export interface components {
          *               },
          *               "url": {
          *                 "type": "string",
-         *                 "format": "uri"
+         *                 "format": "uri",
+         *                 "maxLength": 2048
+         *               },
+         *               "headers": {
+         *                 "type": "object",
+         *                 "maxProperties": 32,
+         *                 "additionalProperties": {
+         *                   "type": "string",
+         *                   "maxLength": 8192
+         *                 }
+         *               },
+         *               "body": {
+         *                 "type": "string",
+         *                 "maxLength": 1048576
          *               }
          *             }
          *           }

@@ -75,6 +75,17 @@ needed:
 - `TEMPORAL_ADDRESS` (default `localhost:7233`)
 - `TEMPORAL_NAMESPACE` (default `default`)
 - `TEMPORAL_TASK_QUEUE` (default `temflowral`)
+- `HTTP_ALLOWED_HOSTS` (default empty/deny all; comma-separated exact
+  hostnames permitted for HTTP activity nodes)
+
+For example, allow the contract's HTTP-node example while developing:
+
+```sh
+HTTP_ALLOWED_HOSTS=httpbin.org make run-backend
+```
+
+Schemes, ports, wildcards, localhost, and private IPs are not valid allowlist
+entries. See `SECURITY.md` for the full outbound-request policy.
 
 To prove the client and worker path end to end, run the registered smoke
 workflow from a third terminal. This uses the CLI already inside the dev

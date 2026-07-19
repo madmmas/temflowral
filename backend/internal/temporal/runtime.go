@@ -36,6 +36,11 @@ type WorkflowStatus struct {
 // Start connects to Temporal, registers workflows and activities, and starts
 // polling the configured task queue.
 func Start(config Config) (*Runtime, error) {
+	httpNodeActivity, err := NewHTTPNodeActivity(config.HTTPAllowedHosts)
+	if err != nil {
+		return nil, fmt.Errorf("configure HTTP node activity: %w", err)
+	}
+
 	temporalClient, err := client.Dial(client.Options{
 		HostPort:  config.Address,
 		Namespace: config.Namespace,
@@ -56,6 +61,9 @@ func Start(config Config) (*Runtime, error) {
 	})
 	temporalWorker.RegisterActivityWithOptions(NoopNodeActivity, activity.RegisterOptions{
 		Name: NoopNodeActivityName,
+	})
+	temporalWorker.RegisterActivityWithOptions(httpNodeActivity.Execute, activity.RegisterOptions{
+		Name: HTTPNodeActivityName,
 	})
 
 	if err := temporalWorker.Start(); err != nil {

@@ -5,6 +5,46 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Allowlisted HTTP activity node (#21)
+
+**Did:**
+- Defined `HttpNodeConfig` contract-first in `api/openapi.yaml`, referenced it
+  from generic `Node.config`, tightened the registry JSON Schema, and
+  regenerated Go/TypeScript models.
+- Added HTTP-node config validation at graph creation and execution-plan build,
+  registered the activity with Temporal, and returned bounded status/body/
+  content-type results for successful 2xx responses.
+- Added a deny-by-default `HTTP_ALLOWED_HOSTS` policy with exact hostname
+  matching, dial-time DNS/IP validation, private/loopback/link-local blocking,
+  redirect revalidation, disabled environment proxies, 20-second requests,
+  1 MiB request/response limits, 64 KiB response headers, and restricted
+  request headers.
+- Expanded planner, workflow dispatch, API registry/config, activity, SSRF,
+  payload-bound, and error-redaction tests; documented operator setup and the
+  security boundary.
+
+**Decided / learned:**
+- Template interpolation is deliberately absent. If added later, the fully
+  rendered request must pass the same URL/header policy before execution.
+- Temporal activity retries are disabled (`MaximumAttempts: 1`) so POST/PATCH
+  requests are not silently replayed.
+- Destination errors do not include the underlying `net/http` message because
+  it can contain sensitive URL query parameters.
+- An empty allowlist keeps the node registered/discoverable but denies all
+  outbound requests until an operator explicitly permits hosts.
+
+**Verified:**
+- Redocly OpenAPI lint clean; generated clients reproducible.
+- `go vet ./...` and `go test -race ./...` pass.
+- Contract conformance 6/6, frontend ESLint, Vitest 15/15, and production build
+  pass after regeneration.
+
+**Next:**
+- #22 delay/wait node. Exercise HTTP against a real allowlisted service
+  manually before merge if desired.
+
+---
+
 ## 2026-07-19 — Graph run E2E happy path (#20)
 
 **Did:**
