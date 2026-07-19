@@ -5,6 +5,33 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Playwright scaffold against Prism (#18)
+
+**Did:**
+- Added Playwright 1.61 with a Chromium project and an isolated smoke spec for
+  the graph editor/node palette.
+- Configured Playwright to start pinned Prism and Next.js automatically,
+  wiring `NEXT_PUBLIC_API_BASE_URL` to the mock. `API_BASE_URL` and
+  `PLAYWRIGHT_BASE_URL` opt into pre-existing/real services.
+- Added stable `data-testid` hooks for canvas interactions, test output
+  ignores, npm/Makefile scripts, and frontend documentation.
+
+**Decided / learned:**
+- Prism remains a pinned `npx` command instead of a dev dependency, avoiding
+  roughly 185 transitive packages and their extra advisories.
+- The CI E2E job remains disabled as planned; this scaffold runs locally and
+  is ready for the dedicated testing track to extend/enable later.
+- Build and E2E checks must run sequentially because `next build` and
+  `next dev` share `.next`; concurrent execution corrupts build manifests.
+
+**Verified:**
+- Vitest 15/15, ESLint, production build, and Playwright Chromium 1/1 pass.
+
+**Next:**
+- #19 contract conformance checks; #20 full graph → run UI happy path.
+
+---
+
 ## 2026-07-19 — Save and run graphs from the canvas (#17)
 
 **Did:**

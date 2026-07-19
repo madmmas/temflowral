@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
-    "generate": "openapi-typescript ../api/openapi.yaml -o src/api/generated/schema.ts"
+    "generate": "openapi-typescript ../api/openapi.yaml -o src/api/generated/schema.ts",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:install": "playwright install chromium",
+    "mock:api": "npx --yes @stoplight/prism-cli@5.14.2 mock ../api/openapi.yaml"
   },
   "dependencies": {
     "@xyflow/react": "12.8.6",
@@ -19,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
