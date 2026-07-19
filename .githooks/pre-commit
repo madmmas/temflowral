@@ -39,9 +39,11 @@ if conflict_hits="$(
 fi
 
 # --- Obvious secrets / credential filenames ---
+# Allow `.env.example` templates; block real env/credential files.
 secret_name_hits="$(
   grep -E -i '(^|/)\.env($|\.|/)|(^|/)id_rsa$|(^|/)id_ed25519$|\.pem$|credentials\.json$|service.?account.*\.json$' \
-    "${staged_file}" || true
+    "${staged_file}" |
+    grep -E -iv '(^|/)\.env\.example$' || true
 )"
 if [[ -n "${secret_name_hits}" ]]; then
   echo "pre-commit: refusing to commit likely secret / credential paths:" >&2

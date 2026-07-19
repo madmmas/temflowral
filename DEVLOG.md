@@ -5,6 +5,31 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Next.js frontend bootstrap (#13)
+
+**Did:**
+- Scaffolded `frontend/` with Next.js 15 App Router, TypeScript, Tailwind,
+  ESLint, and `src/` layout via `create-next-app`.
+- Added Vitest plus a small smoke test for `NEXT_PUBLIC_API_BASE_URL` defaults
+  (Prism on `:4010`), matching Makefile/CI `npm test` expectations.
+- Replaced the create-next-app marketing page with a minimal temflowral shell
+  and documented local scripts in `frontend/README.md` / `.env.example`.
+
+**Decided / learned:**
+- Stay on Next.js `15.5.9` (patched for CVE-2025-66478). Next 16 breaks the
+  FlatCompat ESLint config shipped by create-next-app; revisit when ready to
+  adopt Next 16's native flat config.
+- Vitest is pinned at `3.2.6+` for the UI-server advisory fix.
+- Pre-commit now allowlists `.env.example` (it previously matched the
+  secret-filename regex and blocked the frontend env template).
+- Frontend work lives on `feat/13-frontend-bootstrap` so it can land in
+  parallel with backend codegen (#10).
+
+**Next:**
+- #14 generate a typed API client from `api/openapi.yaml`.
+
+---
+
 ## 2026-07-19 — OpenAPI validation in CI (#9)
 
 **Did:**
