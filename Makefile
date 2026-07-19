@@ -1,4 +1,4 @@
-.PHONY: generate test test-contract lint run build clean hooks temporal-dev temporal-down temporal-smoke
+.PHONY: generate test test-contract lint lint-backend lint-frontend run build clean hooks temporal-dev temporal-down temporal-smoke
 
 # Temporal dev-server service name in docker-compose.yml.
 TEMPORAL_SERVICE ?= temporal
@@ -25,9 +25,14 @@ test-coverage:
 	cd backend && go test -race -coverprofile=coverage.out ./...
 	cd backend && go tool cover -html=coverage.out
 
-# Run linter
-lint:
-	cd backend && golangci-lint run
+# Run all linters
+lint: lint-backend lint-frontend
+
+# Use the CI-pinned golangci-lint version; no separate install required.
+lint-backend:
+	./scripts/run-golangci-lint.sh
+
+lint-frontend:
 	cd frontend && npm run lint
 
 # Start full stack locally (requires Docker)

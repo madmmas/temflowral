@@ -5,6 +5,40 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Reproducible golangci-lint config (#24)
+
+**Did:**
+- Strengthened `backend/.golangci.yml` with explicit test/module/timeout
+  behavior, full issue reporting, and HTTP/Temporal-relevant checks
+  (`bodyclose`, `noctx`, `durationcheck`, and `nilerr`) in addition to the
+  existing static analysis and formatting rules.
+- Added `scripts/run-golangci-lint.sh`, pinned to the same v2.12.2 used in CI.
+  It prefers a matching installed binary and falls back to `go run`, so
+  `make lint` works without a separate golangci-lint installation.
+- Split `make lint` into backend/frontend targets and made the pre-commit hook
+  delegate to the shared runner instead of maintaining duplicate execution
+  logic.
+- Documented local linting/config verification and marked the CI pin that must
+  remain aligned with the runner.
+
+**Decided / learned:**
+- `noctx` remains enforced for production code but is excluded for `_test.go`;
+  `httptest.NewRequest` intentionally creates synthetic requests and the rule
+  produced only test-helper noise there.
+- Module downloads are readonly during lint, preventing a lint run from
+  modifying `go.mod`/`go.sum`.
+
+**Verified:**
+- Pinned `golangci-lint config verify` passes.
+- `make lint` passes backend (0 issues) and frontend ESLint.
+- `make test` passes Go race tests and frontend Vitest.
+- Shell syntax checks pass for the shared runner and hook helper.
+
+**Next:**
+- #25 full docker-compose development stack.
+
+---
+
 ## 2026-07-19 — Conditional/branch node (#23)
 
 **Did:**
