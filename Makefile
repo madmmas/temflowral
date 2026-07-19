@@ -1,4 +1,4 @@
-.PHONY: generate test lint run build clean hooks temporal-dev temporal-down temporal-smoke
+.PHONY: generate test test-contract lint run build clean hooks temporal-dev temporal-down temporal-smoke
 
 # Temporal dev-server service name in docker-compose.yml.
 TEMPORAL_SERVICE ?= temporal
@@ -59,6 +59,12 @@ run-backend:
 # Run E2E tests (Playwright starts Prism + Next.js by default)
 e2e:
 	cd frontend && npm run e2e
+
+# Run contract conformance (validate responses vs api/openapi.yaml).
+# Defaults to the Prism mock; set API_BASE_URL=http://localhost:8080 for the
+# live backend.
+test-contract:
+	cd frontend && npm run test:contract
 
 # Clean build artifacts
 clean:

@@ -12,6 +12,7 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "e2e:install": "playwright install chromium",
+    "test:contract": "playwright test --config playwright.contract.config.ts",
     "mock:api": "npx --yes @stoplight/prism-cli@5.14.2 mock ../api/openapi.yaml"
   },
   "dependencies": {
@@ -25,11 +26,15 @@
     "@eslint/eslintrc": "^3",
     "@playwright/test": "1.61.1",
     "@tailwindcss/postcss": "^4",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "eslint": "^9",
     "eslint-config-next": "15.5.9",
+    "js-yaml": "^4.3.0",
     "openapi-typescript": "7.8.0",
     "tailwindcss": "^4",
     "typescript": "^5",
