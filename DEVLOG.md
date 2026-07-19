@@ -5,6 +5,39 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Contract conformance checks (#19)
+
+**Did:**
+- Added a contract conformance suite (`frontend/contract/`) that validates API
+  responses against the exact `api/openapi.yaml` component schemas using AJV
+  (+ ajv-formats), deriving validators straight from the spec so there is no
+  hand-written schema to drift.
+- Covered the success paths for `/node-types`, `POST /graphs`, `GET /graphs/{id}`,
+  `POST /graphs/{id}/run`, and `GET /runs/{id}`, plus a guard test proving the
+  validator rejects a non-conforming payload (so it can't degrade into a no-op).
+- Gave it a dedicated `playwright.contract.config.ts` (HTTP-only, no browser,
+  Prism by default), `npm run test:contract`, a `make test-contract` target,
+  and a `contract-conformance` CI job gated on api/frontend changes.
+
+**Decided / learned:**
+- Kept conformance in its own config/dir, separate from the UI e2e specs, per
+  the testing conventions — it talks HTTP only and never launches Next.js.
+- Default target is the Prism mock (keeps it parallel-friendly and validates
+  the spec's own examples/schemas + the harness); real-backend drift detection
+  is opt-in via `API_BASE_URL=http://localhost:8080`.
+- Registered the spec's `components.schemas` under a single AJV root id so
+  intra-spec `$ref`s resolve without pre-dereferencing; `strict:false` lets
+  OpenAPI-only keywords and the `double` format pass through.
+
+**Verified:**
+- ESLint clean, Vitest 15/15, and `npm run test:contract` 6/6 pass against Prism.
+
+**Next:**
+- #20 full graph → run UI happy path; wire the conformance suite at `API_BASE_URL`
+  once the real backend endpoints land.
+
+---
+
 ## 2026-07-19 — Playwright scaffold against Prism (#18)
 
 **Did:**
