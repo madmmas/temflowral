@@ -1,3 +1,4 @@
+import type { components } from "@/api";
 import type { Edge, Node } from "@xyflow/react";
 
 /**
@@ -8,6 +9,7 @@ export type CanvasNodeData = {
   label: string;
   nodeType: string;
   category?: string;
+  config?: Record<string, unknown>;
 };
 
 export type CanvasNode = Node<CanvasNodeData>;
@@ -33,6 +35,7 @@ export type NewNodeInput = {
   nodeType: string;
   label?: string;
   category?: string;
+  config?: Record<string, unknown>;
 };
 
 /**
@@ -54,6 +57,56 @@ export function createNode(
       label: input.label ?? input.nodeType,
       nodeType: input.nodeType,
       category: input.category,
+      config: input.config ?? {},
     },
   };
+}
+
+export type CreateGraphRequest = components["schemas"]["CreateGraphRequest"];
+
+/** Convert React Flow state to the OpenAPI create-graph request shape. */
+export function serializeGraph(
+  name: string,
+  nodes: readonly CanvasNode[],
+  edges: readonly CanvasEdge[],
+): CreateGraphRequest {
+  return {
+    name: name.trim() || undefined,
+    nodes: nodes.map((node) => ({
+      id: node.id,
+      type: node.data.nodeType,
+      label: node.data.label,
+      position: {
+        x: node.position.x,
+        y: node.position.y,
+      },
+      config: node.data.config ?? {},
+    })),
+    edges: edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle ?? undefined,
+      targetHandle: edge.targetHandle ?? undefined,
+    })),
+  };
+}
+
+export type RunStatus = components["schemas"]["RunStatus"];
+
+export function isTerminalRunStatus(status: RunStatus): boolean {
+  return status === "completed" || status === "failed" || status === "cancelled";
+}
+
+/** Read a contract Error.message when available, otherwise return the fallback. */
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return fallback;
 }
