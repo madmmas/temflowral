@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+dist
+build
+test-results
+playwright-report
+blob-report
+.turbo
+.env
+.env.local
+.env.*.local
+Dockerfile
+.dockerignore
+npm-debug.log*

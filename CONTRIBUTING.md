@@ -66,14 +66,36 @@ which is ignored by Git.
 
 Stop Prism with `Ctrl+C`.
 
+## Run the full stack with one command
+
+`docker-compose.yml` runs the whole stack — Postgres, Temporal (server + Web
+UI), the backend, and the frontend — from the repository root:
+
+```sh
+docker compose up   # or: make run
+```
+
+First boot builds the backend and frontend images and initializes the Temporal
+schema in Postgres, so allow a minute. Once healthy:
+
+- Frontend: `http://localhost:3000`
+- Backend API + docs: `http://localhost:8080` / `http://localhost:8080/docs`
+- Temporal Web UI: `http://localhost:8233`
+
+The frontend image bakes `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080` at
+build time (browsers reach the backend via its published port, not the compose
+service name). To allow HTTP activity nodes to reach an external host, set
+`HTTP_ALLOWED_HOSTS` before `docker compose up` (see `SECURITY.md`). Stop with
+`Ctrl+C`, then `make temporal-down` to remove the containers; the Postgres
+volume persists across restarts. Use `docker compose down -v` to wipe it.
+
 ## Run the backend with Temporal
 
-You do not need to install Temporal locally. The dev server (Temporal Server,
-SQLite, and Web UI) runs from `docker-compose.yml` using a pinned image.
-Temporalite is deprecated; the CLI development server is its supported
-replacement.
+Prefer developing the backend outside a container? Temporal still runs from
+`docker-compose.yml` — server, Web UI, and Postgres persistence via a pinned
+`temporalio/auto-setup` image. You do not need to install Temporal locally.
 
-Start it from the repository root:
+Start Temporal (Postgres is pulled in automatically) from the repository root:
 
 ```sh
 make temporal-dev
@@ -81,7 +103,7 @@ make temporal-dev
 
 This serves Temporal at `localhost:7233` and its Web UI at
 `http://localhost:8233`. Stop it with `Ctrl+C`, then `make temporal-down` to
-remove the container.
+remove the containers.
 
 In a second terminal, start the backend:
 

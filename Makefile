@@ -1,6 +1,6 @@
 .PHONY: generate test test-contract lint lint-backend lint-frontend run build clean hooks temporal-dev temporal-down temporal-smoke
 
-# Temporal dev-server service name in docker-compose.yml.
+# Temporal service name in docker-compose.yml.
 TEMPORAL_SERVICE ?= temporal
 TEMPORAL_TASK_QUEUE ?= temflowral
 
@@ -35,16 +35,19 @@ lint-backend:
 lint-frontend:
 	cd frontend && npm run lint
 
-# Start full stack locally (requires Docker)
+# Start the full stack locally (Postgres + Temporal + UI + backend + frontend).
+# Requires Docker. Frontend: http://localhost:3000, backend: http://localhost:8080,
+# Temporal Web UI: http://localhost:8233.
 run:
 	docker compose up
 
-# Start a local Temporal dev server via docker-compose (no local install).
-# Serves gRPC on :7233 and the Web UI on http://localhost:8233.
+# Start only Temporal (server + Web UI) for backend development. Postgres is
+# pulled in automatically via depends_on. Serves gRPC on :7233 and the Web UI
+# on http://localhost:8233.
 temporal-dev:
-	docker compose up $(TEMPORAL_SERVICE)
+	docker compose up $(TEMPORAL_SERVICE) temporal-ui
 
-# Stop and remove the Temporal dev server container.
+# Stop and remove all stack containers (keeps the Postgres volume).
 temporal-down:
 	docker compose down
 

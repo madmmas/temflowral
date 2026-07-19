@@ -5,6 +5,45 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Full docker-compose development stack (#25)
+
+**Did:**
+- Rewrote `docker-compose.yml` into a one-command stack: Postgres, Temporal
+  (`temporalio/auto-setup` backed by Postgres), Temporal Web UI, the backend,
+  and the frontend, wired together with healthcheck-gated `depends_on`.
+- Added `backend/Dockerfile` (multi-stage Go build → distroless static, bundling
+  `api/openapi.yaml` via `OPENAPI_SPEC_PATH`) and a root `.dockerignore` to keep
+  the repo-root build context small.
+- Added `frontend/Dockerfile` (Next.js standalone output → slim non-root runner)
+  plus `frontend/.dockerignore`, and enabled `output: "standalone"` in
+  `next.config.ts`.
+- Updated `make temporal-dev` to bring up Temporal + Web UI (Postgres follows via
+  `depends_on`), refreshed `make run`/`temporal-down` comments, and documented
+  the full-stack quickstart in `CONTRIBUTING.md`.
+
+**Decided / learned:**
+- Postgres is a real datastore here: Temporal persistence runs on it via
+  auto-setup, so workflow state survives restarts. The backend graph store is
+  still in-memory — a Postgres-backed store is a separate feature, out of scope
+  for this infra issue.
+- `NEXT_PUBLIC_API_BASE_URL` is baked at image build time and must point at the
+  host-published backend port (`http://localhost:8080`), not the `backend`
+  compose service name, because the client bundle runs in the browser.
+- distroless "static" ships CA certificates, so outbound HTTPS from HTTP
+  activity nodes works without adding a certs layer.
+
+**Verified:**
+- `docker compose config` is valid; all pinned image tags resolve.
+- `docker compose build` succeeds for backend and frontend.
+- `docker compose up` brings all five services healthy; `GET /node-types`,
+  the frontend, and the Temporal Web UI all return 200, and a create → run →
+  poll graph run completes through Temporal (Postgres-backed).
+
+**Next:**
+- #26 `docs/adding-a-node-type.md`.
+
+---
+
 ## 2026-07-19 — Reproducible golangci-lint config (#24)
 
 **Did:**

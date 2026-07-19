@@ -1,17 +1,94 @@
-# Local development stack. For now this runs only the Temporal dev server
-# (Temporal Server + Web UI + CLI in one image); issue #25 extends it with
-# Postgres, the backend, and the frontend.
+# Full local stack: Postgres + Temporal (server + Web UI) + backend + frontend.
+# One `docker compose up` brings up everything; the frontend is served at
+# http://localhost:3000 and talks to the backend at http://localhost:8080.
+#
+# Temporal persistence is backed by Postgres via the auto-setup image, which
+# creates the temporal/temporal_visibility databases and schema on first boot.
+name: temflowral
+
 services:
-  temporal:
-    image: temporalio/temporal:1.8.0
-    container_name: temflowral-temporal
-    command: server start-dev --ip 0.0.0.0
-    ports:
-      - "7233:7233" # gRPC frontend
-      - "8233:8233" # Web UI
+  postgresql:
+    image: postgres:16
+    container_name: temflowral-postgres
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_DB: temporal
+    volumes:
+      - temflowral-postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "localhost:7233"]
+      test: ["CMD-SHELL", "pg_isready -U temporal -d temporal"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  temporal:
+    image: temporalio/auto-setup:1.28.1
+    container_name: temflowral-temporal
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_SEEDS: postgresql
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal
+      DBNAME: temporal
+      VISIBILITY_DBNAME: temporal_visibility
+    ports:
+      - "7233:7233" # gRPC frontend
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  temporal-ui:
+    image: temporalio/ui:2.34.0
+    container_name: temflowral-temporal-ui
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8233:8080" # Web UI
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: temflowral-backend
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      TEMPORAL_TASK_QUEUE: temflowral
+      # Deny-by-default outbound policy for HTTP activity nodes; override with a
+      # comma-separated allowlist. See SECURITY.md.
+      HTTP_ALLOWED_HOSTS: ${HTTP_ALLOWED_HOSTS:-}
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Baked into the client bundle at build time; the browser reaches the
+        # backend via its published host port, not the compose service name.
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+    container_name: temflowral-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  temflowral-postgres:
