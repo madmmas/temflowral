@@ -29,7 +29,7 @@ func main() {
 
 	httpServer := &http.Server{
 		Addr:              listenAddress,
-		Handler:           server.NewDocsHandler(openAPISpec),
+		Handler:           server.NewHandler(openAPISpec, server.NewAPI()),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

@@ -3,6 +3,8 @@ package server
 import (
 	"bytes"
 	"net/http"
+
+	"github.com/madmmas/temflowral/backend/internal/api"
 )
 
 const swaggerUI = `<!doctype html>
@@ -29,10 +31,24 @@ const swaggerUI = `<!doctype html>
 </html>
 `
 
-// NewDocsHandler serves the OpenAPI contract and its Swagger UI.
-func NewDocsHandler(openAPISpec []byte) http.Handler {
-	spec := bytes.Clone(openAPISpec)
+// NewHandler serves the generated API routes, OpenAPI contract, and Swagger UI.
+func NewHandler(openAPISpec []byte, implementation api.StrictServerInterface) http.Handler {
 	mux := http.NewServeMux()
+	registerDocsRoutes(mux, openAPISpec)
+
+	strictHandler := api.NewStrictHandler(implementation, nil)
+	return api.HandlerFromMux(strictHandler, mux)
+}
+
+// NewDocsHandler serves only the OpenAPI contract and its Swagger UI.
+func NewDocsHandler(openAPISpec []byte) http.Handler {
+	mux := http.NewServeMux()
+	registerDocsRoutes(mux, openAPISpec)
+	return mux
+}
+
+func registerDocsRoutes(mux *http.ServeMux, openAPISpec []byte) {
+	spec := bytes.Clone(openAPISpec)
 
 	mux.HandleFunc("GET /openapi.yaml", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/yaml; charset=utf-8")
@@ -48,6 +64,4 @@ func NewDocsHandler(openAPISpec []byte) http.Handler {
 			return
 		}
 	})
-
-	return mux
 }

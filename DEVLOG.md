@@ -20,13 +20,35 @@ doesn't need to be daily.
   FlatCompat ESLint config shipped by create-next-app; revisit when ready to
   adopt Next 16's native flat config.
 - Vitest is pinned at `3.2.6+` for the UI-server advisory fix.
-- Pre-commit now allowlists `.env.example` (it previously matched the
-  secret-filename regex and blocked the frontend env template).
 - Frontend work lives on `feat/13-frontend-bootstrap` so it can land in
   parallel with backend codegen (#10).
 
 **Next:**
 - #14 generate a typed API client from `api/openapi.yaml`.
+
+---
+
+## 2026-07-19 — Generated Go API server contract (#10)
+
+**Did:**
+- Added pinned `oapi-codegen` generation for Go models, standard-library HTTP
+  routing, and strict request/response server interfaces.
+- Wired every generated API route into the backend alongside the existing
+  OpenAPI and Swagger UI routes.
+- Added a checked-in generated source file, a `make generate` target, route
+  integration tests, and a CI drift check.
+
+**Decided / learned:**
+- Application handlers implement the generated strict interface in
+  `internal/server`; generated code remains isolated in `internal/api`.
+- Until endpoint behavior lands in later backend issues, registered API routes
+  return the contract's typed `500` response with a `not_implemented` code.
+- OpenAPI contract changes now trigger backend CI because they can change the
+  generated Go surface.
+
+**Next:**
+- #11 connect the Temporal client and local worker, then replace run endpoint
+  placeholders as execution behavior lands.
 
 ---
 

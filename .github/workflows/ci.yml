@@ -30,6 +30,7 @@ jobs:
               - 'redocly.yaml'
             backend:
               - 'backend/**'
+              - 'api/openapi.yaml'
               - 'go.work'
             frontend:
               - 'frontend/**'
@@ -74,6 +75,13 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache: false
+
+      - name: Check generated API code
+        if: needs.changes.outputs.backend == 'true'
+        working-directory: backend
+        run: |
+          go generate ./...
+          git diff --exit-code -- internal/api/openapi.gen.go
 
       - name: Check for Go files
         if: needs.changes.outputs.backend == 'true'
