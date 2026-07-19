@@ -5,6 +5,29 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Graph → Temporal workflow translator (#12)
+
+**Did:**
+- Added a deterministic graph planner and `temflowral.graph` Temporal workflow
+  that walks nodes in topological order and dispatches per-node-type activities.
+- Implemented in-memory graph/run storage and wired `CreateGraph`, `GetGraph`,
+  `StartGraphRun`, `GetRun`, and `ListNodeTypes` to the generated API.
+- Registered a graph-compatible `noop` node activity; `start` remains a control
+  node that seeds workflow input without an activity.
+
+**Decided / learned:**
+- Unsupported node types (including `http` until #21) and cyclic/unreachable
+  graphs return `409` from `POST /graphs/{id}/run`.
+- Fan-out is sequential for now, preserving `edges[]` order; conditional
+  branching stays with #23.
+- Graph/run state is process-local memory only — restarts clear it until a
+  durable store lands.
+
+**Next:**
+- #21 HTTP activity node (with SSRF validation) once graph execution is in use.
+
+---
+
 ## 2026-07-19 — Temporal client and worker wiring (#11)
 
 **Did:**
