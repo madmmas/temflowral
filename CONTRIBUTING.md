@@ -84,8 +84,32 @@ container, so nothing extra is installed:
 make temporal-smoke
 ```
 
-The workflow runs one activity and returns `"hello"`. Stop the backend and
-development server with `Ctrl+C`.
+The workflow runs one activity and returns `"hello"`.
+
+To exercise the graph translator over HTTP (create → run → poll):
+
+```sh
+GRAPH_ID=$(curl -sS -X POST http://127.0.0.1:8080/graphs \
+  -H 'content-type: application/json' \
+  -d '{
+    "name":"smoke",
+    "nodes":[
+      {"id":"start-1","type":"start","position":{"x":0,"y":0},"config":{}},
+      {"id":"noop-1","type":"noop","position":{"x":200,"y":0},"config":{}}
+    ],
+    "edges":[{"id":"e1","source":"start-1","target":"noop-1"}]
+  }' | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
+
+RUN_ID=$(curl -sS -X POST "http://127.0.0.1:8080/graphs/${GRAPH_ID}/run" \
+  -H 'content-type: application/json' \
+  -d '{"input":{"message":"hello"}}' \
+  | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
+
+curl -sS "http://127.0.0.1:8080/runs/${RUN_ID}"
+```
+
+Poll until `status` is `completed`. Stop the backend and development server with
+`Ctrl+C`, then `make temporal-down`.
 
 Prefer a native install instead of Docker? Install the
 [Temporal CLI](https://docs.temporal.io/cli/setup-cli) and substitute

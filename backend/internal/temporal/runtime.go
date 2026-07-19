@@ -1,9 +1,11 @@
 package temporal
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
+	enums "go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
@@ -12,9 +14,23 @@ import (
 
 // Runtime owns the process-wide Temporal client and worker.
 type Runtime struct {
-	client client.Client
-	worker worker.Worker
-	once   sync.Once
+	client    client.Client
+	worker    worker.Worker
+	taskQueue string
+	once      sync.Once
+}
+
+// WorkflowExecution identifies a started Temporal workflow.
+type WorkflowExecution struct {
+	ID    string
+	RunID string
+}
+
+// WorkflowStatus is a Temporal workflow lifecycle snapshot for API mapping.
+type WorkflowStatus struct {
+	Status enums.WorkflowExecutionStatus
+	Result *GraphWorkflowResult
+	Error  string
 }
 
 // Start connects to Temporal, registers workflows and activities, and starts
@@ -35,6 +51,12 @@ func Start(config Config) (*Runtime, error) {
 	temporalWorker.RegisterActivityWithOptions(NoopActivity, activity.RegisterOptions{
 		Name: NoopActivityName,
 	})
+	temporalWorker.RegisterWorkflowWithOptions(GraphWorkflow, workflow.RegisterOptions{
+		Name: GraphWorkflowName,
+	})
+	temporalWorker.RegisterActivityWithOptions(NoopNodeActivity, activity.RegisterOptions{
+		Name: NoopNodeActivityName,
+	})
 
 	if err := temporalWorker.Start(); err != nil {
 		temporalClient.Close()
@@ -42,8 +64,9 @@ func Start(config Config) (*Runtime, error) {
 	}
 
 	return &Runtime{
-		client: temporalClient,
-		worker: temporalWorker,
+		client:    temporalClient,
+		worker:    temporalWorker,
+		taskQueue: config.TaskQueue,
 	}, nil
 }
 
@@ -54,4 +77,53 @@ func (runtime *Runtime) Close() {
 		runtime.worker.Stop()
 		runtime.client.Close()
 	})
+}
+
+// StartGraphWorkflow starts GraphWorkflow with a stable workflow ID.
+func (runtime *Runtime) StartGraphWorkflow(
+	ctx context.Context,
+	workflowID string,
+	input GraphWorkflowInput,
+) (WorkflowExecution, error) {
+	run, err := runtime.client.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+		ID:        workflowID,
+		TaskQueue: runtime.taskQueue,
+	}, GraphWorkflowName, input)
+	if err != nil {
+		return WorkflowExecution{}, fmt.Errorf("start graph workflow %q: %w", workflowID, err)
+	}
+	return WorkflowExecution{ID: run.GetID(), RunID: run.GetRunID()}, nil
+}
+
+// DescribeGraphWorkflow reports Temporal status and, when completed, the result.
+func (runtime *Runtime) DescribeGraphWorkflow(
+	ctx context.Context,
+	execution WorkflowExecution,
+) (WorkflowStatus, error) {
+	description, err := runtime.client.DescribeWorkflowExecution(ctx, execution.ID, execution.RunID)
+	if err != nil {
+		return WorkflowStatus{}, fmt.Errorf("describe workflow %q: %w", execution.ID, err)
+	}
+
+	status := WorkflowStatus{
+		Status: description.GetWorkflowExecutionInfo().GetStatus(),
+	}
+
+	switch status.Status {
+	case enums.WORKFLOW_EXECUTION_STATUS_COMPLETED:
+		var result GraphWorkflowResult
+		if err := runtime.client.GetWorkflow(ctx, execution.ID, execution.RunID).Get(ctx, &result); err != nil {
+			return WorkflowStatus{}, fmt.Errorf("get workflow result %q: %w", execution.ID, err)
+		}
+		status.Result = &result
+	case enums.WORKFLOW_EXECUTION_STATUS_FAILED,
+		enums.WORKFLOW_EXECUTION_STATUS_TIMED_OUT,
+		enums.WORKFLOW_EXECUTION_STATUS_TERMINATED:
+		err := runtime.client.GetWorkflow(ctx, execution.ID, execution.RunID).Get(ctx, nil)
+		if err != nil {
+			status.Error = err.Error()
+		}
+	}
+
+	return status, nil
 }

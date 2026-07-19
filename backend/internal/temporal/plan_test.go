@@ -1,0 +1,138 @@
+package temporal
+
+import (
+	"testing"
+
+	"github.com/madmmas/temflowral/backend/internal/api"
+)
+
+func TestBuildExecutionPlanLinearGraph(t *testing.T) {
+	t.Parallel()
+
+	graph := api.Graph{
+		Nodes: []api.Node{
+			{Id: "start-1", Type: StartNodeType},
+			{Id: "noop-1", Type: NoopNodeType},
+			{Id: "noop-2", Type: NoopNodeType},
+		},
+		Edges: []api.Edge{
+			{Id: "e1", Source: "start-1", Target: "noop-1"},
+			{Id: "e2", Source: "noop-1", Target: "noop-2"},
+		},
+	}
+
+	plan, err := BuildExecutionPlan(graph)
+	if err != nil {
+		t.Fatalf("BuildExecutionPlan() error = %v", err)
+	}
+	want := []string{"start-1", "noop-1", "noop-2"}
+	if got := nodeIDs(plan); !equalStrings(got, want) {
+		t.Fatalf("plan = %v, want %v", got, want)
+	}
+}
+
+func TestBuildExecutionPlanPreservesEdgeOrderForFanOut(t *testing.T) {
+	t.Parallel()
+
+	graph := api.Graph{
+		Nodes: []api.Node{
+			{Id: "start-1", Type: StartNodeType},
+			{Id: "noop-a", Type: NoopNodeType},
+			{Id: "noop-b", Type: NoopNodeType},
+		},
+		Edges: []api.Edge{
+			{Id: "e-b", Source: "start-1", Target: "noop-b"},
+			{Id: "e-a", Source: "start-1", Target: "noop-a"},
+		},
+	}
+
+	plan, err := BuildExecutionPlan(graph)
+	if err != nil {
+		t.Fatalf("BuildExecutionPlan() error = %v", err)
+	}
+	want := []string{"start-1", "noop-b", "noop-a"}
+	if got := nodeIDs(plan); !equalStrings(got, want) {
+		t.Fatalf("plan = %v, want %v", got, want)
+	}
+}
+
+func TestBuildExecutionPlanRejectsInvalidGraphs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		graph api.Graph
+	}{
+		{
+			name: "missing start",
+			graph: api.Graph{
+				Nodes: []api.Node{{Id: "noop-1", Type: NoopNodeType}},
+			},
+		},
+		{
+			name: "unsupported type",
+			graph: api.Graph{
+				Nodes: []api.Node{
+					{Id: "start-1", Type: StartNodeType},
+					{Id: "http-1", Type: "http"},
+				},
+				Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "http-1"}},
+			},
+		},
+		{
+			name: "cycle",
+			graph: api.Graph{
+				Nodes: []api.Node{
+					{Id: "start-1", Type: StartNodeType},
+					{Id: "noop-1", Type: NoopNodeType},
+					{Id: "noop-2", Type: NoopNodeType},
+				},
+				Edges: []api.Edge{
+					{Id: "e1", Source: "start-1", Target: "noop-1"},
+					{Id: "e2", Source: "noop-1", Target: "noop-2"},
+					{Id: "e3", Source: "noop-2", Target: "noop-1"},
+				},
+			},
+		},
+		{
+			name: "unreachable node",
+			graph: api.Graph{
+				Nodes: []api.Node{
+					{Id: "start-1", Type: StartNodeType},
+					{Id: "noop-1", Type: NoopNodeType},
+					{Id: "orphan", Type: NoopNodeType},
+				},
+				Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "noop-1"}},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := BuildExecutionPlan(test.graph); err == nil {
+				t.Fatal("BuildExecutionPlan() error = nil, want an error")
+			}
+		})
+	}
+}
+
+func nodeIDs(nodes []api.Node) []string {
+	ids := make([]string, 0, len(nodes))
+	for _, node := range nodes {
+		ids = append(ids, node.Id)
+	}
+	return ids
+}
+
+func equalStrings(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
+}

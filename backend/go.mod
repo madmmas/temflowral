@@ -5,7 +5,9 @@ go 1.25.7
 tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/oapi-codegen/runtime v1.6.0
+	go.temporal.io/api v1.63.0
 	go.temporal.io/sdk v1.46.0
 )
 
@@ -19,7 +21,6 @@ require (
 	github.com/go-openapi/swag/jsonname v0.26.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/mock v1.6.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
 	github.com/nexus-rpc/nexus-proto-annotations v0.1.0 // indirect
@@ -35,7 +36,6 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect
-	go.temporal.io/api v1.63.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/net v0.57.0 // indirect

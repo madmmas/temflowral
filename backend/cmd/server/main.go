@@ -45,9 +45,10 @@ func run() error {
 	}
 	defer temporalRuntime.Close()
 
+	apiServer := server.NewAPI(server.NewStore(), temporalRuntime)
 	httpServer := &http.Server{
 		Addr:              listenAddress,
-		Handler:           server.NewHandler(openAPISpec, server.NewAPI()),
+		Handler:           server.NewHandler(openAPISpec, apiServer),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
