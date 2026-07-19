@@ -1,4 +1,4 @@
-.PHONY: test lint run build clean hooks
+.PHONY: generate test lint run build clean hooks
 
 # Point this clone at versioned hooks under .githooks/ (run once after clone)
 hooks:
@@ -10,6 +10,10 @@ hooks:
 test:
 	cd backend && go test -race ./...
 	cd frontend && npm test -- --run
+
+# Regenerate contract-derived source code
+generate:
+	cd backend && go generate ./...
 
 # Run tests with coverage report
 test-coverage:
