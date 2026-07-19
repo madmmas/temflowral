@@ -14,6 +14,18 @@ const (
 	NoopNodeType = "noop"
 )
 
+// isExecutableNodeType reports whether the graph translator can run a node
+// type: the start entry node, workflow-handled control nodes (delay), or any
+// activity-backed node type.
+func isExecutableNodeType(nodeType string) bool {
+	switch nodeType {
+	case StartNodeType, DelayNodeType:
+		return true
+	}
+	_, ok := activityByNodeType[nodeType]
+	return ok
+}
+
 // BuildExecutionPlan validates a graph and returns nodes in deterministic
 // topological order for sequential Temporal activity dispatch.
 func BuildExecutionPlan(graph api.Graph) ([]api.Node, error) {
@@ -32,10 +44,8 @@ func BuildExecutionPlan(graph api.Graph) ([]api.Node, error) {
 		if node.Type == "" {
 			return nil, fmt.Errorf("node %q has empty type", node.Id)
 		}
-		if node.Type != StartNodeType {
-			if _, ok := activityByNodeType[node.Type]; !ok {
-				return nil, fmt.Errorf("unsupported node type %q on node %q", node.Type, node.Id)
-			}
+		if !isExecutableNodeType(node.Type) {
+			return nil, fmt.Errorf("unsupported node type %q on node %q", node.Type, node.Id)
 		}
 		if err := ValidateNodeConfig(node); err != nil {
 			return nil, err

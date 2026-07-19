@@ -148,9 +148,10 @@ export interface components {
             label?: string;
             position: components["schemas"]["Position"];
             /** @description Node-type-specific configuration. Validated against the node type's
-             *     configSchema from GET /node-types. HTTP nodes use HttpNodeConfig.
+             *     configSchema from GET /node-types. HTTP nodes use HttpNodeConfig;
+             *     delay nodes use DelayNodeConfig.
              *      */
-            config?: components["schemas"]["HttpNodeConfig"] | {
+            config?: components["schemas"]["HttpNodeConfig"] | components["schemas"]["DelayNodeConfig"] | {
                 [key: string]: unknown;
             };
         };
@@ -249,6 +250,19 @@ export interface components {
             };
             /** @description Optional request body, limited to 1 MiB. Template interpolation is not supported. */
             body?: string;
+        };
+        /** @example {
+         *       "seconds": 5
+         *     } */
+        DelayNodeConfig: {
+            /**
+             * Format: double
+             * @description Delay duration in seconds (0 to 604800 = 7 days) before the workflow
+             *     continues. Implemented with a durable Temporal timer, so the wait
+             *     survives worker restarts.
+             *
+             */
+            seconds: number;
         };
         /**
          * @description Current lifecycle state of a workflow run

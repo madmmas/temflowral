@@ -256,9 +256,11 @@ components:
         config:
           description: |
             Node-type-specific configuration. Validated against the node type's
-            configSchema from GET /node-types. HTTP nodes use HttpNodeConfig.
+            configSchema from GET /node-types. HTTP nodes use HttpNodeConfig;
+            delay nodes use DelayNodeConfig.
           anyOf:
             - $ref: '#/components/schemas/HttpNodeConfig'
+            - $ref: '#/components/schemas/DelayNodeConfig'
             - type: object
               additionalProperties: true
           x-go-type: map[string]interface{}
@@ -390,6 +392,23 @@ components:
       example:
         method: GET
         url: https://httpbin.org/get
+
+    DelayNodeConfig:
+      type: object
+      required: [seconds]
+      additionalProperties: false
+      properties:
+        seconds:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 604800
+          description: |
+            Delay duration in seconds (0 to 604800 = 7 days) before the workflow
+            continues. Implemented with a durable Temporal timer, so the wait
+            survives worker restarts.
+      example:
+        seconds: 5
 
     RunStatus:
       type: string

@@ -5,6 +5,39 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Durable delay/wait node (#22)
+
+**Did:**
+- Added a `delay` node type defined contract-first as `DelayNodeConfig`
+  (`seconds`, 0–604800), referenced from generic `Node.config`, and regenerated
+  Go/TypeScript models plus the live node-type registry entry.
+- Handled the delay inside `GraphWorkflow` with `workflow.Sleep` — a durable
+  Temporal timer that survives worker restarts — rather than an activity, and
+  taught the planner/validator about workflow-handled (non-activity) node types.
+- Validated delay config at graph creation and plan build, including explicit
+  presence of `seconds` (a required non-pointer field would otherwise decode to
+  0 silently).
+- Added planner, workflow-timer (asserts a timer actually fires), config, and
+  registry tests.
+
+**Decided / learned:**
+- Durable timers must run in workflow code, so `delay` is dispatched in the
+  workflow switch alongside `start` instead of via `activityByNodeType`;
+  `isExecutableNodeType` now gates planning for both activity and
+  workflow-handled types.
+- `seconds` uses `format: double` so oapi-codegen emits `float64`, matching
+  `Position` and allowing sub-second waits.
+
+**Verified:**
+- Redocly OpenAPI lint clean; generated clients reproducible.
+- `go vet ./...`, `go test -race ./...`, and golangci-lint v2.12.2 (0 issues).
+- Frontend ESLint, Vitest 15/15, production build, and contract conformance 6/6.
+
+**Next:**
+- #23 conditional/branch node to exercise edge-based branching in the translator.
+
+---
+
 ## 2026-07-19 — Allowlisted HTTP activity node (#21)
 
 **Did:**
