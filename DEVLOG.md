@@ -5,6 +5,29 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Backend API documentation (#7)
+
+**Did:**
+- Added the first backend HTTP server, serving the raw contract at
+  `GET /openapi.yaml` and Swagger UI at `GET /docs`.
+- Added handler and contract-loading tests.
+- Updated CI to derive its Go version from `backend/go.mod` now that backend
+  jobs run against real Go source.
+- Migrated the existing golangci-lint configuration to v2 syntax so the
+  newly activated lint job can run.
+
+**Decided / learned:**
+- Swagger UI assets load from the version-5 unpkg CDN; the API contract remains
+  the repository's single `api/openapi.yaml` file.
+- The server finds the contract when run from either the repository root or
+  `backend/`; deployments can set `OPENAPI_SPEC_PATH` explicitly.
+
+**Next:**
+- #8 document the Prism contract mock in CONTRIBUTING.md.
+- #9 add OpenAPI linting to CI.
+
+---
+
 ## 2026-07-16 — OpenAPI v0.1 contract (#6)
 
 **Did:**
