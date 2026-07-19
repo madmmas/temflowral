@@ -1,0 +1,20 @@
+# Root build context is used by backend/Dockerfile, which only needs backend/
+# sources and api/openapi.yaml. Keep everything else out of the build context.
+.git
+.github
+.githooks
+.cursor
+docs
+scripts
+terminals
+frontend
+*.md
+docker-compose.yml
+docker-compose.override.yml
+Makefile
+
+# Go build artifacts
+backend/bin/
+backend/vendor/
+backend/coverage.out
+backend/*.out
