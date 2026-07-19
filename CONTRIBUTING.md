@@ -44,3 +44,50 @@ paths or hand-written response types. Local values can go in `.env.local`,
 which is ignored by Git.
 
 Stop Prism with `Ctrl+C`.
+
+## Run the backend with Temporal
+
+You do not need to install Temporal locally. The dev server (Temporal Server,
+SQLite, and Web UI) runs from `docker-compose.yml` using a pinned image.
+Temporalite is deprecated; the CLI development server is its supported
+replacement.
+
+Start it from the repository root:
+
+```sh
+make temporal-dev
+```
+
+This serves Temporal at `localhost:7233` and its Web UI at
+`http://localhost:8233`. Stop it with `Ctrl+C`, then `make temporal-down` to
+remove the container.
+
+In a second terminal, start the backend:
+
+```sh
+make run-backend
+```
+
+The backend connects to Temporal before listening on port 8080 and shuts down
+its worker cleanly on `SIGINT` or `SIGTERM`. Override local defaults when
+needed:
+
+- `TEMPORAL_ADDRESS` (default `localhost:7233`)
+- `TEMPORAL_NAMESPACE` (default `default`)
+- `TEMPORAL_TASK_QUEUE` (default `temflowral`)
+
+To prove the client and worker path end to end, run the registered smoke
+workflow from a third terminal. This uses the CLI already inside the dev
+container, so nothing extra is installed:
+
+```sh
+make temporal-smoke
+```
+
+The workflow runs one activity and returns `"hello"`. Stop the backend and
+development server with `Ctrl+C`.
+
+Prefer a native install instead of Docker? Install the
+[Temporal CLI](https://docs.temporal.io/cli/setup-cli) and substitute
+`temporal server start-dev` for `make temporal-dev`, and `temporal workflow
+execute ...` for `make temporal-smoke`.

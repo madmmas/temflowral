@@ -5,6 +5,33 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Temporal client and worker wiring (#11)
+
+**Did:**
+- Added the Temporal Go SDK and connected the backend to a configurable
+  Temporal service during startup.
+- Registered a deterministic smoke workflow and activity on the `temflowral`
+  task queue, with a workflow test that executes the activity end to end.
+- Added graceful HTTP/worker shutdown and a `docker-compose.yml` Temporal dev
+  server service, driven by `make temporal-dev` / `temporal-smoke` /
+  `temporal-down`, so no local Temporal install is required.
+
+**Decided / learned:**
+- The Temporal SDK is pinned to `v1.46.0`, the latest stable release compatible
+  with the project's Go baseline.
+- Local defaults are `localhost:7233`, namespace `default`, and task queue
+  `temflowral`; each can be overridden by environment variable.
+- Temporalite is deprecated. Local development uses the CLI dev server via the
+  pinned `temporalio/temporal:1.8.0` image in `docker-compose.yml` (issue #25
+  extends this file with Postgres, backend, and frontend); a native CLI install
+  remains a documented alternative.
+
+**Next:**
+- #12 translate saved graphs into Temporal workflow execution and replace the
+  run endpoint placeholder.
+
+---
+
 ## 2026-07-19 — Next.js frontend bootstrap (#13)
 
 **Did:**
