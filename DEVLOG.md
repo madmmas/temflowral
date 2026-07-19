@@ -5,6 +5,26 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Contract-backed mock server (#8)
+
+**Did:**
+- Documented how to launch Prism from `api/openapi.yaml`, verify representative
+  endpoints, and point frontend or Playwright work at the mock.
+- Defined base-URL environment variable conventions so switching from Prism
+  on port 4010 to the backend on port 8080 requires only a value change.
+- Corrected the documented Go development version to match `backend/go.mod`.
+
+**Decided / learned:**
+- Prism is pinned to `5.14.2`, the newest checked release compatible with the
+  project's Node 20 baseline. Prism `5.16.0` requires Node 24.18 or newer.
+- Frontend uses `NEXT_PUBLIC_API_BASE_URL`; Node-based tests use
+  `API_BASE_URL`.
+
+**Next:**
+- #9 add OpenAPI linting to CI.
+
+---
+
 ## 2026-07-19 — Backend API documentation (#7)
 
 **Did:**
