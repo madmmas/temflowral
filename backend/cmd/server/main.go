@@ -1,19 +1,24 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/madmmas/temflowral/backend/internal/server"
+	temporalruntime "github.com/madmmas/temflowral/backend/internal/temporal"
 )
 
 const (
 	listenAddress      = ":8080"
 	openAPISpecPathEnv = "OPENAPI_SPEC_PATH"
+	shutdownTimeout    = 10 * time.Second
 )
 
 var defaultSpecPaths = []string{
@@ -22,10 +27,23 @@ var defaultSpecPaths = []string{
 }
 
 func main() {
-	openAPISpec, specPath, err := loadOpenAPISpec()
-	if err != nil {
+	if err := run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func run() error {
+	openAPISpec, specPath, err := loadOpenAPISpec()
+	if err != nil {
+		return err
+	}
+
+	temporalConfig := temporalruntime.ConfigFromEnv()
+	temporalRuntime, err := temporalruntime.Start(temporalConfig)
+	if err != nil {
+		return fmt.Errorf("initialize Temporal: %w", err)
+	}
+	defer temporalRuntime.Close()
 
 	httpServer := &http.Server{
 		Addr:              listenAddress,
@@ -33,10 +51,43 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
+	log.Printf(
+		"Temporal worker polling %s in namespace %s at %s",
+		temporalConfig.TaskQueue,
+		temporalConfig.Namespace,
+		temporalConfig.Address,
+	)
 	log.Printf("serving API documentation at http://localhost%s/docs (contract: %s)", listenAddress, specPath)
-	if err := httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal(err)
+
+	serverErrors := make(chan error, 1)
+	go func() {
+		serverErrors <- httpServer.ListenAndServe()
+	}()
+
+	signalContext, stopSignals := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+	defer stopSignals()
+
+	select {
+	case <-signalContext.Done():
+		log.Print("shutting down backend")
+	case err := <-serverErrors:
+		if !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("serve HTTP: %w", err)
+		}
+		return nil
 	}
+
+	shutdownContext, cancelShutdown := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancelShutdown()
+	if err := httpServer.Shutdown(shutdownContext); err != nil {
+		return fmt.Errorf("shut down HTTP server: %w", err)
+	}
+
+	return nil
 }
 
 func loadOpenAPISpec() ([]byte, string, error) {

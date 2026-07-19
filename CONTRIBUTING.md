@@ -44,3 +44,45 @@ paths or hand-written response types. Local values can go in `.env.local`,
 which is ignored by Git.
 
 Stop Prism with `Ctrl+C`.
+
+## Run the backend with Temporal
+
+Install the
+[Temporal CLI](https://docs.temporal.io/cli/setup-cli), then start its local
+development server:
+
+```sh
+temporal server start-dev
+```
+
+This provides Temporal at `localhost:7233` and its Web UI at
+`http://localhost:8233`. Temporalite is deprecated; the CLI development server
+is its supported replacement.
+
+In a second terminal, start the backend:
+
+```sh
+make run-backend
+```
+
+The backend connects to Temporal before listening on port 8080 and shuts down
+its worker cleanly on `SIGINT` or `SIGTERM`. Override local defaults when
+needed:
+
+- `TEMPORAL_ADDRESS` (default `localhost:7233`)
+- `TEMPORAL_NAMESPACE` (default `default`)
+- `TEMPORAL_TASK_QUEUE` (default `temflowral`)
+
+To prove the client and worker path end to end, execute the registered smoke
+workflow from a third terminal:
+
+```sh
+temporal workflow execute \
+  --workflow-id "temflowral-smoke-$(date +%s)" \
+  --type temflowral.noop \
+  --task-queue temflowral \
+  --input '"hello"'
+```
+
+The workflow runs one activity and returns `"hello"`. Stop the backend and
+development server with `Ctrl+C`.

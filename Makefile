@@ -29,7 +29,7 @@ lint:
 run:
 	docker compose up
 
-# Start backend only (no Docker — requires local temporalite)
+# Start backend only (no Docker — requires a local Temporal dev server)
 run-backend:
 	cd backend && go run cmd/server/main.go
 
