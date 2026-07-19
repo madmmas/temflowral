@@ -5,6 +5,27 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — React Flow canvas (#15)
+
+**Did:**
+- Added `@xyflow/react` and a base `GraphCanvas` client component with pan/zoom,
+  add node, drag-to-connect, and select-then-Delete removal, plus Background,
+  MiniMap, and Controls.
+- Replaced the placeholder home page with a full-height canvas shell.
+- Extracted pure node helpers (`createNode`/`nextNodeId`) into
+  `src/lib/graph-canvas.ts` with Vitest coverage (canvas runtime stays in the
+  client component, testable logic stays pure).
+
+**Decided / learned:**
+- No custom node types yet — that is #16 (palette driven by `GET /node-types`).
+- Delete is wired via React Flow's `deleteKeyCode` (Backspace/Delete); the
+  component is wrapped in `ReactFlowProvider` so `useReactFlow` works.
+
+**Next:**
+- #16 node palette + custom node rendering from the node-type registry.
+
+---
+
 ## 2026-07-19 — Typed frontend API client (#14)
 
 **Did:**
