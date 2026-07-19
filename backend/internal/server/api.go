@@ -58,6 +58,13 @@ func (apiServer *API) CreateGraph(
 	if graph.Edges == nil {
 		graph.Edges = []api.Edge{}
 	}
+	for _, node := range graph.Nodes {
+		if err := temporal.ValidateNodeConfig(node); err != nil {
+			return api.CreateGraph400JSONResponse{
+				BadRequestJSONResponse: badRequest(err.Error()),
+			}, nil
+		}
+	}
 
 	apiServer.store.PutGraph(graph)
 	return api.CreateGraph201JSONResponse(graph), nil
@@ -121,8 +128,10 @@ func (apiServer *API) ListNodeTypes(
 	_ api.ListNodeTypesRequestObject,
 ) (api.ListNodeTypesResponseObject, error) {
 	core := "core"
+	integration := "integration"
 	startDescription := "Workflow entry point"
 	noopDescription := "No-op activity used to smoke-test graph execution"
+	httpDescription := "Make an allowlisted outbound HTTP request"
 	return api.ListNodeTypes200JSONResponse{
 		NodeTypes: []api.NodeType{
 			{
@@ -143,6 +152,40 @@ func (apiServer *API) ListNodeTypes(
 				ConfigSchema: map[string]interface{}{
 					"type":                 "object",
 					"additionalProperties": true,
+				},
+			},
+			{
+				Id:          temporal.HTTPNodeType,
+				Name:        "HTTP Request",
+				Description: &httpDescription,
+				Category:    &integration,
+				ConfigSchema: map[string]interface{}{
+					"type":                 "object",
+					"required":             []string{"method", "url"},
+					"additionalProperties": false,
+					"properties": map[string]interface{}{
+						"method": map[string]interface{}{
+							"type": "string",
+							"enum": []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+						},
+						"url": map[string]interface{}{
+							"type":      "string",
+							"format":    "uri",
+							"maxLength": 2048,
+						},
+						"headers": map[string]interface{}{
+							"type":          "object",
+							"maxProperties": 32,
+							"additionalProperties": map[string]interface{}{
+								"type":      "string",
+								"maxLength": 8192,
+							},
+						},
+						"body": map[string]interface{}{
+							"type":      "string",
+							"maxLength": 1048576,
+						},
+					},
 				},
 			},
 		},

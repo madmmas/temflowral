@@ -73,6 +73,33 @@ func TestCreateAndGetGraph(t *testing.T) {
 	}
 }
 
+func TestCreateGraphRejectsInvalidHTTPConfig(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), &stubRunner{}))
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs",
+		strings.NewReader(`{
+			"nodes":[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"http-1","type":"http","position":{"x":100,"y":0},"config":{"method":"GET","url":"file:///etc/passwd"}}
+			],
+			"edges":[{"id":"e1","source":"start-1","target":"http-1"}]
+		}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "scheme must be http or https") {
+		t.Fatalf("body = %s, want HTTP config validation error", recorder.Body.String())
+	}
+}
+
 func TestStartGraphRunRejectsInvalidGraph(t *testing.T) {
 	t.Parallel()
 
@@ -200,7 +227,28 @@ func TestListNodeTypes(t *testing.T) {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
 	body := recorder.Body.String()
-	if !strings.Contains(body, `"id":"start"`) || !strings.Contains(body, `"id":"noop"`) {
-		t.Fatalf("body = %s, want start and noop node types", body)
+	if !strings.Contains(body, `"id":"start"`) ||
+		!strings.Contains(body, `"id":"noop"`) ||
+		!strings.Contains(body, `"id":"http"`) {
+		t.Fatalf("body = %s, want start, noop, and http node types", body)
 	}
+
+	var registry api.NodeTypeList
+	if err := json.Unmarshal(recorder.Body.Bytes(), &registry); err != nil {
+		t.Fatalf("decode node type registry: %v", err)
+	}
+	for _, nodeType := range registry.NodeTypes {
+		if nodeType.Id != temporal.HTTPNodeType {
+			continue
+		}
+		if nodeType.ConfigSchema["additionalProperties"] != false {
+			t.Errorf("HTTP config additionalProperties = %#v, want false", nodeType.ConfigSchema["additionalProperties"])
+		}
+		properties, ok := nodeType.ConfigSchema["properties"].(map[string]interface{})
+		if !ok || properties["method"] == nil || properties["url"] == nil {
+			t.Errorf("HTTP config properties = %#v, want method and url", nodeType.ConfigSchema["properties"])
+		}
+		return
+	}
+	t.Fatal("HTTP node type not found")
 }

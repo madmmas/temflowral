@@ -1,6 +1,9 @@
 package temporal
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestConfigFromEnv(t *testing.T) {
 	tests := []struct {
@@ -22,11 +25,13 @@ func TestConfigFromEnv(t *testing.T) {
 				addressEnv:   "temporal.example:7233",
 				namespaceEnv: "development",
 				taskQueueEnv: "custom-queue",
+				httpHostsEnv: "api.example.com, hooks.example.com",
 			},
 			want: Config{
-				Address:   "temporal.example:7233",
-				Namespace: "development",
-				TaskQueue: "custom-queue",
+				Address:          "temporal.example:7233",
+				Namespace:        "development",
+				TaskQueue:        "custom-queue",
+				HTTPAllowedHosts: []string{"api.example.com", "hooks.example.com"},
 			},
 		},
 	}
@@ -36,8 +41,9 @@ func TestConfigFromEnv(t *testing.T) {
 			t.Setenv(addressEnv, test.env[addressEnv])
 			t.Setenv(namespaceEnv, test.env[namespaceEnv])
 			t.Setenv(taskQueueEnv, test.env[taskQueueEnv])
+			t.Setenv(httpHostsEnv, test.env[httpHostsEnv])
 
-			if got := ConfigFromEnv(); got != test.want {
+			if got := ConfigFromEnv(); !reflect.DeepEqual(got, test.want) {
 				t.Errorf("ConfigFromEnv() = %#v, want %#v", got, test.want)
 			}
 		})

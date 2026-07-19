@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	sdktemporal "go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 
 	"github.com/madmmas/temflowral/backend/internal/api"
@@ -19,6 +20,7 @@ const (
 
 var activityByNodeType = map[string]string{
 	NoopNodeType: NoopNodeActivityName,
+	HTTPNodeType: HTTPNodeActivityName,
 }
 
 // GraphWorkflowInput is the payload passed when starting a graph run.
@@ -62,6 +64,9 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 
 	activityCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 		StartToCloseTimeout: 30 * time.Second,
+		RetryPolicy: &sdktemporal.RetryPolicy{
+			MaximumAttempts: 1,
+		},
 	})
 
 	for _, node := range plan {

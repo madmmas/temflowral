@@ -254,11 +254,14 @@ components:
         position:
           $ref: '#/components/schemas/Position'
         config:
-          type: object
           description: |
             Node-type-specific configuration. Validated against the node type's
-            configSchema from GET /node-types.
-          additionalProperties: true
+            configSchema from GET /node-types. HTTP nodes use HttpNodeConfig.
+          anyOf:
+            - $ref: '#/components/schemas/HttpNodeConfig'
+            - type: object
+              additionalProperties: true
+          x-go-type: map[string]interface{}
       example:
         id: http-1
         type: http
@@ -356,6 +359,38 @@ components:
           items:
             $ref: '#/components/schemas/Edge'
 
+    HttpNodeConfig:
+      type: object
+      required: [method, url]
+      additionalProperties: false
+      properties:
+        method:
+          type: string
+          enum: [GET, POST, PUT, PATCH, DELETE]
+          description: HTTP method. Activity retries are disabled to avoid replaying side effects.
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: |
+            Absolute HTTP(S) URL. The backend only permits hostnames explicitly
+            configured in HTTP_ALLOWED_HOSTS and rejects private, loopback,
+            link-local, multicast, and unspecified destination addresses.
+        headers:
+          type: object
+          maxProperties: 32
+          additionalProperties:
+            type: string
+            maxLength: 8192
+          description: Optional request headers. Hop-by-hop and transport-controlled headers are rejected.
+        body:
+          type: string
+          maxLength: 1048576
+          description: Optional request body, limited to 1 MiB. Template interpolation is not supported.
+      example:
+        method: GET
+        url: https://httpbin.org/get
+
     RunStatus:
       type: string
       enum:
@@ -434,6 +469,7 @@ components:
         configSchema:
           type: object
           required: [method, url]
+          additionalProperties: false
           properties:
             method:
               type: string
@@ -441,12 +477,16 @@ components:
             url:
               type: string
               format: uri
+              maxLength: 2048
             headers:
               type: object
+              maxProperties: 32
               additionalProperties:
                 type: string
+                maxLength: 8192
             body:
               type: string
+              maxLength: 1048576
 
     NodeTypeList:
       type: object
@@ -472,6 +512,7 @@ components:
             configSchema:
               type: object
               required: [method, url]
+              additionalProperties: false
               properties:
                 method:
                   type: string
@@ -479,3 +520,13 @@ components:
                 url:
                   type: string
                   format: uri
+                  maxLength: 2048
+                headers:
+                  type: object
+                  maxProperties: 32
+                  additionalProperties:
+                    type: string
+                    maxLength: 8192
+                body:
+                  type: string
+                  maxLength: 1048576
