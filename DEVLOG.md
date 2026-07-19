@@ -5,6 +5,37 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Fill in placeholder docs (#27)
+
+**Did:**
+- Rewrote `README.md` from an outline into real prose: pitch, architecture
+  diagram, `docker compose up` quickstart, how-it-works, a node-types table,
+  the extensibility hook, contributing/license sections, and an MIT badge.
+- Replaced the numbered outline header in `CONTRIBUTING.md` with prose for
+  development setup, git hooks, branch workflow, running tests, and adding a
+  node type; appended commit-message conventions, a PR checklist, and a
+  questions section.
+- Rewrote `CHANGELOG.md` in Keep a Changelog format with an `Unreleased`
+  section summarizing everything delivered so far.
+
+**Decided / learned:**
+- Kept the already-written CONTRIBUTING sections (linting, mock API, full
+  stack, backend) and only converted the outline parts, avoiding churn.
+- Node-types table and endpoints were sourced from `ListNodeTypes` and
+  `api/openapi.yaml` so the docs match the implementation.
+- CHANGELOG stays pre-1.0 under `Unreleased`; `DEVLOG.md` remains the detailed
+  per-session log and is linked from both README and CHANGELOG.
+
+**Verified:**
+- `markdownlint-cli2` passes for `README.md`, `CONTRIBUTING.md`, and
+  `CHANGELOG.md`.
+- All relative repository links resolve to existing files.
+
+**Next:**
+- Backlog in `docs/issues/ISSUES.md` is complete through #27.
+
+---
+
 ## 2026-07-19 — Guide for adding a node type (#26)
 
 **Did:**
