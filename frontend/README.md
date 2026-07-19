@@ -72,3 +72,5 @@ npm run e2e
 
 When an override is set, Playwright assumes that server is already running.
 Real-backend runs are opt-in; the default remains contract-backed Prism.
+The happy-path spec only supplies Prism's missing terminal polling response;
+when `API_BASE_URL` is set, all requests—including polling—use the real API.
