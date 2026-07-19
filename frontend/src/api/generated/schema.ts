@@ -240,9 +240,11 @@ export interface components {
             method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
             /**
              * Format: uri
-             * @description Absolute HTTP(S) URL. The backend only permits hostnames explicitly
-             *     configured in HTTP_ALLOWED_HOSTS and rejects private, loopback,
-             *     link-local, multicast, and unspecified destination addresses.
+             * @description Absolute HTTP(S) URL. Destinations are denied by default: the worker
+             *     only permits hostnames listed in HTTP_ALLOWED_HOSTS (exact hostnames,
+             *     no schemes/ports/wildcards) and rejects private, loopback,
+             *     link-local, multicast, and unspecified destination addresses. See
+             *     SECURITY.md for timeouts, size limits, and redirect policy.
              *
              */
             url: string;
@@ -305,11 +307,43 @@ export interface components {
              * @description Set when status is terminal (completed, failed, cancelled)
              */
             completedAt?: string;
-            /** @description Workflow output when status is completed */
+            /**
+             * @description Workflow output when status is completed. Shape:
+             *     `{ "nodes": [ { "nodeId": "<id>", "value": { ... } } ] }`.
+             *     `value` is node-type-specific (start echoes the run input; http
+             *     includes statusCode/body; delay includes seconds; condition
+             *     includes matched/branch; noop echoes type/inputs).
+             *
+             * @example {
+             *       "nodes": [
+             *         {
+             *           "nodeId": "start-1",
+             *           "value": {
+             *             "message": "hello"
+             *           }
+             *         },
+             *         {
+             *           "nodeId": "noop-1",
+             *           "value": {
+             *             "type": "noop",
+             *             "config": {},
+             *             "inputs": [
+             *               {
+             *                 "nodeId": "start-1",
+             *                 "value": {
+             *                   "message": "hello"
+             *                 }
+             *               }
+             *             ]
+             *           }
+             *         }
+             *       ]
+             *     }
+             */
             result?: {
                 [key: string]: unknown;
             };
-            /** @description Error message when status is failed */
+            /** @description Error message when status is failed or cancelled */
             error?: string;
         };
         StartRunRequest: {
@@ -321,7 +355,7 @@ export interface components {
         /** @example {
          *       "id": "http",
          *       "name": "HTTP Request",
-         *       "description": "Make an outbound HTTP request",
+         *       "description": "Make an allowlisted outbound HTTP request",
          *       "category": "integration",
          *       "configSchema": {
          *         "type": "object",
@@ -387,9 +421,19 @@ export interface components {
          *           }
          *         },
          *         {
+         *           "id": "noop",
+         *           "name": "No-op",
+         *           "description": "No-op activity used to smoke-test graph execution",
+         *           "category": "core",
+         *           "configSchema": {
+         *             "type": "object",
+         *             "additionalProperties": true
+         *           }
+         *         },
+         *         {
          *           "id": "http",
          *           "name": "HTTP Request",
-         *           "description": "Make an outbound HTTP request",
+         *           "description": "Make an allowlisted outbound HTTP request",
          *           "category": "integration",
          *           "configSchema": {
          *             "type": "object",
@@ -426,6 +470,48 @@ export interface components {
          *                 "type": "string",
          *                 "maxLength": 1048576
          *               }
+         *             }
+         *           }
+         *         },
+         *         {
+         *           "id": "delay",
+         *           "name": "Delay",
+         *           "description": "Pause the workflow with a durable Temporal timer",
+         *           "category": "core",
+         *           "configSchema": {
+         *             "type": "object",
+         *             "required": [
+         *               "seconds"
+         *             ],
+         *             "additionalProperties": false,
+         *             "properties": {
+         *               "seconds": {
+         *                 "type": "number",
+         *                 "minimum": 0,
+         *                 "maximum": 604800
+         *               }
+         *             }
+         *           }
+         *         },
+         *         {
+         *           "id": "condition",
+         *           "name": "Condition",
+         *           "description": "Branch on a predecessor field (true/false source handles)",
+         *           "category": "core",
+         *           "configSchema": {
+         *             "type": "object",
+         *             "required": [
+         *               "field",
+         *               "equals"
+         *             ],
+         *             "additionalProperties": false,
+         *             "properties": {
+         *               "field": {
+         *                 "type": "string",
+         *                 "minLength": 1,
+         *                 "maxLength": 256
+         *               },
+         *               "equals": {}
          *             }
          *           }
          *         }

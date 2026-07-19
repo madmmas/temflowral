@@ -5,6 +5,34 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Align OpenAPI examples with live registry
+
+**Did:**
+- Refreshed `NodeTypeList.example` (and the HTTP `NodeType` sample) so Prism
+  mocks expose `start`, `noop`, `http`, `delay`, and `condition` with the same
+  descriptions and config schemas as `ListNodeTypes`.
+- Documented the real `Run.result` shape (`nodes[{nodeId,value}]`) with an
+  example, and clarified that `Run.error` applies to failed or cancelled runs.
+- Strengthened the `HttpNodeConfig.url` description for deny-by-default
+  `HTTP_ALLOWED_HOSTS` and pointed at `SECURITY.md`.
+- Regenerated Go/TypeScript clients from the updated contract.
+
+**Decided / learned:**
+- Kept the unused `GET /node-types` `400` response so Redocly's
+  `operation-4xx-response` rule stays clean; the handler still never returns it.
+- Left `Run.result` as an open object (with documented shape) so Go continues to
+  use `*map[string]interface{}` and existing result mapping stays unchanged.
+
+**Verified:**
+- Redocly lint is clean.
+- `make generate` completes; server package race tests and Playwright contract
+  suite pass.
+
+**Next:**
+- Frontend config editors / condition handles remain the remaining live-API gap.
+
+---
+
 ## 2026-07-19 — Fill in placeholder docs (#27)
 
 **Did:**
