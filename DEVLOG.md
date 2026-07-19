@@ -5,6 +5,33 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Graph run E2E happy path (#20)
+
+**Did:**
+- Added an isolated Playwright flow that names a graph, adds a contract-backed
+  Start node, runs it, verifies the serialized `POST /graphs` payload, waits
+  for terminal status, and asserts the workflow result is visible.
+- Added explicit `run-status` and `run-result` test hooks and rendered completed
+  run results in the graph editor instead of exposing only the status.
+- Kept the test Prism-backed by default. Because Prism's `Run` example remains
+  `running`, the spec supplies only the terminal poll response; setting
+  `API_BASE_URL` bypasses that route and exercises the real API end to end.
+
+**Decided / learned:**
+- A Start-only graph is the smallest useful happy path and avoids coupling this
+  test to HTTP-node configuration work planned for #21.
+- CI's full E2E job remains disabled exactly as #20 requests. The test is ready
+  to enable once the real stack supports the complete path.
+
+**Verified:**
+- ESLint clean, Vitest 15/15, and Playwright Chromium 2/2 pass against Prism.
+
+**Next:**
+- #21 HTTP activity node; enable CI E2E when the full backend execution path is
+  ready and verify this same spec with `API_BASE_URL` pointed at it.
+
+---
+
 ## 2026-07-19 — Contract conformance checks (#19)
 
 **Did:**

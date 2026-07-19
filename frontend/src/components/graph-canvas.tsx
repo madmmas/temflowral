@@ -254,6 +254,7 @@ function GraphCanvasInner() {
             )}
             {run && (
               <span
+                data-testid="run-status"
                 className={
                   run.status === "failed" || run.status === "cancelled"
                     ? "font-medium text-red-600 dark:text-red-400"
@@ -264,6 +265,14 @@ function GraphCanvasInner() {
               >
                 Run {run.status}
               </span>
+            )}
+            {run?.result && (
+              <pre
+                data-testid="run-result"
+                className="max-w-full overflow-x-auto rounded bg-black/5 px-2 py-1 text-black/70 dark:bg-white/10 dark:text-white/70"
+              >
+                {JSON.stringify(run.result, null, 2)}
+              </pre>
             )}
             {run?.error && (
               <span className="text-red-600 dark:text-red-400">{run.error}</span>
