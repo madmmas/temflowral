@@ -13,25 +13,26 @@ import {
   useNodesState,
   useReactFlow,
   type Connection,
+  type NodeTypes,
 } from "@xyflow/react";
 
 import "@xyflow/react/dist/style.css";
 
+import { NODE_TYPE_DRAG_KEY, NodePalette } from "@/components/node-palette";
+import { WorkflowNode } from "@/components/nodes/workflow-node";
 import {
   createNode,
   type CanvasEdge,
   type CanvasNode,
 } from "@/lib/graph-canvas";
+import type { NodeType } from "@/lib/node-types";
 
-const initialNodes: CanvasNode[] = [
-  {
-    id: "node-1",
-    position: { x: 0, y: 0 },
-    data: { label: "Node 1" },
-  },
-];
-
+const initialNodes: CanvasNode[] = [];
 const initialEdges: CanvasEdge[] = [];
+
+const nodeTypes: NodeTypes = {
+  workflow: WorkflowNode,
+};
 
 function GraphCanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -45,48 +46,81 @@ function GraphCanvasInner() {
     [setEdges],
   );
 
-  const onAddNode = useCallback(() => {
-    // Drop the node near the current viewport centre.
-    const position = screenToFlowPosition({
-      x: window.innerWidth / 2,
-      y: window.innerHeight / 2,
-    });
-    setNodes((current) => [...current, createNode(position)]);
-  }, [screenToFlowPosition, setNodes]);
+  const addNodeAt = useCallback(
+    (nodeType: NodeType, screenX: number, screenY: number) => {
+      const position = screenToFlowPosition({ x: screenX, y: screenY });
+      setNodes((current) => [
+        ...current,
+        createNode(position, {
+          nodeType: nodeType.id,
+          label: nodeType.name,
+          category: nodeType.category,
+        }),
+      ]);
+    },
+    [screenToFlowPosition, setNodes],
+  );
+
+  // Click a palette item: drop near the viewport centre.
+  const onAddNodeType = useCallback(
+    (nodeType: NodeType) => {
+      addNodeAt(nodeType, window.innerWidth / 2, window.innerHeight / 2);
+    },
+    [addNodeAt],
+  );
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      const typeId = event.dataTransfer.getData(NODE_TYPE_DRAG_KEY);
+      if (!typeId) return;
+      addNodeAt(
+        { id: typeId, name: typeId, configSchema: {} },
+        event.clientX,
+        event.clientY,
+      );
+    },
+    [addNodeAt],
+  );
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onConnect={onConnect}
-      deleteKeyCode={["Backspace", "Delete"]}
-      fitView
-      proOptions={{ hideAttribution: true }}
-    >
-      <Panel position="top-left">
-        <button
-          type="button"
-          onClick={onAddNode}
-          className="rounded-md border border-black/10 bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-black/5 dark:border-white/15 dark:bg-neutral-900 dark:hover:bg-white/10"
+    <div className="flex h-full w-full">
+      <NodePalette onAddNodeType={onAddNodeType} />
+      <div className="min-w-0 flex-1">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+          deleteKeyCode={["Backspace", "Delete"]}
+          fitView
+          proOptions={{ hideAttribution: true }}
         >
-          Add node
-        </button>
-      </Panel>
-      <Panel position="top-right">
-        <p className="rounded-md bg-white/70 px-2 py-1 text-xs text-black/60 dark:bg-neutral-900/70 dark:text-white/60">
-          Drag handles to connect · select + Delete to remove
-        </p>
-      </Panel>
-      <Background />
-      <MiniMap pannable zoomable />
-      <Controls />
-    </ReactFlow>
+          <Panel position="top-right">
+            <p className="rounded-md bg-white/70 px-2 py-1 text-xs text-black/60 dark:bg-neutral-900/70 dark:text-white/60">
+              Drag or click a node · drag handles to connect · select + Delete to
+              remove
+            </p>
+          </Panel>
+          <Background />
+          <MiniMap pannable zoomable />
+          <Controls />
+        </ReactFlow>
+      </div>
+    </div>
   );
 }
 
-/** Base workflow canvas: pan/zoom, add nodes, connect, and delete. */
+/** Base workflow canvas with a node-type-driven palette (#15, #16). */
 export function GraphCanvas() {
   return (
     <ReactFlowProvider>
