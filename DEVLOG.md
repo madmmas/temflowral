@@ -5,6 +5,31 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Node palette from registry (#16)
+
+**Did:**
+- Added a `NodePalette` sidebar populated from `GET /node-types` via the typed
+  client (`useNodeTypes`), grouped by category — no hardcoded node list.
+- Added a generic custom `WorkflowNode` renderer (registered as React Flow
+  node type `workflow`) driven by node data, plus drag-from-palette and
+  click-to-add wiring on the canvas.
+- Extended `createNode` to carry the backend node-type id/label/category; added
+  a pure `groupByCategory` helper with Vitest coverage.
+
+**Decided / learned:**
+- All palette nodes render through one data-driven component rather than a
+  per-type switch; type-specific renderers can be added as siblings later
+  without touching canvas code.
+- Palette fetch degrades gracefully: loading, error, and empty states render
+  without breaking the canvas.
+- Smoke-tested against the Prism mock (`/node-types` → 200) with the dev server
+  pointed at `NEXT_PUBLIC_API_BASE_URL`.
+
+**Next:**
+- #17 serialize canvas to the `Graph` schema and save/run via the client.
+
+---
+
 ## 2026-07-19 — React Flow canvas (#15)
 
 **Did:**
