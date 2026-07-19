@@ -5,6 +5,37 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Guide for adding a node type (#26)
+
+**Did:**
+- Added `docs/adding-a-node-type.md`, the implementation guide referenced by
+  the feature request template.
+- Documented the contract-first path from an OpenAPI config schema through
+  generated Go/TypeScript types, strict backend validation, node discovery,
+  Temporal execution, frontend rendering/configuration, and tests.
+- Used the HTTP node as the complete activity-backed example and the delay and
+  condition nodes as workflow-native timer/branch examples.
+- Added security, verification, and pull-request checklists.
+
+**Decided / learned:**
+- `Node.config` remains generic for graph storage, so the OpenAPI `anyOf`
+  documents and generates config types while `ValidateNodeConfig` enforces the
+  authoritative node-type/config pairing.
+- Palette discovery and basic rendering are generic, but configured nodes still
+  need editor UI and branching nodes need renderers with named handles.
+- The OpenAPI config schema and the manually assembled `GET /node-types`
+  `ConfigSchema` are intentional duplication and must remain aligned.
+
+**Verified:**
+- Every referenced path, symbol, command, and current frontend limitation was
+  checked against the implementation.
+- Markdown formatting and repository links were checked locally.
+
+**Next:**
+- #27 fill in placeholder project documentation.
+
+---
+
 ## 2026-07-19 — Full docker-compose development stack (#25)
 
 **Did:**
