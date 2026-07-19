@@ -15,9 +15,10 @@ test:
 	cd backend && go test -race ./...
 	cd frontend && npm test -- --run
 
-# Regenerate contract-derived source code
+# Regenerate contract-derived source code (Go server + TS client)
 generate:
 	cd backend && go generate ./...
+	cd frontend && npm run generate
 
 # Run tests with coverage report
 test-coverage:

@@ -5,6 +5,26 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Typed frontend API client (#14)
+
+**Did:**
+- Added `openapi-typescript` generation of `frontend/src/api/generated/schema.ts`
+  from `api/openapi.yaml`, plus an `openapi-fetch` wrapper (`createApiClient`)
+  that defaults to the Prism mock via `NEXT_PUBLIC_API_BASE_URL`.
+- Wired `npm run generate` and extended root `make generate` to refresh both
+  Go and TypeScript contract-derived code.
+- Documented usage in `frontend/README.md`; ESLint ignores the generated tree.
+
+**Decided / learned:**
+- Prefer `openapi-typescript` + `openapi-fetch` over Orval for a thin typed
+  client that matches the contract without generating a heavy SDK.
+- Generated sources are committed (same policy as Go oapi-codegen output).
+
+**Next:**
+- #15 React Flow canvas; #16/#17 will consume `createApiClient`.
+
+---
+
 ## 2026-07-19 — Graph → Temporal workflow translator (#12)
 
 **Did:**
