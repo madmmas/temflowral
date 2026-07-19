@@ -1,22 +1,26 @@
+version: "2"
+
 linters:
   enable:
     - errcheck
     - govet
     - staticcheck
-    - gofmt
-    - goimports
     - misspell
     - unconvert
     - unused
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
 
-linters-settings:
-  gofmt:
-    simplify: true
-  goimports:
-    local-prefixes: github.com/yourusername/temflowral
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/madmmas/temflowral
