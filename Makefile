@@ -1,4 +1,8 @@
-.PHONY: generate test lint run build clean hooks
+.PHONY: generate test lint run build clean hooks temporal-dev temporal-down temporal-smoke
+
+# Temporal dev-server service name in docker-compose.yml.
+TEMPORAL_SERVICE ?= temporal
+TEMPORAL_TASK_QUEUE ?= temflowral
 
 # Point this clone at versioned hooks under .githooks/ (run once after clone)
 hooks:
@@ -29,7 +33,25 @@ lint:
 run:
 	docker compose up
 
-# Start backend only (no Docker — requires a local Temporal dev server)
+# Start a local Temporal dev server via docker-compose (no local install).
+# Serves gRPC on :7233 and the Web UI on http://localhost:8233.
+temporal-dev:
+	docker compose up $(TEMPORAL_SERVICE)
+
+# Stop and remove the Temporal dev server container.
+temporal-down:
+	docker compose down
+
+# Execute the registered smoke workflow using the CLI inside the dev container.
+# Requires `make temporal-dev` and `make run-backend` to be running.
+temporal-smoke:
+	docker compose exec $(TEMPORAL_SERVICE) temporal workflow execute \
+		--workflow-id "temflowral-smoke-$$(date +%s)" \
+		--type temflowral.noop \
+		--task-queue $(TEMPORAL_TASK_QUEUE) \
+		--input '"hello"'
+
+# Start backend only (connects to the Temporal dev server above)
 run-backend:
 	cd backend && go run cmd/server/main.go
 
