@@ -60,6 +60,17 @@ if secret_content_hits="$(
   failed=1
 fi
 
+# --- golangci-lint on staged backend Go changes ---
+# Keep local linting in lockstep with the go-lint CI job (same pinned version).
+if grep -Eq '^backend/.*\.go$' "${staged_file}"; then
+  if run_golangci_lint backend; then
+    :
+  else
+    echo "pre-commit: golangci-lint reported issues in backend/." >&2
+    failed=1
+  fi
+fi
+
 if [[ "${failed}" -ne 0 ]]; then
   echo "pre-commit: commit blocked. Fix the issues above or use --no-verify only if intentional." >&2
   exit 1

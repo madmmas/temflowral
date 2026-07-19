@@ -99,10 +99,10 @@ jobs:
 
       - name: Run golangci-lint
         if: needs.changes.outputs.backend == 'true' && steps.gofiles.outputs.count > 0
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           working-directory: backend
-          version: latest
+          version: v2.12.2
 
   # ─── frontend-test ───────────────────────────────────────────
   frontend-test:
