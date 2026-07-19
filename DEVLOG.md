@@ -5,6 +5,33 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Save and run graphs from the canvas (#17)
+
+**Did:**
+- Added a typed React Flow → `CreateGraphRequest` serializer, including node
+  type/label/position/config and edge handle mapping.
+- Added graph-name, Save, and Run controls. Save calls `POST /graphs`; Run
+  first saves the current canvas, calls `POST /graphs/{id}/run`, then polls
+  `GET /runs/{id}` every 1.5 seconds until a terminal status.
+- Added saved graph/run status and API error feedback, with controls disabled
+  while requests are in flight or the canvas is empty.
+- Added unit coverage for serialization, terminal statuses, and contract error
+  extraction.
+
+**Decided / learned:**
+- Run always saves current canvas state first, avoiding stale graph IDs after
+  edits.
+- Polling cleanup cancels timers and ignores responses after unmount or run
+  changes.
+- Prism integration smoke passed: create `201`, run `202`, poll `200`; browser
+  render showed the palette and Save/Run controls.
+
+**Next:**
+- #18 Playwright scaffold can exercise the full mocked UI workflow; backend
+  execution is available for a real Temporal integration check.
+
+---
+
 ## 2026-07-19 — Node palette from registry (#16)
 
 **Did:**
