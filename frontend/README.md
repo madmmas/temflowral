@@ -27,7 +27,23 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run start` | Serve production build |
 | `npm run lint` | ESLint |
 | `npm test` | Vitest (add `-- --run` for CI/Makefile) |
+| `npm run generate` | Regenerate typed OpenAPI client from `../api/openapi.yaml` |
 
 Point `NEXT_PUBLIC_API_BASE_URL` at the Prism mock (`http://127.0.0.1:4010`)
 or the local backend (`http://127.0.0.1:8080`). See the repo
 `CONTRIBUTING.md` for mock-server details.
+
+## Typed API client
+
+Generated types live in `src/api/generated/` (do not hand-edit). Use the
+wrapper instead of raw `fetch`:
+
+```ts
+import { createApiClient } from "@/api";
+
+const api = createApiClient(); // defaults to NEXT_PUBLIC_API_BASE_URL / Prism
+const { data, error } = await api.GET("/node-types");
+```
+
+From the repo root, `make generate` refreshes both the Go server interfaces and
+this TypeScript client.
