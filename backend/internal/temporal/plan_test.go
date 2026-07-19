@@ -118,6 +118,82 @@ func TestBuildExecutionPlanRejectsInvalidDelayConfig(t *testing.T) {
 	}
 }
 
+func TestBuildExecutionPlanAcceptsValidConditionNode(t *testing.T) {
+	t.Parallel()
+
+	config := map[string]interface{}{"field": "status", "equals": "ok"}
+	trueHandle := ConditionTrueHandle
+	falseHandle := ConditionFalseHandle
+	graph := api.Graph{
+		Nodes: []api.Node{
+			{Id: "start-1", Type: StartNodeType},
+			{Id: "cond-1", Type: ConditionNodeType, Config: &config},
+			{Id: "noop-true", Type: NoopNodeType},
+			{Id: "noop-false", Type: NoopNodeType},
+		},
+		Edges: []api.Edge{
+			{Id: "e0", Source: "start-1", Target: "cond-1"},
+			{Id: "e-true", Source: "cond-1", Target: "noop-true", SourceHandle: &trueHandle},
+			{Id: "e-false", Source: "cond-1", Target: "noop-false", SourceHandle: &falseHandle},
+		},
+	}
+
+	plan, err := BuildExecutionPlan(graph)
+	if err != nil {
+		t.Fatalf("BuildExecutionPlan() error = %v", err)
+	}
+	want := []string{"start-1", "cond-1", "noop-true", "noop-false"}
+	if got := nodeIDs(plan); !equalStrings(got, want) {
+		t.Fatalf("plan = %v, want %v", got, want)
+	}
+}
+
+func TestBuildExecutionPlanRejectsInvalidConditionBranches(t *testing.T) {
+	t.Parallel()
+
+	config := map[string]interface{}{"field": "status", "equals": "ok"}
+	trueHandle := ConditionTrueHandle
+
+	tests := []struct {
+		name  string
+		edges []api.Edge
+	}{
+		{
+			name: "missing sourceHandle",
+			edges: []api.Edge{
+				{Id: "e0", Source: "start-1", Target: "cond-1"},
+				{Id: "e1", Source: "cond-1", Target: "noop-true"},
+				{Id: "e2", Source: "cond-1", Target: "noop-false", SourceHandle: &trueHandle},
+			},
+		},
+		{
+			name: "missing false branch",
+			edges: []api.Edge{
+				{Id: "e0", Source: "start-1", Target: "cond-1"},
+				{Id: "e1", Source: "cond-1", Target: "noop-true", SourceHandle: &trueHandle},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			graph := api.Graph{
+				Nodes: []api.Node{
+					{Id: "start-1", Type: StartNodeType},
+					{Id: "cond-1", Type: ConditionNodeType, Config: &config},
+					{Id: "noop-true", Type: NoopNodeType},
+					{Id: "noop-false", Type: NoopNodeType},
+				},
+				Edges: test.edges,
+			}
+			if _, err := BuildExecutionPlan(graph); err == nil {
+				t.Fatal("BuildExecutionPlan() error = nil, want an error")
+			}
+		})
+	}
+}
+
 func TestBuildExecutionPlanRejectsInvalidGraphs(t *testing.T) {
 	t.Parallel()
 

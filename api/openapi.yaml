@@ -257,10 +257,11 @@ components:
           description: |
             Node-type-specific configuration. Validated against the node type's
             configSchema from GET /node-types. HTTP nodes use HttpNodeConfig;
-            delay nodes use DelayNodeConfig.
+            delay nodes use DelayNodeConfig; condition nodes use ConditionNodeConfig.
           anyOf:
             - $ref: '#/components/schemas/HttpNodeConfig'
             - $ref: '#/components/schemas/DelayNodeConfig'
+            - $ref: '#/components/schemas/ConditionNodeConfig'
             - type: object
               additionalProperties: true
           x-go-type: map[string]interface{}
@@ -291,7 +292,9 @@ components:
           minLength: 1
         sourceHandle:
           type: string
-          description: Source handle ID (for branching nodes)
+          description: |
+            Source handle ID. For condition nodes this must be "true" or "false"
+            to select which branch the edge belongs to.
         targetHandle:
           type: string
           description: Target handle ID
@@ -409,6 +412,28 @@ components:
             survives worker restarts.
       example:
         seconds: 5
+
+    ConditionNodeConfig:
+      type: object
+      required: [field, equals]
+      additionalProperties: false
+      properties:
+        field:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: |
+            Top-level key in the first active predecessor's value map. Nested
+            paths and expression languages are intentionally unsupported to
+            avoid template/injection risks.
+        equals:
+          description: |
+            Expected value compared with JSON equality against value[field].
+            Missing fields do not match (the false branch is taken).
+          x-go-type: interface{}
+      example:
+        field: status
+        equals: ok
 
     RunStatus:
       type: string

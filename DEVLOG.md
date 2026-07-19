@@ -5,6 +5,38 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Conditional/branch node (#23)
+
+**Did:**
+- Added a `condition` node type defined contract-first as `ConditionNodeConfig`
+  (`field` + `equals`), referenced from `Node.config`, and regenerated
+  Go/TypeScript models plus the live node-type registry entry.
+- Taught the planner to require both `true` and `false` outgoing edges via
+  `Edge.sourceHandle`, and the workflow to skip nodes on the untaken path while
+  still joining after the taken branch.
+- Evaluated conditions with JSON equality against the first active
+  predecessor's top-level field — no expression language / nested paths, to
+  avoid template-injection risk flagged in SECURITY.md.
+- Added config, planner, true/false branch, and diamond-join workflow tests.
+
+**Decided / learned:**
+- Branching is edge-based (`sourceHandle`), not a second graph model: the topo
+  plan still includes every node, but runtime path selection filters active
+  inputs so only the taken branch executes.
+- Missing fields take the false branch rather than failing the run, which keeps
+  incomplete upstream payloads from hard-failing conditional graphs.
+
+**Verified:**
+- Redocly OpenAPI lint clean; generated clients reproducible.
+- `go vet ./...`, `go test -race ./...`, and golangci-lint v2.12.2 (0 issues).
+- Frontend ESLint, Vitest 15/15, production build, and contract conformance 6/6.
+
+**Next:**
+- #24/#25 cleanup & docker-compose; frontend condition config UI can follow once
+  palette forms exist.
+
+---
+
 ## 2026-07-19 — Durable delay/wait node (#22)
 
 **Did:**

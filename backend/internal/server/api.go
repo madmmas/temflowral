@@ -133,6 +133,7 @@ func (apiServer *API) ListNodeTypes(
 	noopDescription := "No-op activity used to smoke-test graph execution"
 	httpDescription := "Make an allowlisted outbound HTTP request"
 	delayDescription := "Pause the workflow with a durable Temporal timer"
+	conditionDescription := "Branch on a predecessor field (true/false source handles)"
 	return api.ListNodeTypes200JSONResponse{
 		NodeTypes: []api.NodeType{
 			{
@@ -204,6 +205,25 @@ func (apiServer *API) ListNodeTypes(
 							"minimum": 0,
 							"maximum": 604800,
 						},
+					},
+				},
+			},
+			{
+				Id:          temporal.ConditionNodeType,
+				Name:        "Condition",
+				Description: &conditionDescription,
+				Category:    &core,
+				ConfigSchema: map[string]interface{}{
+					"type":                 "object",
+					"required":             []string{"field", "equals"},
+					"additionalProperties": false,
+					"properties": map[string]interface{}{
+						"field": map[string]interface{}{
+							"type":      "string",
+							"minLength": 1,
+							"maxLength": 256,
+						},
+						"equals": map[string]interface{}{},
 					},
 				},
 			},
