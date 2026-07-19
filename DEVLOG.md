@@ -5,6 +5,25 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — OpenAPI validation in CI (#9)
+
+**Did:**
+- Added an `openapi-lint` CI job that runs whenever `api/openapi.yaml` or its
+  lint configuration changes.
+- Added an explicit Redocly recommended-rules configuration and validated the
+  v0.1 contract against it.
+
+**Decided / learned:**
+- Redocly CLI is pinned to `2.39.0` for reproducible CI and supports the
+  project's Node 20 baseline.
+- The `no-server-example.com` rule is disabled intentionally while v0.1
+  advertises only the local development backend.
+
+**Next:**
+- #10 generate Go server interfaces and types from the contract.
+
+---
+
 ## 2026-07-19 — Contract-backed mock server (#8)
 
 **Did:**

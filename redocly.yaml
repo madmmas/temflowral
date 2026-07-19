@@ -1,0 +1,6 @@
+extends:
+  - recommended
+
+rules:
+  # v0.1 advertises only the local backend until a deployed API exists.
+  no-server-example.com: off
