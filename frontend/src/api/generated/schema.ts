@@ -57,6 +57,10 @@ export interface paths {
          *     Returns immediately with a run record persisted in the durable store;
          *     poll GET /runs/{id} for status (survives backend restarts).
          *
+         *     When `idempotencyKey` is supplied, a second start for the same graph and
+         *     key returns the original run (202) without starting another Temporal
+         *     workflow — safe for at-least-once callers (webhooks, queues, retries).
+         *
          */
         post: operations["startGraphRun"];
         delete?: never;
@@ -354,7 +358,19 @@ export interface components {
             /** @description Error message when status is failed or cancelled */
             error?: string;
         };
+        /** @example {
+         *       "idempotencyKey": "webhook-delivery-abc123",
+         *       "input": {
+         *         "message": "hello"
+         *       }
+         *     } */
         StartRunRequest: {
+            /** @description Optional caller-supplied key scoped to the graph. Repeating
+             *     StartGraphRun with the same key returns the first run instead of
+             *     starting a duplicate Temporal workflow. Omit for fire-and-forget
+             *     starts that always create a new run.
+             *      */
+            idempotencyKey?: string;
             /** @description Optional input payload passed to the workflow */
             input?: {
                 [key: string]: unknown;
@@ -720,6 +736,7 @@ export interface operations {
         requestBody?: {
             content: {
                 /** @example {
+                 *       "idempotencyKey": "webhook-delivery-abc123",
                  *       "input": {
                  *         "message": "hello"
                  *       }
@@ -728,7 +745,9 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Run accepted and started */
+            /** @description Run accepted and started, or an existing run returned for a repeated
+             *     idempotency key on this graph.
+             *      */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -737,6 +756,7 @@ export interface operations {
                     "application/json": components["schemas"]["Run"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             /** @description Graph cannot be run (e.g. invalid structure) */
             409: {

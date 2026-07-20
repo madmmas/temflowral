@@ -19,5 +19,13 @@ CREATE TABLE IF NOT EXISTS runs (
     result JSONB,
     error TEXT,
     temporal_workflow_id TEXT NOT NULL,
-    temporal_run_id TEXT NOT NULL
+    temporal_run_id TEXT NOT NULL,
+    idempotency_key TEXT
 );
+
+-- Additive for databases created before idempotency_key existed.
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS runs_graph_idempotency_key_uidx
+    ON runs (graph_id, idempotency_key)
+    WHERE idempotency_key IS NOT NULL;

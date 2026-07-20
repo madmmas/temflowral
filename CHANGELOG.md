@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Optional `idempotencyKey` on `StartGraphRun` (`StartRunRequest`): repeating
+  the same key for a graph returns the original run without starting another
+  Temporal workflow.
 - Durable graph/run store (`backend/internal/store`): Postgres via required
   `DATABASE_URL`, pluggable `Store` interface, in-memory only when
   `STORE_ALLOW_MEMORY=1` (tests/experiments). Compose creates a `temflowral`

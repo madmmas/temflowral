@@ -266,6 +266,12 @@ type RunStatus string
 
 // StartRunRequest defines model for StartRunRequest.
 type StartRunRequest struct {
+	// IdempotencyKey Optional caller-supplied key scoped to the graph. Repeating
+	// StartGraphRun with the same key returns the first run instead of
+	// starting a duplicate Temporal workflow. Omit for fire-and-forget
+	// starts that always create a new run.
+	IdempotencyKey *string `json:"idempotencyKey,omitempty"`
+
 	// Input Optional input payload passed to the workflow
 	Input *map[string]interface{} `json:"input,omitempty"`
 }
@@ -679,6 +685,20 @@ func (response StartGraphRun202JSONResponse) VisitStartGraphRunResponse(w http.R
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartGraphRun400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response StartGraphRun400JSONResponse) VisitStartGraphRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
 	_, err := buf.WriteTo(w)
 	return err
 }

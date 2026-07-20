@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
@@ -194,7 +195,8 @@ func (store *PostgresStore) upsertRun(ctx context.Context, record RunRecord, req
 				result = $6,
 				error = $7,
 				temporal_workflow_id = $8,
-				temporal_run_id = $9
+				temporal_run_id = $9,
+				idempotency_key = $10
 			WHERE id = $1
 		`,
 			record.Run.Id,
@@ -206,8 +208,12 @@ func (store *PostgresStore) upsertRun(ctx context.Context, record RunRecord, req
 			record.Run.Error,
 			record.TemporalWorkflowID,
 			record.TemporalRunID,
+			record.IdempotencyKey,
 		)
 		if err != nil {
+			if isUniqueViolation(err) {
+				return fmt.Errorf("%w", ErrDuplicateIdempotencyKey)
+			}
 			return fmt.Errorf("update run %s: %w", record.Run.Id, err)
 		}
 		if tag.RowsAffected() == 0 {
@@ -219,8 +225,8 @@ func (store *PostgresStore) upsertRun(ctx context.Context, record RunRecord, req
 	_, err = store.pool.Exec(ctx, `
 		INSERT INTO runs (
 			id, graph_id, status, started_at, completed_at, result, error,
-			temporal_workflow_id, temporal_run_id
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			temporal_workflow_id, temporal_run_id, idempotency_key
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`,
 		record.Run.Id,
 		record.Run.GraphId,
@@ -231,25 +237,45 @@ func (store *PostgresStore) upsertRun(ctx context.Context, record RunRecord, req
 		record.Run.Error,
 		record.TemporalWorkflowID,
 		record.TemporalRunID,
+		record.IdempotencyKey,
 	)
 	if err != nil {
+		if isUniqueViolation(err) {
+			return fmt.Errorf("%w", ErrDuplicateIdempotencyKey)
+		}
 		return fmt.Errorf("put run %s: %w", record.Run.Id, err)
 	}
 	return nil
 }
 
 func (store *PostgresStore) GetRun(ctx context.Context, id openapi_types.UUID) (RunRecord, bool, error) {
+	return store.scanRun(ctx, `
+		SELECT id, graph_id, status, started_at, completed_at, result, error,
+		       temporal_workflow_id, temporal_run_id, idempotency_key
+		FROM runs WHERE id = $1
+	`, id)
+}
+
+func (store *PostgresStore) GetRunByIdempotencyKey(
+	ctx context.Context,
+	graphID openapi_types.UUID,
+	key string,
+) (RunRecord, bool, error) {
+	return store.scanRun(ctx, `
+		SELECT id, graph_id, status, started_at, completed_at, result, error,
+		       temporal_workflow_id, temporal_run_id, idempotency_key
+		FROM runs WHERE graph_id = $1 AND idempotency_key = $2
+	`, graphID, key)
+}
+
+func (store *PostgresStore) scanRun(ctx context.Context, query string, args ...any) (RunRecord, bool, error) {
 	var (
 		record      RunRecord
 		status      string
 		resultJSON  []byte
 		completedAt *time.Time
 	)
-	err := store.pool.QueryRow(ctx, `
-		SELECT id, graph_id, status, started_at, completed_at, result, error,
-		       temporal_workflow_id, temporal_run_id
-		FROM runs WHERE id = $1
-	`, id).Scan(
+	err := store.pool.QueryRow(ctx, query, args...).Scan(
 		&record.Run.Id,
 		&record.Run.GraphId,
 		&status,
@@ -259,12 +285,13 @@ func (store *PostgresStore) GetRun(ctx context.Context, id openapi_types.UUID) (
 		&record.Run.Error,
 		&record.TemporalWorkflowID,
 		&record.TemporalRunID,
+		&record.IdempotencyKey,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return RunRecord{}, false, nil
 	}
 	if err != nil {
-		return RunRecord{}, false, fmt.Errorf("get run %s: %w", id, err)
+		return RunRecord{}, false, fmt.Errorf("get run: %w", err)
 	}
 	record.Run.Status = api.RunStatus(status)
 	record.Run.CompletedAt = completedAt
@@ -276,6 +303,11 @@ func (store *PostgresStore) GetRun(ctx context.Context, id openapi_types.UUID) (
 		record.Run.Result = &result
 	}
 	return record, true, nil
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 func encodeOptionalJSON(value *map[string]interface{}) ([]byte, error) {

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -213,6 +214,76 @@ func TestStartAndGetGraphRun(t *testing.T) {
 	}
 	if !strings.Contains(string(body), `"status":"completed"`) {
 		t.Fatalf("get run body = %s, want completed status", body)
+	}
+}
+
+func TestStartGraphRunIdempotencyKeyDedupes(t *testing.T) {
+	t.Parallel()
+
+	startCount := 0
+	runner := &stubRunner{
+		startFn: func(_ context.Context, workflowID string, _ temporal.GraphWorkflowInput) (temporal.WorkflowExecution, error) {
+			startCount++
+			return temporal.WorkflowExecution{ID: workflowID, RunID: fmt.Sprintf("run-%d", startCount)}, nil
+		},
+		describeFn: func(_ context.Context, _ temporal.WorkflowExecution) (temporal.WorkflowStatus, error) {
+			return temporal.WorkflowStatus{Status: enums.WORKFLOW_EXECUTION_STATUS_RUNNING}, nil
+		},
+	}
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), runner, nil))
+
+	createRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs",
+		strings.NewReader(`{
+			"nodes":[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"noop-1","type":"noop","position":{"x":100,"y":0}}
+			],
+			"edges":[{"id":"e1","source":"start-1","target":"noop-1"}]
+		}`),
+	)
+	createRequest.Header.Set("Content-Type", "application/json")
+	createRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(createRecorder, createRequest)
+	if createRecorder.Code != http.StatusCreated {
+		t.Fatalf("create status = %d body=%s", createRecorder.Code, createRecorder.Body.String())
+	}
+	var created api.Graph
+	if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	body := `{"idempotencyKey":"delivery-1","input":{"message":"hello"}}`
+	first := httptest.NewRequest(http.MethodPost, "/graphs/"+created.Id.String()+"/run", strings.NewReader(body))
+	first.Header.Set("Content-Type", "application/json")
+	firstRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(firstRecorder, first)
+	if firstRecorder.Code != http.StatusAccepted {
+		t.Fatalf("first run status = %d body=%s", firstRecorder.Code, firstRecorder.Body.String())
+	}
+	var firstRun api.Run
+	if err := json.Unmarshal(firstRecorder.Body.Bytes(), &firstRun); err != nil {
+		t.Fatalf("decode first run: %v", err)
+	}
+
+	second := httptest.NewRequest(http.MethodPost, "/graphs/"+created.Id.String()+"/run", strings.NewReader(body))
+	second.Header.Set("Content-Type", "application/json")
+	secondRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(secondRecorder, second)
+	if secondRecorder.Code != http.StatusAccepted {
+		t.Fatalf("second run status = %d body=%s", secondRecorder.Code, secondRecorder.Body.String())
+	}
+	var secondRun api.Run
+	if err := json.Unmarshal(secondRecorder.Body.Bytes(), &secondRun); err != nil {
+		t.Fatalf("decode second run: %v", err)
+	}
+
+	if firstRun.Id != secondRun.Id {
+		t.Fatalf("run ids = %s vs %s, want same idempotent run", firstRun.Id, secondRun.Id)
+	}
+	if startCount != 1 {
+		t.Fatalf("StartGraphWorkflow calls = %d, want 1", startCount)
 	}
 }
 

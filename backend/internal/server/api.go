@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	enums "go.temporal.io/api/enums/v1"
 
@@ -110,8 +112,32 @@ func (apiServer *API) StartGraphRun(
 	}
 
 	var workflowInput map[string]interface{}
-	if request.Body != nil && request.Body.Input != nil {
-		workflowInput = *request.Body.Input
+	var idempotencyKey *string
+	if request.Body != nil {
+		if request.Body.Input != nil {
+			workflowInput = *request.Body.Input
+		}
+		if request.Body.IdempotencyKey != nil {
+			key := strings.TrimSpace(*request.Body.IdempotencyKey)
+			if key == "" {
+				return api.StartGraphRun400JSONResponse{
+					BadRequestJSONResponse: badRequest("idempotencyKey must not be blank"),
+				}, nil
+			}
+			if len(key) > 128 {
+				return api.StartGraphRun400JSONResponse{
+					BadRequestJSONResponse: badRequest("idempotencyKey must be at most 128 characters"),
+				}, nil
+			}
+			idempotencyKey = &key
+			existing, found, lookupErr := apiServer.store.GetRunByIdempotencyKey(ctx, graph.Id, key)
+			if lookupErr != nil {
+				return api.StartGraphRun500JSONResponse{InternalErrorJSONResponse: internalError(lookupErr.Error())}, nil
+			}
+			if found {
+				return api.StartGraphRun202JSONResponse(existing.Run), nil
+			}
+		}
 	}
 
 	runID := newRunID()
@@ -134,7 +160,17 @@ func (apiServer *API) StartGraphRun(
 		Run:                run,
 		TemporalWorkflowID: execution.ID,
 		TemporalRunID:      execution.RunID,
+		IdempotencyKey:     idempotencyKey,
 	}); err != nil {
+		if errors.Is(err, store.ErrDuplicateIdempotencyKey) && idempotencyKey != nil {
+			existing, found, lookupErr := apiServer.store.GetRunByIdempotencyKey(ctx, graph.Id, *idempotencyKey)
+			if lookupErr != nil {
+				return api.StartGraphRun500JSONResponse{InternalErrorJSONResponse: internalError(lookupErr.Error())}, nil
+			}
+			if found {
+				return api.StartGraphRun202JSONResponse(existing.Run), nil
+			}
+		}
 		return api.StartGraphRun500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
 	}
 	return api.StartGraphRun202JSONResponse(run), nil

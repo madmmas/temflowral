@@ -215,6 +215,15 @@ RUN_ID=$(curl -sS -X POST "http://127.0.0.1:8080/graphs/${GRAPH_ID}/run" \
 curl -sS "http://127.0.0.1:8080/runs/${RUN_ID}"
 ```
 
+Pass an optional `idempotencyKey` in the run body (scoped to the graph) so
+retries return the same run instead of starting another Temporal workflow:
+
+```sh
+curl -sS -X POST "http://127.0.0.1:8080/graphs/${GRAPH_ID}/run" \
+  -H 'content-type: application/json' \
+  -d '{"idempotencyKey":"smoke-1","input":{"message":"hello"}}'
+```
+
 Poll until `status` is `completed`. Stop the backend and development server with
 `Ctrl+C`, then `make temporal-down`.
 
