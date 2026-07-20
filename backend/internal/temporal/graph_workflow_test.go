@@ -255,7 +255,7 @@ func TestGraphWorkflowDispatchesHTTPNode(t *testing.T) {
 	environment.RegisterActivityWithOptions(
 		func(_ context.Context, input NodeActivityInput) (NodeResult, error) {
 			return NodeResult{
-				NodeID: input.Node.Id,
+				NodeID: input.Node.ID,
 				Value:  map[string]interface{}{"statusCode": 200, "body": "ok"},
 			}, nil
 		},

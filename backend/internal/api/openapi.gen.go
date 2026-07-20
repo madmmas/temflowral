@@ -108,8 +108,11 @@ type Edge struct {
 	// Source Source node ID
 	Source string `json:"source"`
 
-	// SourceHandle Source handle ID. For condition nodes this must be "true" or "false"
-	// to select which branch the edge belongs to.
+	// SourceHandle Source handle ID selecting which output of a multi-output node this
+	// edge belongs to. Must match a handle advertised by the source
+	// node's type (`NodeType.outputHandles` or handles derived via
+	// `NodeType.outputHandlesFromConfig`). For the built-in condition
+	// node the handles are "true" and "false".
 	SourceHandle *string `json:"sourceHandle,omitempty"`
 
 	// Target Target node ID
@@ -178,6 +181,15 @@ type Node struct {
 	Type string `json:"type"`
 }
 
+// NodeOutputHandle defines model for NodeOutputHandle.
+type NodeOutputHandle struct {
+	// Id Handle ID referenced by Edge.sourceHandle
+	Id string `json:"id"`
+
+	// Label Optional human-readable label for the canvas
+	Label *string `json:"label,omitempty"`
+}
+
 // NodeType defines model for NodeType.
 type NodeType struct {
 	// Category Grouping label for the palette (e.g. core, integration)
@@ -192,11 +204,33 @@ type NodeType struct {
 
 	// Name Human-readable name for the palette
 	Name string `json:"name"`
+
+	// OutputHandles Fixed output handles when the set does not depend on config.
+	// Omit or leave empty for a single unnamed default output.
+	// Do not combine with outputHandlesFromConfig on the same type.
+	OutputHandles *[]NodeOutputHandle `json:"outputHandles,omitempty"`
+
+	// OutputHandlesFromConfig Derives output handle IDs from a field in Node.config at plan and edit
+	// time. Use this when the handle set depends on configuration (for
+	// example N branch keys → N handles). Supported values at `path`:
+	// an array of strings; an array of objects with an `id` string field;
+	// or an object whose keys become handle IDs.
+	OutputHandlesFromConfig *OutputHandlesFromConfig `json:"outputHandlesFromConfig,omitempty"`
 }
 
 // NodeTypeList defines model for NodeTypeList.
 type NodeTypeList struct {
 	NodeTypes []NodeType `json:"nodeTypes"`
+}
+
+// OutputHandlesFromConfig Derives output handle IDs from a field in Node.config at plan and edit
+// time. Use this when the handle set depends on configuration (for
+// example N branch keys → N handles). Supported values at `path`:
+// an array of strings; an array of objects with an `id` string field;
+// or an object whose keys become handle IDs.
+type OutputHandlesFromConfig struct {
+	// Path Dot-separated path into Node.config (e.g. "branches")
+	Path string `json:"path"`
 }
 
 // Position defines model for Position.

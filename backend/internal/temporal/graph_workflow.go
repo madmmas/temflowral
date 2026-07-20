@@ -9,6 +9,7 @@ import (
 	"go.temporal.io/sdk/workflow"
 
 	"github.com/madmmas/temflowral/backend/internal/api"
+	"github.com/madmmas/temflowral/backend/pkg/nodetype"
 )
 
 const (
@@ -18,27 +19,16 @@ const (
 	NoopNodeActivityName = "temflowral.node.noop"
 )
 
-var activityByNodeType = map[string]string{
-	NoopNodeType: NoopNodeActivityName,
-	HTTPNodeType: HTTPNodeActivityName,
-}
+// NodeActivityInput is the Temporal activity payload for graph nodes.
+type NodeActivityInput = nodetype.ActivityInput
+
+// NodeResult is the output of a single graph node.
+type NodeResult = nodetype.Result
 
 // GraphWorkflowInput is the payload passed when starting a graph run.
 type GraphWorkflowInput struct {
 	Graph api.Graph              `json:"graph"`
 	Input map[string]interface{} `json:"input,omitempty"`
-}
-
-// NodeActivityInput is passed to node activities.
-type NodeActivityInput struct {
-	Node   api.Node     `json:"node"`
-	Inputs []NodeResult `json:"inputs"`
-}
-
-// NodeResult is the output of a single graph node.
-type NodeResult struct {
-	NodeID string                 `json:"nodeId"`
-	Value  map[string]interface{} `json:"value,omitempty"`
 }
 
 // GraphWorkflowResult is the aggregated output of a completed graph run.
@@ -47,8 +37,8 @@ type GraphWorkflowResult struct {
 }
 
 // GraphWorkflow walks a validated graph in topological order and dispatches
-// one activity per executable node type. Condition nodes select a true/false
-// branch via Edge.sourceHandle; nodes on the untaken path are skipped.
+// one activity per executable node type. Multi-output nodes select a branch
+// via Edge.sourceHandle; nodes on the untaken path are skipped.
 func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflowResult, error) {
 	plan, err := BuildExecutionPlan(input.Graph)
 	if err != nil {
@@ -78,9 +68,9 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 	})
 
 	for _, node := range plan {
-		inputs := activeInputs(node, incomingEdges, nodesByID, executed, branchTaken, resultsByID)
+		inputs := activeInputs(node, incomingEdges, executed, branchTaken, resultsByID)
 		if node.Type != StartNodeType && len(inputs) == 0 {
-			// Not reachable via any taken edge (untaken condition branch).
+			// Not reachable via any taken edge (untaken branch).
 			continue
 		}
 
@@ -120,27 +110,30 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 			result = NodeResult{
 				NodeID: node.Id,
 				Value: map[string]interface{}{
-					"type":    ConditionNodeType,
-					"field":   config.Field,
-					"matched": matched,
-					"branch":  handle,
+					"type":             ConditionNodeType,
+					"field":            config.Field,
+					"matched":          matched,
+					nodetype.BranchKey: handle,
 				},
 			}
 		default:
-			activityName, ok := activityByNodeType[node.Type]
+			activityName, ok := CurrentRegistry().ActivityName(node.Type)
 			if !ok {
 				return GraphWorkflowResult{}, fmt.Errorf("unsupported node type %q on node %q", node.Type, node.Id)
 			}
 			err := workflow.ExecuteActivity(
 				activityCtx,
 				activityName,
-				NodeActivityInput{Node: node, Inputs: inputs},
+				NodeActivityInput{Node: toActivityNode(node), Inputs: inputs},
 			).Get(ctx, &result)
 			if err != nil {
 				return GraphWorkflowResult{}, err
 			}
 			if result.NodeID == "" {
 				result.NodeID = node.Id
+			}
+			if branch, ok := nodetype.SelectedBranch(result); ok {
+				branchTaken[node.Id] = branch
 			}
 		}
 
@@ -152,12 +145,20 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 	return GraphWorkflowResult{Nodes: orderedResults}, nil
 }
 
+func toActivityNode(node api.Node) nodetype.Node {
+	return nodetype.Node{
+		ID:     node.Id,
+		Type:   node.Type,
+		Label:  node.Label,
+		Config: node.Config,
+	}
+}
+
 // activeInputs returns predecessor results that reach this node on the taken
-// path. Edges leaving a condition node are filtered by the chosen handle.
+// path. Edges leaving a multi-output node are filtered by the chosen handle.
 func activeInputs(
 	node api.Node,
 	incomingEdges map[string][]api.Edge,
-	nodesByID map[string]api.Node,
 	executed map[string]struct{},
 	branchTaken map[string]string,
 	resultsByID map[string]NodeResult,
@@ -168,12 +169,7 @@ func activeInputs(
 		if _, ok := executed[edge.Source]; !ok {
 			continue
 		}
-		source := nodesByID[edge.Source]
-		if source.Type == ConditionNodeType {
-			taken, ok := branchTaken[edge.Source]
-			if !ok {
-				continue
-			}
+		if taken, ok := branchTaken[edge.Source]; ok {
 			if edge.SourceHandle == nil || *edge.SourceHandle != taken {
 				continue
 			}
@@ -195,7 +191,7 @@ func NoopNodeActivity(_ context.Context, input NodeActivityInput) (NodeResult, e
 		value["inputs"] = input.Inputs
 	}
 	return NodeResult{
-		NodeID: input.Node.Id,
+		NodeID: input.Node.ID,
 		Value:  value,
 	}, nil
 }

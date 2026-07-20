@@ -79,10 +79,11 @@ allowlisting, SSRF protection, and size/time limits) is documented in
 
 ## Adding a custom node type
 
-Node types are the main extensibility hook. The end-to-end, contract-first
-recipe — OpenAPI schema, code generation, backend validation and execution,
-frontend behavior, tests, and security — lives in
-[`docs/adding-a-node-type.md`](docs/adding-a-node-type.md).
+Node types are the main extensibility hook. Built-in types follow the
+contract-first recipe in
+[`docs/adding-a-node-type.md`](docs/adding-a-node-type.md). Custom domain
+activities that must not live in this repo register at worker startup via
+`backend/pkg/nodetype` (see the external-registration section of that guide).
 
 ## Contributing
 

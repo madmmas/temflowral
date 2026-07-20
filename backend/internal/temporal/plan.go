@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/madmmas/temflowral/backend/internal/api"
+	"github.com/madmmas/temflowral/backend/pkg/nodetype"
 )
 
 const (
@@ -14,15 +15,9 @@ const (
 	NoopNodeType = "noop"
 )
 
-// isExecutableNodeType reports whether the graph translator can run a node
-// type: the start entry node, workflow-handled control nodes (delay,
-// condition), or any activity-backed node type.
+// isExecutableNodeType reports whether the registry knows how to run a type.
 func isExecutableNodeType(nodeType string) bool {
-	switch nodeType {
-	case StartNodeType, DelayNodeType, ConditionNodeType:
-		return true
-	}
-	_, ok := activityByNodeType[nodeType]
+	_, ok := CurrentRegistry().Get(nodeType)
 	return ok
 }
 
@@ -82,7 +77,7 @@ func BuildExecutionPlan(graph api.Graph) ([]api.Node, error) {
 		indegree[edge.Target]++
 	}
 
-	if err := validateConditionBranches(nodesByID, graph.Edges); err != nil {
+	if err := validateOutputHandles(nodesByID, graph.Edges); err != nil {
 		return nil, err
 	}
 
@@ -139,44 +134,62 @@ func BuildExecutionPlan(graph api.Graph) ([]api.Node, error) {
 	return order, nil
 }
 
-// validateConditionBranches requires every condition node to expose both true
-// and false outgoing edges via Edge.sourceHandle.
-func validateConditionBranches(nodesByID map[string]api.Node, edges []api.Edge) error {
+// validateOutputHandles ensures multi-output nodes expose every advertised
+// handle via at least one outgoing Edge.sourceHandle.
+func validateOutputHandles(nodesByID map[string]api.Node, edges []api.Edge) error {
 	outgoing := make(map[string][]api.Edge)
 	for _, edge := range edges {
 		outgoing[edge.Source] = append(outgoing[edge.Source], edge)
 	}
 
 	for _, node := range nodesByID {
-		if node.Type != ConditionNodeType {
+		def, ok := CurrentRegistry().Get(node.Type)
+		if !ok {
 			continue
 		}
-		hasTrue := false
-		hasFalse := false
+		handles, err := nodetype.ResolveOutputHandles(def, nodeConfigMap(node))
+		if err != nil {
+			return fmt.Errorf("node %q: %w", node.Id, err)
+		}
+		if len(handles) == 0 {
+			continue
+		}
+
+		required := make(map[string]bool, len(handles))
+		for _, handle := range handles {
+			required[handle] = false
+		}
 		for _, edge := range outgoing[node.Id] {
-			if edge.SourceHandle == nil || !isConditionHandle(*edge.SourceHandle) {
+			if edge.SourceHandle == nil {
 				return fmt.Errorf(
-					"condition node %q edge %q requires sourceHandle %q or %q",
+					"node %q (type %q) edge %q requires sourceHandle matching one of %v",
 					node.Id,
+					node.Type,
 					edge.Id,
-					ConditionTrueHandle,
-					ConditionFalseHandle,
+					handles,
 				)
 			}
-			switch *edge.SourceHandle {
-			case ConditionTrueHandle:
-				hasTrue = true
-			case ConditionFalseHandle:
-				hasFalse = true
+			if _, ok := required[*edge.SourceHandle]; !ok {
+				return fmt.Errorf(
+					"node %q (type %q) edge %q has unknown sourceHandle %q; want one of %v",
+					node.Id,
+					node.Type,
+					edge.Id,
+					*edge.SourceHandle,
+					handles,
+				)
 			}
+			required[*edge.SourceHandle] = true
 		}
-		if !hasTrue || !hasFalse {
-			return fmt.Errorf(
-				"condition node %q requires at least one %q and one %q outgoing edge",
-				node.Id,
-				ConditionTrueHandle,
-				ConditionFalseHandle,
-			)
+		for _, handle := range handles {
+			if !required[handle] {
+				return fmt.Errorf(
+					"node %q (type %q) requires at least one outgoing edge with sourceHandle %q",
+					node.Id,
+					node.Type,
+					handle,
+				)
+			}
 		}
 	}
 	return nil

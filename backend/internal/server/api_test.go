@@ -38,7 +38,7 @@ func (stub *stubRunner) DescribeGraphWorkflow(
 func TestCreateAndGetGraph(t *testing.T) {
 	t.Parallel()
 
-	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), &stubRunner{}))
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), &stubRunner{}, nil))
 
 	createRequest := httptest.NewRequest(
 		http.MethodPost,
@@ -76,7 +76,7 @@ func TestCreateAndGetGraph(t *testing.T) {
 func TestCreateGraphRejectsInvalidHTTPConfig(t *testing.T) {
 	t.Parallel()
 
-	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), &stubRunner{}))
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), &stubRunner{}, nil))
 	request := httptest.NewRequest(
 		http.MethodPost,
 		"/graphs",
@@ -104,7 +104,7 @@ func TestStartGraphRunRejectsInvalidGraph(t *testing.T) {
 	t.Parallel()
 
 	store := NewStore()
-	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store, &stubRunner{}))
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store, &stubRunner{}, nil))
 
 	createRequest := httptest.NewRequest(
 		http.MethodPost,
@@ -154,7 +154,7 @@ func TestStartAndGetGraphRun(t *testing.T) {
 			}, nil
 		},
 	}
-	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), runner))
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), runner, nil))
 
 	createRequest := httptest.NewRequest(
 		http.MethodPost,
@@ -218,7 +218,7 @@ func TestStartAndGetGraphRun(t *testing.T) {
 func TestListNodeTypes(t *testing.T) {
 	t.Parallel()
 
-	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), &stubRunner{}))
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), &stubRunner{}, nil))
 	request := httptest.NewRequest(http.MethodGet, "/node-types", nil)
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
@@ -275,5 +275,8 @@ func TestListNodeTypes(t *testing.T) {
 	conditionProps, ok := conditionType.ConfigSchema["properties"].(map[string]interface{})
 	if !ok || conditionProps["field"] == nil || conditionProps["equals"] == nil {
 		t.Errorf("condition config properties = %#v, want field and equals", conditionType.ConfigSchema["properties"])
+	}
+	if conditionType.OutputHandles == nil || len(*conditionType.OutputHandles) != 2 {
+		t.Fatalf("condition outputHandles = %#v, want true/false", conditionType.OutputHandles)
 	}
 }

@@ -96,7 +96,3 @@ func conditionHandle(matched bool) string {
 	}
 	return ConditionFalseHandle
 }
-
-func isConditionHandle(handle string) bool {
-	return handle == ConditionTrueHandle || handle == ConditionFalseHandle
-}

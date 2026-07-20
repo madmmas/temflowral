@@ -151,6 +151,9 @@ paths:
       description: |
         Registry of node types and their config schemas. The frontend uses this
         to render the palette and per-node config forms without hardcoding types.
+        Built-in types ship with the server; adopters can register additional
+        types (and their Temporal activities) at worker startup via the
+        `pkg/nodetype` registry so discovery and execution stay in sync.
       responses:
         '200':
           description: Node type registry
@@ -293,8 +296,11 @@ components:
         sourceHandle:
           type: string
           description: |
-            Source handle ID. For condition nodes this must be "true" or "false"
-            to select which branch the edge belongs to.
+            Source handle ID selecting which output of a multi-output node this
+            edge belongs to. Must match a handle advertised by the source
+            node's type (`NodeType.outputHandles` or handles derived via
+            `NodeType.outputHandlesFromConfig`). For the built-in condition
+            node the handles are "true" and "false".
         targetHandle:
           type: string
           description: Target handle ID
@@ -503,6 +509,37 @@ components:
           description: Optional input payload passed to the workflow
           additionalProperties: true
 
+    NodeOutputHandle:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          description: Handle ID referenced by Edge.sourceHandle
+          minLength: 1
+        label:
+          type: string
+          description: Optional human-readable label for the canvas
+      example:
+        id: "true"
+        label: "True"
+
+    OutputHandlesFromConfig:
+      type: object
+      required: [path]
+      description: |
+        Derives output handle IDs from a field in Node.config at plan and edit
+        time. Use this when the handle set depends on configuration (for
+        example N branch keys → N handles). Supported values at `path`:
+        an array of strings; an array of objects with an `id` string field;
+        or an object whose keys become handle IDs.
+      properties:
+        path:
+          type: string
+          description: Dot-separated path into Node.config (e.g. "branches")
+          minLength: 1
+          example: branches
+
     NodeType:
       type: object
       required: [id, name, configSchema]
@@ -523,6 +560,16 @@ components:
           type: object
           description: JSON Schema describing valid Node.config for this type
           additionalProperties: true
+        outputHandles:
+          type: array
+          description: |
+            Fixed output handles when the set does not depend on config.
+            Omit or leave empty for a single unnamed default output.
+            Do not combine with outputHandlesFromConfig on the same type.
+          items:
+            $ref: '#/components/schemas/NodeOutputHandle'
+        outputHandlesFromConfig:
+          $ref: '#/components/schemas/OutputHandlesFromConfig'
       example:
         id: http
         name: HTTP Request
@@ -626,3 +673,8 @@ components:
                   minLength: 1
                   maxLength: 256
                 equals: {}
+            outputHandles:
+              - id: "true"
+                label: "True"
+              - id: "false"
+                label: "False"

@@ -115,17 +115,60 @@ type-specific check.
 
 ## 5. Publish discovery metadata
 
-Add an `api.NodeType` entry to `API.ListNodeTypes` in
-`backend/internal/server/api.go` with:
+Built-in types are registered in `RegisterBuiltins`
+(`backend/internal/temporal/builtins.go`). That registration is the source of
+`GET /node-types`: each `nodetype.Definition` supplies `Id`, `Name`,
+`Description`, `Category`, `ConfigSchema`, and optional output-handle
+metadata (`OutputHandles` or `OutputHandlesFromConfig`).
 
-- `Id`: exactly the backend node-type constant;
-- `Name`, `Description`, and `Category`;
-- `ConfigSchema`: JSON Schema matching the OpenAPI config schema.
+`API.ListNodeTypes` maps the shared registry — do not hand-maintain a parallel
+slice in `api.go`. Update `TestListNodeTypes` when built-in discovery metadata
+changes.
 
 The frontend fetches `GET /node-types` and groups the palette by category.
-Currently `ConfigSchema` is assembled in Go, so this is intentional duplication
-that must be kept in sync with `api/openapi.yaml`. Update
-`TestListNodeTypes` whenever this registry changes.
+`ConfigSchema` is still assembled in Go beside the OpenAPI named config schema,
+so keep those in sync.
+
+### External registration (outside this repo)
+
+Adopters register custom activity-backed types without forking. Share one
+`*nodetype.Registry` between worker startup and the HTTP API:
+
+```go
+registry := nodetype.NewRegistry()
+if err := temporal.RegisterBuiltins(registry, temporal.BuiltinOptions{
+    HTTPAllowedHosts: []string{"api.example.com"},
+}); err != nil {
+    log.Fatal(err)
+}
+if err := registry.Register(nodetype.Definition{
+    ID:           "billing.charge",
+    Name:         "Charge",
+    Kind:         nodetype.KindActivity,
+    ConfigSchema: map[string]any{ /* JSON Schema */ },
+    // Fixed handles, or OutputHandlesFromConfig for config-derived handles:
+    OutputHandlesFromConfig: &nodetype.HandlesFromConfig{Path: "branches"},
+    ActivityName: "billing.activity.charge",
+    Activity:     ChargeActivity, // func(ctx, nodetype.ActivityInput) (nodetype.Result, error)
+    ValidateConfig: func(nodeID string, config map[string]any) error {
+        // reject bad config; never put secrets in the error
+        return nil
+    },
+}); err != nil {
+    log.Fatal(err)
+}
+
+runtime, err := temporal.Start(config, temporal.WithRegistry(registry))
+apiServer := server.NewAPI(store, runtime, registry)
+```
+
+Multi-output activity nodes select a branch by setting
+`result.Value["branch"]` to a handle ID. The planner validates
+`Edge.sourceHandle` against fixed or config-derived handles. Workflow-native
+kinds (`KindWorkflow`) remain reserved for built-in orchestration (start,
+delay, condition).
+
+A fuller external-package walkthrough is tracked as issue #67.
 
 ## 6. Add execution behavior
 
@@ -134,15 +177,17 @@ that must be kept in sync with `api/openapi.yaml`. Update
 Most nodes should be activities. Model them on the HTTP node:
 
 1. Define a stable activity name, such as `temflowral.node.http`.
-2. Implement an activity accepting `NodeActivityInput` and returning
-   `NodeResult`.
-3. Add `Node.type -> activity name` to `activityByNodeType` in
-   `backend/internal/temporal/graph_workflow.go`.
-4. Register the implementation under that exact name in
-   `backend/internal/temporal/runtime.go`.
+2. Implement an activity accepting `nodetype.ActivityInput` and returning
+   `nodetype.Result` (aliased as `NodeActivityInput` / `NodeResult` in the
+   temporal package).
+3. Register a `nodetype.Definition` with `KindActivity`, that activity name,
+   and the implementation (built-ins: `RegisterBuiltins`; in-repo additions:
+   extend `RegisterBuiltins`).
+4. `temporal.Start` registers every `KindActivity` on the worker from the
+   shared registry — do not add a one-off `RegisterActivityWithOptions` call
+   for each new built-in.
 
-Adding the type to `activityByNodeType` also makes `isExecutableNodeType`
-recognize it during planning.
+Planning and `GraphWorkflow` resolve activity names through the registry.
 
 The graph workflow currently sets `MaximumAttempts: 1` for node activities.
 Do not increase retries globally: side-effecting activities such as HTTP POST

@@ -5,6 +5,38 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — External node-type & activity registration (#55)
+
+**Did:**
+- Extended `NodeType` in `api/openapi.yaml` with `outputHandles` and
+  `outputHandlesFromConfig` (config-derived handle IDs), regenerated clients.
+- Added public SDK `backend/pkg/nodetype` (Definition, Registry, activity I/O,
+  handle resolution) and migrated built-ins onto `RegisterBuiltins`.
+- Wired planner, `GraphWorkflow`, worker `Start` (`WithRegistry`), and
+  `ListNodeTypes` through one shared registry; multi-output activities select
+  a branch via `value.branch`.
+- Documented the external registration path in `docs/adding-a-node-type.md`
+  and pointed README/CHANGELOG at it.
+
+**Decided / learned:**
+- External types must be `KindActivity`; workflow-native kinds stay built-in
+  (start/delay/condition). Adopters compose a custom `main` that registers
+  extras then calls `temporal.Start(..., WithRegistry(reg))` and
+  `server.NewAPI(..., reg)`.
+- Fixed vs config-derived handles are mutually exclusive per type; object-key,
+  string-array, and `{id}`-array config shapes are supported.
+
+**Verified:**
+- Redocly lint clean; `make generate` idempotent for clients.
+- `make test`, `make lint`, and `make test-contract` pass.
+- External multi-output activity covered by `TestExternalNodeTypeRegistration`.
+
+**Next:**
+- #67 can expand the external-package guide; #58/#60/#61/#63/#64 can build on
+  the registry.
+
+---
+
 ## 2026-07-19 — Sync local issue tracker with GitHub #55–#67
 
 **Did:**

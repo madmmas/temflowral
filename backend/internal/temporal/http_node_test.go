@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/madmmas/temflowral/backend/internal/api"
+	"github.com/madmmas/temflowral/backend/pkg/nodetype"
 )
 
 func TestValidateHTTPNodeConfig(t *testing.T) {
@@ -158,7 +159,7 @@ func TestHTTPNodeActivityExecute(t *testing.T) {
 		"body":    `{"message":"hello"}`,
 	}
 	result, err := activity.Execute(context.Background(), NodeActivityInput{
-		Node: api.Node{Id: "http-1", Type: HTTPNodeType, Config: &config},
+		Node: nodetype.Node{ID: "http-1", Type: HTTPNodeType, Config: &config},
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
@@ -194,7 +195,7 @@ func TestHTTPNodeActivityRejectsOversizedResponse(t *testing.T) {
 	}
 	config := map[string]interface{}{"method": "GET", "url": "https://api.example.com/large"}
 	_, err = activity.Execute(context.Background(), NodeActivityInput{
-		Node: api.Node{Id: "http-1", Type: HTTPNodeType, Config: &config},
+		Node: nodetype.Node{ID: "http-1", Type: HTTPNodeType, Config: &config},
 	})
 	if err == nil {
 		t.Fatal("Execute() error = nil, want oversized response error")
@@ -219,7 +220,7 @@ func TestHTTPNodeActivityDoesNotLeakRequestURLOnFailure(t *testing.T) {
 		"url":    "https://api.example.com/items?token=super-secret",
 	}
 	_, err = activity.Execute(context.Background(), NodeActivityInput{
-		Node: api.Node{Id: "http-1", Type: HTTPNodeType, Config: &config},
+		Node: nodetype.Node{ID: "http-1", Type: HTTPNodeType, Config: &config},
 	})
 	if err == nil {
 		t.Fatal("Execute() error = nil, want request failure")
