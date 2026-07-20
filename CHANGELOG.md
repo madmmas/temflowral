@@ -10,6 +10,10 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Durable graph/run store (`backend/internal/store`): Postgres via required
+  `DATABASE_URL`, pluggable `Store` interface, in-memory only when
+  `STORE_ALLOW_MEMORY=1` (tests/experiments). Compose creates a `temflowral`
+  database alongside Temporal's.
 - External node-type registry (`backend/pkg/nodetype`): register custom node
   types and Temporal activities at worker startup, shared with `GET /node-types`.
   `NodeType` now advertises fixed `outputHandles` and config-derived

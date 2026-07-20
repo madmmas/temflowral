@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/madmmas/temflowral/backend/internal/server"
+	"github.com/madmmas/temflowral/backend/internal/store"
 	temporalruntime "github.com/madmmas/temflowral/backend/internal/temporal"
 )
 
@@ -45,7 +46,17 @@ func run() error {
 	}
 	defer temporalRuntime.Close()
 
-	apiServer := server.NewAPI(server.NewStore(), temporalRuntime, temporalRuntime.Registry())
+	graphStore, err := store.OpenFromEnv()
+	if err != nil {
+		return fmt.Errorf("initialize store: %w", err)
+	}
+	defer func() {
+		if closeErr := graphStore.Close(); closeErr != nil {
+			log.Printf("close store: %v", closeErr)
+		}
+	}()
+
+	apiServer := server.NewAPI(graphStore, temporalRuntime, temporalRuntime.Registry())
 	httpServer := &http.Server{
 		Addr:              listenAddress,
 		Handler:           server.NewHandler(openAPISpec, apiServer),

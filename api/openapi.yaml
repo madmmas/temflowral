@@ -18,9 +18,14 @@ servers:
 
 tags:
   - name: graphs
-    description: Workflow graph CRUD
+    description: |
+      Workflow graph CRUD. Graph metadata is persisted in the configured durable
+      store (Postgres via DATABASE_URL).
   - name: runs
-    description: Workflow execution
+    description: |
+      Workflow execution. Run records (including Temporal workflow IDs) are
+      persisted in the durable store so API polling survives backend restarts;
+      Temporal owns durable workflow history separately.
   - name: node-types
     description: Available node type registry
 
@@ -30,7 +35,8 @@ paths:
       operationId: createGraph
       tags: [graphs]
       summary: Create a graph
-      description: Persist a new workflow graph (nodes and edges).
+      description: |
+        Persist a new workflow graph (nodes and edges) in the durable store.
       requestBody:
         required: true
         content:
@@ -94,7 +100,8 @@ paths:
       summary: Start a workflow run from a graph
       description: |
         Translates the graph into a Temporal workflow and starts execution.
-        Returns immediately with a run record; poll GET /runs/{id} for status.
+        Returns immediately with a run record persisted in the durable store;
+        poll GET /runs/{id} for status (survives backend restarts).
       parameters:
         - $ref: '#/components/parameters/GraphId'
       requestBody:
