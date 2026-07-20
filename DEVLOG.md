@@ -5,6 +5,26 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Sync local issue tracker with GitHub #55–#67
+
+**Did:**
+- Confirmed kickoff issues #5–#27 are all closed on GitHub.
+- Pulled the 13 new open issues (#55–#67) and rewrote
+  `docs/issues/ISSUES.md` as the post-kickoff backlog: extensibility &
+  durable storage, signals/execution controls, graph expressiveness, and
+  product/docs decisions — including depends-on edges and a suggested order.
+
+**Decided / learned:**
+- #55 (external registration) and #56 (durable store) are the foundation;
+  most executor work fans out from #55; #57 waits on #56.
+- Canvas packaging (#65) and auth/trust-boundary docs (#66) are unblocked
+  and can land anytime.
+
+**Next:**
+- Start #55 and/or #56.
+
+---
+
 ## 2026-07-19 — Align OpenAPI examples with live registry
 
 **Did:**
