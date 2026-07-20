@@ -1,148 +1,101 @@
-# temflowral — Kickoff Issue List
+# temflowral — Issue List
 
-Repo audit (2026-07-15): the project is a governance-only scaffold. `backend/go.mod`
-exists (Go 1.25.7, module `github.com/madmmas/temflowral/backend`) but has no source
-files. There is no `frontend/` directory, no `docker-compose.yml`, no `cmd/server/main.go`.
-README, CONTRIBUTING, CHANGELOG, CODE_OF_CONDUCT are outline placeholders, not written.
-CI (`.github/workflows/ci.yml`) is already built and correctly no-ops until code exists;
-its `e2e` job is commented out with "Disabled until Day 13."
+Kickoff issues [#5](https://github.com/madmmas/temflowral/issues/5)–[#27](https://github.com/madmmas/temflowral/issues/27)
+are closed (filed 2026-07-15; repo PRs already occupied #1–#4).
 
-**Contract-first, updated 2026-07-15:** the OpenAPI/Swagger spec is now the pivot point.
-Backend publishes it before writing real handlers; frontend and the Playwright
-contributor both build against it in parallel instead of waiting on each other.
-
-GitHub issues filed 2026-07-15 as [#5](https://github.com/madmmas/temflowral/issues/5)–[#27](https://github.com/madmmas/temflowral/issues/27)
-(repo PRs already occupied #1–#4).
+Post-kickoff backlog filed 2026-07-19 as
+[#55](https://github.com/madmmas/temflowral/issues/55)–[#67](https://github.com/madmmas/temflowral/issues/67).
 
 ## Team split
 - **You:** backend contract + implementation, frontend scaffold + integration.
 - **Contributor 2:** Playwright automated testing, working off the contract/mock
   server rather than the live backend.
 
-## 0. Contract first — blocks everything else
+---
 
-**[#5](https://github.com/madmmas/temflowral/issues/5) — Fix unresolved merge conflict markers in issue templates** `[bug][priority:high]`
-`.github/ISSUE_TEMPLATE/bug_report.md` and `feature_request.md` both have raw
-`<<<<<<< HEAD / ======= / >>>>>>> 979a133` conflict markers committed straight to `main`.
-Keep the temflowral-specific version (references `docs/adding-a-node-type.md`, asks for
-Go/Node versions), delete the other half, commit clean. Do this before anything else —
-five minutes, and it's visible to every future contributor.
+## Kickoff — done ([#5](https://github.com/madmmas/temflowral/issues/5)–[#27](https://github.com/madmmas/temflowral/issues/27))
 
-**[#6](https://github.com/madmmas/temflowral/issues/6) — Author `openapi.yaml` v0.1** `[api][priority:high]`
-The contract every other track builds against. Minimum surface for kickoff:
-- `POST /graphs` — create a graph (nodes + edges)
-- `GET /graphs/{id}` — fetch a graph
-- `POST /graphs/{id}/run` — start a Temporal workflow run from a graph
-- `GET /runs/{id}` — poll run status/result
-- `GET /node-types` — registry of available node types + their config schema
+Contract (#5–#9), backend (#10–#12), frontend (#13–#17), Playwright (#18–#20),
+first node types (#21–#23), cleanup & docs (#24–#27). All closed.
 
-Schemas: `Graph`, `Node`, `Edge`, `NodeType`, `Run`, `RunStatus`. Keep it thin — this
-is v0.1, expand as node types land. Live in `api/openapi.yaml` at repo root so it's
-not buried under `backend/` or `frontend/`.
+---
 
-**[#7](https://github.com/madmmas/temflowral/issues/7) — Serve the spec + Swagger UI from the backend** `[backend][api]`
-`GET /openapi.yaml` (raw file) and `GET /docs` (Swagger UI pointed at it). This can
-ship before any real handlers exist — it's static-file serving plus a CDN'd
-swagger-ui bundle. Gives the frontend and Playwright contributor a live reference
-immediately, not just a file in the repo.
+## 6. Extensibility & durable execution
 
-**[#8](https://github.com/madmmas/temflowral/issues/8) — Mock server from the contract** `[api][infra][priority:high]`
-Document (in CONTRIBUTING.md) how to run a spec-backed mock, e.g.
-`npx @stoplight/prism-cli mock api/openapi.yaml`. This is what unblocks frontend
-and Playwright work before real backend logic lands — both tracks point at the mock
-until real endpoints come online, then flip a base-URL env var.
+**[#55](https://github.com/madmmas/temflowral/issues/55) — External node-type & activity registration (extensibility hook)** `[executor][extensibility]`
+Interface/SDK for registering a custom node type (config schema + output
+handles) and its backing Temporal activity, resolvable at worker startup,
+independent of built-in node types. Schema must support output handles derived
+from config (not just a fixed list). Without this, adopters fork temflowral.
+Depends on: Graph → Temporal translator (#12, done).
 
-**[#9](https://github.com/madmmas/temflowral/issues/9) — Spec validation in CI** `[infra][api]`
-Add a CI job that lints `openapi.yaml` (Spectral or equivalent) on every PR that
-touches it, so a broken contract never lands on `main`. Small addition to the
-existing `.github/workflows/ci.yml`.
+**[#56](https://github.com/madmmas/temflowral/issues/56) — Durable storage backend for graph/run store** `[executor][storage]`
+Pluggable durable store (Postgres to start; keep it an interface). Startup
+check that fails loudly if a durable store isn't configured, instead of
+silently defaulting to in-memory. A worker restart today loses every in-flight
+run. Depends on: Graph → Temporal translator (#12, done).
 
-## 1. Backend — implements the contract
+**[#57](https://github.com/madmmas/temflowral/issues/57) — Caller-supplied idempotency key on `StartGraphRun`** `[executor]`
+Accept an optional idempotency key on `StartGraphRun`; dedupe against it before
+starting a new Temporal workflow. Needed for at-least-once callers (webhooks,
+queues, retried API calls). Depends on: #56.
 
-**[#10](https://github.com/madmmas/temflowral/issues/10) — Generate Go server interfaces from the spec** `[backend]`
-Use `oapi-codegen` (or hand-write if you'd rather not add codegen yet) to produce
-request/response types + a server interface from `openapi.yaml`. `cmd/server/main.go`
-wires the generated interface to real handlers — this replaces writing the HTTP
-layer from scratch.
+## 7. Signals & execution controls
 
-**[#11](https://github.com/madmmas/temflowral/issues/11) — Temporal client + local worker wiring** `[backend]`
-Connect to Temporal (temporalite for local dev). Register a no-op workflow +
-activity to prove the wiring end to end before `POST /graphs/{id}/run` does
-anything real.
+**[#58](https://github.com/madmmas/temflowral/issues/58) — Signal/wait primitive** `[executor]`
+A "wait for signal" node type or run-level primitive that suspends execution
+until a named signal arrives, with a timeout fallback. Only timers exist today.
+Depends on: #55.
 
-**[#12](https://github.com/madmmas/temflowral/issues/12) — Graph → Temporal workflow translator** `[backend][core]`
-Core engine: walk the `Graph` schema from #6 and drive a generic Temporal workflow
-that dispatches to the right activity per node type, respecting edge order/branching.
+**[#59](https://github.com/madmmas/temflowral/issues/59) — Signal-delivery endpoint** `[executor]`
+`POST /runs/{id}/signal` (or similar), validating the run is waiting on that
+signal name before forwarding to the Temporal workflow. Depends on: #58.
 
-## 2. Frontend — implements against the contract
+**[#60](https://github.com/madmmas/temflowral/issues/60) — Per-node ActivityOptions (timeout/retry override)** `[executor]`
+Allow a node's config to specify `startToCloseTimeout`, `retryPolicy`, etc.,
+overriding engine defaults. Depends on: #55.
 
-**[#13](https://github.com/madmmas/temflowral/issues/13) — Next.js app bootstrap in `frontend/`** `[frontend]`
-`create-next-app`, TypeScript, matches Node 20 / npm assumptions in Makefile and CI.
+**[#61](https://github.com/madmmas/temflowral/issues/61) — Per-node task-queue routing** `[executor]`
+Allow a node's config to specify a target Temporal task queue so activities run
+only on workers with specific capabilities. Depends on: #55.
 
-**[#14](https://github.com/madmmas/temflowral/issues/14) — Generate a typed API client from the spec** `[frontend][api]`
-`openapi-typescript` or `orval` against `api/openapi.yaml` — gives you typed
-request/response objects and a client, regenerated whenever the contract changes.
-Point it at the Prism mock (#8) until real backend endpoints exist.
+## 8. Graph expressiveness
 
-**[#15](https://github.com/madmmas/temflowral/issues/15) — React Flow (xyflow) canvas** `[frontend]`
-Base canvas: pan/zoom, add/connect nodes, delete nodes/edges. No custom node types yet.
+**[#62](https://github.com/madmmas/temflowral/issues/62) — Child Workflow node type** `[node-type][executor]`
+Node that spawns a child Temporal workflow and can gate on its result — for
+fan-out/fan-in or per-item sub-workflows expressed as a graph. Depends on:
+Graph → Temporal translator (#12, done).
 
-**[#16](https://github.com/madmmas/temflowral/issues/16) — Node palette + custom node rendering, driven by `GET /node-types`** `[frontend]`
-Sidebar populated from the node-type registry endpoint rather than hardcoded, so
-adding a node type on the backend doesn't require a matching frontend PR.
+**[#63](https://github.com/madmmas/temflowral/issues/63) — Templating syntax for node config** `[executor]`
+Minimal templating syntax (e.g. `{{ nodes.foo.output.bar }}`) resolved at
+execution time so node config can reference another node's output. Depends on:
+#55.
 
-**[#17](https://github.com/madmmas/temflowral/issues/17) — Save/run graph against the generated client** `[frontend][integration]`
-Serialize canvas state to the `Graph` schema, call `POST /graphs` and
-`POST /graphs/{id}/run` via the generated client, poll `GET /runs/{id}` for status.
+**[#64](https://github.com/madmmas/temflowral/issues/64) — Graph validation before run start** `[executor]`
+Validate node types against the registry and detect cycles before a run starts
+— reject unknown types and cycles at submission time, not mid-run. Depends on:
+#55.
 
-## 3. Automated testing (Contributor 2 — Playwright)
+## 9. Product decisions & docs
 
-**[#18](https://github.com/madmmas/temflowral/issues/18) — Playwright scaffold pointed at the mock server** `[testing]`
-Set up Playwright in `frontend/`, config to target the Prism mock (#8) by default so
-this contributor isn't blocked on real backend work landing.
+**[#65](https://github.com/madmmas/temflowral/issues/65) — Canvas packaging decision** `[canvas][decision]`
+ADR-style doc: whether the React Flow frontend becomes an importable package,
+an embeddable service, or stays reference-only. "No shared package yet — build
+against the node-type registry API" is a valid answer.
 
-**[#19](https://github.com/madmmas/temflowral/issues/19) — Contract conformance checks** `[testing][api]`
-Assert backend responses actually match `openapi.yaml` schemas (e.g. Dredd, or a
-lightweight AJV-based check against captured responses) — catches drift between the
-spec and the real implementation before it reaches the frontend.
+**[#66](https://github.com/madmmas/temflowral/issues/66) — Document API auth baseline and trust-boundary stance** `[docs][security]`
+Minimal service-to-service auth (shared secret or mTLS); extend SECURITY.md
+with an explicit trust-boundary statement (no tenant isolation enforced);
+short compatibility note for interpreter upgrades.
 
-**[#20](https://github.com/madmmas/temflowral/issues/20) — E2E happy-path test: build graph → run → see result** `[testing]`
-The real target once #12 and #17 exist. This is the one CI's `e2e` job comment marks
-"Disabled until Day 13" — keep it off until the stack can actually support it, but
-write it against the mock in the meantime so it's ready to flip on.
-
-## 4. First node types
-
-**[#21](https://github.com/madmmas/temflowral/issues/21) — HTTP activity node** `[node-type]`
-First real node type; add its config schema to `openapi.yaml`'s `NodeType`/`Node`
-shapes as part of the PR. SECURITY.md already flags this as the primary attack
-surface (arbitrary requests, SSRF via user-supplied URLs, template injection in
-config fields) — build the allowlist/validation story alongside the happy path.
-
-**[#22](https://github.com/madmmas/temflowral/issues/22) — Delay/wait node** `[node-type]`
-Proves Temporal's durable timers work through the graph translator.
-
-**[#23](https://github.com/madmmas/temflowral/issues/23) — Conditional/branch node** `[node-type]`
-Exercises edge-based branching in the translator beyond a linear chain.
-
-## 5. Cleanup & docs
-
-**[#24](https://github.com/madmmas/temflowral/issues/24) — `golangci-lint` config** `[infra]`
-`.golangci.yml` so `make lint` (and CI's go-lint job) enforces real rules.
-
-**[#25](https://github.com/madmmas/temflowral/issues/25) — `docker-compose.yml`** `[infra]`
-Temporal server + Postgres + backend + frontend, one `docker compose up`.
-
-**[#26](https://github.com/madmmas/temflowral/issues/26) — `docs/adding-a-node-type.md`** `[docs]`
-Referenced by the feature request issue template. Write once #21 exists, so it
-documents both the backend node implementation and the `openapi.yaml` schema change.
-
-**[#27](https://github.com/madmmas/temflowral/issues/27) — Fill in placeholder docs** `[docs]`
-README.md, CONTRIBUTING.md, CHANGELOG.md are numbered outlines, not prose.
+**[#67](https://github.com/madmmas/temflowral/issues/67) — Extend `docs/adding-a-node-type.md` for external registration** `[docs]`
+Document registering a node type from outside this repo once #55 lands.
+Depends on: #55.
 
 ---
 
 ### Suggested order
-5 → 6 → 7 → 8 → 9 (contract track, can start immediately)
-then in parallel: 10 → 11 → 12 (backend) · 13 → 14 → 15 → 16 → 17 (frontend) · 18 → 19 → 20 (Playwright, off the mock until backend catches up)
-then: 21 → 22/23 → 24 → 25 → 26 → 27
+55 + 56 in parallel (foundation) → 57 (after 56)
+then: 58 → 59 · 60 · 61 · 63 · 64 (after 55, can parallelize once #55 lands)
+62 can start after #12 (already done); pairs well with #55
+65 · 66 anytime · 67 after #55
