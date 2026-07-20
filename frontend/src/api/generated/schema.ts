@@ -91,6 +91,9 @@ export interface paths {
          * List available node types
          * @description Registry of node types and their config schemas. The frontend uses this
          *     to render the palette and per-node config forms without hardcoding types.
+         *     Built-in types ship with the server; adopters can register additional
+         *     types (and their Temporal activities) at worker startup via the
+         *     `pkg/nodetype` registry so discovery and execution stay in sync.
          *
          */
         get: operations["listNodeTypes"];
@@ -167,8 +170,11 @@ export interface components {
             source: string;
             /** @description Target node ID */
             target: string;
-            /** @description Source handle ID. For condition nodes this must be "true" or "false"
-             *     to select which branch the edge belongs to.
+            /** @description Source handle ID selecting which output of a multi-output node this
+             *     edge belongs to. Must match a handle advertised by the source
+             *     node's type (`NodeType.outputHandles` or handles derived via
+             *     `NodeType.outputHandlesFromConfig`). For the built-in condition
+             *     node the handles are "true" and "false".
              *      */
             sourceHandle?: string;
             /** @description Target handle ID */
@@ -353,6 +359,29 @@ export interface components {
             };
         };
         /** @example {
+         *       "id": "true",
+         *       "label": "True"
+         *     } */
+        NodeOutputHandle: {
+            /** @description Handle ID referenced by Edge.sourceHandle */
+            id: string;
+            /** @description Optional human-readable label for the canvas */
+            label?: string;
+        };
+        /** @description Derives output handle IDs from a field in Node.config at plan and edit
+         *     time. Use this when the handle set depends on configuration (for
+         *     example N branch keys → N handles). Supported values at `path`:
+         *     an array of strings; an array of objects with an `id` string field;
+         *     or an object whose keys become handle IDs.
+         *      */
+        OutputHandlesFromConfig: {
+            /**
+             * @description Dot-separated path into Node.config (e.g. "branches")
+             * @example branches
+             */
+            path: string;
+        };
+        /** @example {
          *       "id": "http",
          *       "name": "HTTP Request",
          *       "description": "Make an allowlisted outbound HTTP request",
@@ -407,6 +436,12 @@ export interface components {
             configSchema: {
                 [key: string]: unknown;
             };
+            /** @description Fixed output handles when the set does not depend on config.
+             *     Omit or leave empty for a single unnamed default output.
+             *     Do not combine with outputHandlesFromConfig on the same type.
+             *      */
+            outputHandles?: components["schemas"]["NodeOutputHandle"][];
+            outputHandlesFromConfig?: components["schemas"]["OutputHandlesFromConfig"];
         };
         /** @example {
          *       "nodeTypes": [
@@ -513,7 +548,17 @@ export interface components {
          *               },
          *               "equals": {}
          *             }
-         *           }
+         *           },
+         *           "outputHandles": [
+         *             {
+         *               "id": "true",
+         *               "label": "True"
+         *             },
+         *             {
+         *               "id": "false",
+         *               "label": "False"
+         *             }
+         *           ]
          *         }
          *       ]
          *     } */

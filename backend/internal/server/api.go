@@ -7,6 +7,7 @@ import (
 
 	"github.com/madmmas/temflowral/backend/internal/api"
 	"github.com/madmmas/temflowral/backend/internal/temporal"
+	"github.com/madmmas/temflowral/backend/pkg/nodetype"
 )
 
 // GraphRunner starts and inspects graph workflows.
@@ -24,15 +25,20 @@ type GraphRunner interface {
 
 // API implements the generated strict server interface.
 type API struct {
-	store  *Store
-	runner GraphRunner
+	store    *Store
+	runner   GraphRunner
+	registry *nodetype.Registry
 }
 
 var _ api.StrictServerInterface = (*API)(nil)
 
-// NewAPI returns the HTTP API implementation.
-func NewAPI(store *Store, runner GraphRunner) *API {
-	return &API{store: store, runner: runner}
+// NewAPI returns the HTTP API implementation. When registry is nil, the
+// process-wide Temporal registry (built-ins) is used for ListNodeTypes.
+func NewAPI(store *Store, runner GraphRunner, registry *nodetype.Registry) *API {
+	if registry == nil {
+		registry = temporal.CurrentRegistry()
+	}
+	return &API{store: store, runner: runner, registry: registry}
 }
 
 func (apiServer *API) CreateGraph(
@@ -127,108 +133,42 @@ func (apiServer *API) ListNodeTypes(
 	_ context.Context,
 	_ api.ListNodeTypesRequestObject,
 ) (api.ListNodeTypesResponseObject, error) {
-	core := "core"
-	integration := "integration"
-	startDescription := "Workflow entry point"
-	noopDescription := "No-op activity used to smoke-test graph execution"
-	httpDescription := "Make an allowlisted outbound HTTP request"
-	delayDescription := "Pause the workflow with a durable Temporal timer"
-	conditionDescription := "Branch on a predecessor field (true/false source handles)"
-	return api.ListNodeTypes200JSONResponse{
-		NodeTypes: []api.NodeType{
-			{
-				Id:          temporal.StartNodeType,
-				Name:        "Start",
-				Description: &startDescription,
-				Category:    &core,
-				ConfigSchema: map[string]interface{}{
-					"type":                 "object",
-					"additionalProperties": false,
-				},
-			},
-			{
-				Id:          temporal.NoopNodeType,
-				Name:        "No-op",
-				Description: &noopDescription,
-				Category:    &core,
-				ConfigSchema: map[string]interface{}{
-					"type":                 "object",
-					"additionalProperties": true,
-				},
-			},
-			{
-				Id:          temporal.HTTPNodeType,
-				Name:        "HTTP Request",
-				Description: &httpDescription,
-				Category:    &integration,
-				ConfigSchema: map[string]interface{}{
-					"type":                 "object",
-					"required":             []string{"method", "url"},
-					"additionalProperties": false,
-					"properties": map[string]interface{}{
-						"method": map[string]interface{}{
-							"type": "string",
-							"enum": []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
-						},
-						"url": map[string]interface{}{
-							"type":      "string",
-							"format":    "uri",
-							"maxLength": 2048,
-						},
-						"headers": map[string]interface{}{
-							"type":          "object",
-							"maxProperties": 32,
-							"additionalProperties": map[string]interface{}{
-								"type":      "string",
-								"maxLength": 8192,
-							},
-						},
-						"body": map[string]interface{}{
-							"type":      "string",
-							"maxLength": 1048576,
-						},
-					},
-				},
-			},
-			{
-				Id:          temporal.DelayNodeType,
-				Name:        "Delay",
-				Description: &delayDescription,
-				Category:    &core,
-				ConfigSchema: map[string]interface{}{
-					"type":                 "object",
-					"required":             []string{"seconds"},
-					"additionalProperties": false,
-					"properties": map[string]interface{}{
-						"seconds": map[string]interface{}{
-							"type":    "number",
-							"minimum": 0,
-							"maximum": 604800,
-						},
-					},
-				},
-			},
-			{
-				Id:          temporal.ConditionNodeType,
-				Name:        "Condition",
-				Description: &conditionDescription,
-				Category:    &core,
-				ConfigSchema: map[string]interface{}{
-					"type":                 "object",
-					"required":             []string{"field", "equals"},
-					"additionalProperties": false,
-					"properties": map[string]interface{}{
-						"field": map[string]interface{}{
-							"type":      "string",
-							"minLength": 1,
-							"maxLength": 256,
-						},
-						"equals": map[string]interface{}{},
-					},
-				},
-			},
-		},
-	}, nil
+	defs := apiServer.registry.List()
+	nodeTypes := make([]api.NodeType, 0, len(defs))
+	for _, def := range defs {
+		nodeType := api.NodeType{
+			Id:           def.ID,
+			Name:         def.Name,
+			ConfigSchema: def.ConfigSchema,
+		}
+		if def.Description != "" {
+			description := def.Description
+			nodeType.Description = &description
+		}
+		if def.Category != "" {
+			category := def.Category
+			nodeType.Category = &category
+		}
+		if len(def.OutputHandles) > 0 {
+			handles := make([]api.NodeOutputHandle, 0, len(def.OutputHandles))
+			for _, handle := range def.OutputHandles {
+				item := api.NodeOutputHandle{Id: handle.ID}
+				if handle.Label != "" {
+					label := handle.Label
+					item.Label = &label
+				}
+				handles = append(handles, item)
+			}
+			nodeType.OutputHandles = &handles
+		}
+		if def.OutputHandlesFromConfig != nil {
+			nodeType.OutputHandlesFromConfig = &api.OutputHandlesFromConfig{
+				Path: def.OutputHandlesFromConfig.Path,
+			}
+		}
+		nodeTypes = append(nodeTypes, nodeType)
+	}
+	return api.ListNodeTypes200JSONResponse{NodeTypes: nodeTypes}, nil
 }
 
 func (apiServer *API) GetRun(

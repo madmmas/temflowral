@@ -90,7 +90,12 @@ func NewHTTPNodeActivity(allowedHosts []string) (*HTTPNodeActivity, error) {
 
 // Execute performs the configured request and returns a bounded response.
 func (activity *HTTPNodeActivity) Execute(ctx context.Context, input NodeActivityInput) (NodeResult, error) {
-	config, err := parseHTTPNodeConfig(input.Node)
+	config, err := parseHTTPNodeConfig(api.Node{
+		Id:     input.Node.ID,
+		Type:   input.Node.Type,
+		Label:  input.Node.Label,
+		Config: input.Node.Config,
+	})
 	if err != nil {
 		return NodeResult{}, err
 	}
@@ -153,25 +158,19 @@ func (activity *HTTPNodeActivity) Execute(ctx context.Context, input NodeActivit
 	if contentType := response.Header.Get("Content-Type"); contentType != "" {
 		value["contentType"] = contentType
 	}
-	return NodeResult{NodeID: input.Node.Id, Value: value}, nil
+	return NodeResult{NodeID: input.Node.ID, Value: value}, nil
 }
 
 // ValidateNodeConfig validates node-type-specific configuration without
-// performing deployment-specific allowlist or DNS checks.
+// performing deployment-specific allowlist or DNS checks. Unknown types with
+// no ValidateConfig hook are accepted (planning still rejects unregistered
+// types via the registry).
 func ValidateNodeConfig(node api.Node) error {
-	switch node.Type {
-	case HTTPNodeType:
-		_, err := parseHTTPNodeConfig(node)
-		return err
-	case DelayNodeType:
-		_, err := parseDelayNodeConfig(node)
-		return err
-	case ConditionNodeType:
-		_, err := parseConditionNodeConfig(node)
-		return err
-	default:
+	def, ok := CurrentRegistry().Get(node.Type)
+	if !ok || def.ValidateConfig == nil {
 		return nil
 	}
+	return def.ValidateConfig(node.Id, nodeConfigMap(node))
 }
 
 func parseHTTPNodeConfig(node api.Node) (api.HttpNodeConfig, error) {

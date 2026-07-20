@@ -10,6 +10,10 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- External node-type registry (`backend/pkg/nodetype`): register custom node
+  types and Temporal activities at worker startup, shared with `GET /node-types`.
+  `NodeType` now advertises fixed `outputHandles` and config-derived
+  `outputHandlesFromConfig`.
 - Contract-first API: `api/openapi.yaml` as the source of truth, with a
   generated Go server (`oapi-codegen`) and a generated TypeScript client
   (`openapi-typescript`).

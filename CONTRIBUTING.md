@@ -49,7 +49,9 @@ Node types are the primary extension point. Follow the contract-first,
 step-by-step recipe in
 [`docs/adding-a-node-type.md`](docs/adding-a-node-type.md): edit
 `api/openapi.yaml`, regenerate both clients, then implement backend validation,
-execution, frontend behavior, tests, and security controls.
+execution, frontend behavior, tests, and security controls. Custom types that
+live outside this repo register through `backend/pkg/nodetype` at worker
+startup (same guide, external-registration section).
 
 ## Linting
 

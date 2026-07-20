@@ -10,6 +10,8 @@ import (
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
+
+	"github.com/madmmas/temflowral/backend/pkg/nodetype"
 )
 
 // Runtime owns the process-wide Temporal client and worker.
@@ -17,6 +19,7 @@ type Runtime struct {
 	client    client.Client
 	worker    worker.Worker
 	taskQueue string
+	registry  *nodetype.Registry
 	once      sync.Once
 }
 
@@ -33,13 +36,40 @@ type WorkflowStatus struct {
 	Error  string
 }
 
+// StartOption configures Temporal runtime startup.
+type StartOption func(*startOptions)
+
+type startOptions struct {
+	registry *nodetype.Registry
+}
+
+// WithRegistry supplies a pre-built node-type registry (built-ins already
+// registered, plus any external types). When omitted, Start creates a registry
+// and registers built-ins using config.HTTPAllowedHosts.
+func WithRegistry(registry *nodetype.Registry) StartOption {
+	return func(options *startOptions) {
+		options.registry = registry
+	}
+}
+
 // Start connects to Temporal, registers workflows and activities, and starts
 // polling the configured task queue.
-func Start(config Config) (*Runtime, error) {
-	httpNodeActivity, err := NewHTTPNodeActivity(config.HTTPAllowedHosts)
-	if err != nil {
-		return nil, fmt.Errorf("configure HTTP node activity: %w", err)
+func Start(config Config, opts ...StartOption) (*Runtime, error) {
+	options := startOptions{}
+	for _, opt := range opts {
+		opt(&options)
 	}
+
+	registry := options.registry
+	if registry == nil {
+		registry = nodetype.NewRegistry()
+		if err := RegisterBuiltins(registry, BuiltinOptions{
+			HTTPAllowedHosts: config.HTTPAllowedHosts,
+		}); err != nil {
+			return nil, err
+		}
+	}
+	UseRegistry(registry)
 
 	temporalClient, err := client.Dial(client.Options{
 		HostPort:  config.Address,
@@ -59,12 +89,11 @@ func Start(config Config) (*Runtime, error) {
 	temporalWorker.RegisterWorkflowWithOptions(GraphWorkflow, workflow.RegisterOptions{
 		Name: GraphWorkflowName,
 	})
-	temporalWorker.RegisterActivityWithOptions(NoopNodeActivity, activity.RegisterOptions{
-		Name: NoopNodeActivityName,
-	})
-	temporalWorker.RegisterActivityWithOptions(httpNodeActivity.Execute, activity.RegisterOptions{
-		Name: HTTPNodeActivityName,
-	})
+	for _, registration := range registry.Activities() {
+		temporalWorker.RegisterActivityWithOptions(registration.Fn, activity.RegisterOptions{
+			Name: registration.Name,
+		})
+	}
 
 	if err := temporalWorker.Start(); err != nil {
 		temporalClient.Close()
@@ -75,7 +104,13 @@ func Start(config Config) (*Runtime, error) {
 		client:    temporalClient,
 		worker:    temporalWorker,
 		taskQueue: config.TaskQueue,
+		registry:  registry,
 	}, nil
+}
+
+// Registry returns the node-type registry bound to this runtime.
+func (runtime *Runtime) Registry() *nodetype.Registry {
+	return runtime.registry
 }
 
 // Close stops polling and closes the Temporal client. It is safe to call more
