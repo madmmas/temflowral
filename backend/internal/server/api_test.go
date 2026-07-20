@@ -12,6 +12,7 @@ import (
 	enums "go.temporal.io/api/enums/v1"
 
 	"github.com/madmmas/temflowral/backend/internal/api"
+	"github.com/madmmas/temflowral/backend/internal/store"
 	"github.com/madmmas/temflowral/backend/internal/temporal"
 )
 
@@ -38,7 +39,7 @@ func (stub *stubRunner) DescribeGraphWorkflow(
 func TestCreateAndGetGraph(t *testing.T) {
 	t.Parallel()
 
-	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), &stubRunner{}, nil))
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), &stubRunner{}, nil))
 
 	createRequest := httptest.NewRequest(
 		http.MethodPost,
@@ -76,7 +77,7 @@ func TestCreateAndGetGraph(t *testing.T) {
 func TestCreateGraphRejectsInvalidHTTPConfig(t *testing.T) {
 	t.Parallel()
 
-	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), &stubRunner{}, nil))
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), &stubRunner{}, nil))
 	request := httptest.NewRequest(
 		http.MethodPost,
 		"/graphs",
@@ -103,8 +104,8 @@ func TestCreateGraphRejectsInvalidHTTPConfig(t *testing.T) {
 func TestStartGraphRunRejectsInvalidGraph(t *testing.T) {
 	t.Parallel()
 
-	store := NewStore()
-	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store, &stubRunner{}, nil))
+	graphStore := store.NewMemoryStore()
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(graphStore, &stubRunner{}, nil))
 
 	createRequest := httptest.NewRequest(
 		http.MethodPost,
@@ -154,7 +155,7 @@ func TestStartAndGetGraphRun(t *testing.T) {
 			}, nil
 		},
 	}
-	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), runner, nil))
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), runner, nil))
 
 	createRequest := httptest.NewRequest(
 		http.MethodPost,
@@ -218,7 +219,7 @@ func TestStartAndGetGraphRun(t *testing.T) {
 func TestListNodeTypes(t *testing.T) {
 	t.Parallel()
 
-	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(NewStore(), &stubRunner{}, nil))
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), &stubRunner{}, nil))
 	request := httptest.NewRequest(http.MethodGet, "/node-types", nil)
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)

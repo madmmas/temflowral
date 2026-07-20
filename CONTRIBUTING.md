@@ -164,13 +164,20 @@ needed:
 - `TEMPORAL_ADDRESS` (default `localhost:7233`)
 - `TEMPORAL_NAMESPACE` (default `default`)
 - `TEMPORAL_TASK_QUEUE` (default `temflowral`)
+- `DATABASE_URL` (required; Postgres DSN for graph/run metadata, e.g.
+  `postgres://temporal:temporal@localhost:5432/temflowral?sslmode=disable`)
+- `STORE_ALLOW_MEMORY` (default unset; set to `1` only for explicit local
+  experiments without Postgres — production and `docker compose` always use
+  `DATABASE_URL`)
 - `HTTP_ALLOWED_HOSTS` (default empty/deny all; comma-separated exact
   hostnames permitted for HTTP activity nodes)
 
-For example, allow the contract's HTTP-node example while developing:
+For example, with Temporal + Postgres already up via `make temporal-dev`
+(Postgres is published on `localhost:5432`):
 
 ```sh
-HTTP_ALLOWED_HOSTS=httpbin.org make run-backend
+DATABASE_URL='postgres://temporal:temporal@localhost:5432/temflowral?sslmode=disable' \
+  HTTP_ALLOWED_HOSTS=httpbin.org make run-backend
 ```
 
 Schemes, ports, wildcards, localhost, and private IPs are not valid allowlist

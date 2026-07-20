@@ -15,9 +15,13 @@ executes it with retries, timers, and branching handled for you.
 │ Next.js + React     │  HTTP  │ Go HTTP API          │  gRPC  │ server      │
 │ Flow canvas         │ ─────▶ │ + graph translator   │ ─────▶ │ + worker    │
 │ (typed OpenAPI      │        │ + node activities    │        │ (Postgres   │
-│  client)            │ ◀───── │                      │ ◀───── │  persisted) │
+│  client)            │ ◀───── │ + Postgres store     │ ◀───── │  persisted) │
 └─────────────────────┘        └──────────────────────┘        └─────────────┘
 ```
+
+Graph and run API metadata live in a dedicated `temflowral` Postgres database
+(`DATABASE_URL`). Temporal workflow history uses separate databases on the same
+Postgres instance. The backend refuses to start without `DATABASE_URL`.
 
 `api/openapi.yaml` is the single source of truth for the HTTP API. Both the Go
 server types and the TypeScript client are generated from it, so the two sides
@@ -32,8 +36,9 @@ Requires Docker. From the repository root:
 docker compose up   # or: make run
 ```
 
-First boot builds the backend and frontend images and initializes the Temporal
-schema in Postgres, so allow a minute. Then open:
+First boot builds the backend and frontend images, creates the `temflowral`
+application database, and initializes the Temporal schema in Postgres, so allow
+a minute. Then open:
 
 - Frontend canvas: <http://localhost:3000>
 - Backend API + interactive docs: <http://localhost:8080> / <http://localhost:8080/docs>

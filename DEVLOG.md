@@ -5,6 +5,33 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Durable graph/run store (#56)
+
+**Did:**
+- Introduced `backend/internal/store.Store` with Postgres (`DATABASE_URL`) and
+  in-memory (`STORE_ALLOW_MEMORY=1`) implementations; schema embedded and
+  applied on open.
+- Wired `cmd/server` to `store.OpenFromEnv()` (fails loudly without
+  `DATABASE_URL`); updated API handlers for ctx/errors.
+- Compose: init `temflowral` DB, publish Postgres `:5432`, set backend
+  `DATABASE_URL`. Clarified durable-store wording in OpenAPI tags/operation
+  descriptions; docs/CHANGELOG/ISSUES updated.
+
+**Decided / learned:**
+- App metadata stays out of Temporal's `temporal` DB; backend can `CREATE
+  DATABASE` if the named DB is missing (helps existing compose volumes).
+- No new HTTP endpoints — persistence is an operator/env concern.
+
+**Verified:**
+- Unit tests for OpenFromEnv + MemoryStore; Postgres round-trip against
+  compose Postgres with `DATABASE_URL`.
+- `make test`, `make lint`, `make test-contract`, Redocly lint, `make generate`.
+
+**Next:**
+- #57 idempotency key can add a nullable unique column on `runs`.
+
+---
+
 ## 2026-07-19 — External node-type & activity registration (#55)
 
 **Did:**

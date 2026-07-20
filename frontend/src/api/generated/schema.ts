@@ -15,7 +15,8 @@ export interface paths {
         put?: never;
         /**
          * Create a graph
-         * @description Persist a new workflow graph (nodes and edges).
+         * @description Persist a new workflow graph (nodes and edges) in the durable store.
+         *
          */
         post: operations["createGraph"];
         delete?: never;
@@ -53,7 +54,8 @@ export interface paths {
         /**
          * Start a workflow run from a graph
          * @description Translates the graph into a Temporal workflow and starts execution.
-         *     Returns immediately with a run record; poll GET /runs/{id} for status.
+         *     Returns immediately with a run record persisted in the durable store;
+         *     poll GET /runs/{id} for status (survives backend restarts).
          *
          */
         post: operations["startGraphRun"];

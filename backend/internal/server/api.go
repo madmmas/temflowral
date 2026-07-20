@@ -6,6 +6,7 @@ import (
 	enums "go.temporal.io/api/enums/v1"
 
 	"github.com/madmmas/temflowral/backend/internal/api"
+	"github.com/madmmas/temflowral/backend/internal/store"
 	"github.com/madmmas/temflowral/backend/internal/temporal"
 	"github.com/madmmas/temflowral/backend/pkg/nodetype"
 )
@@ -25,7 +26,7 @@ type GraphRunner interface {
 
 // API implements the generated strict server interface.
 type API struct {
-	store    *Store
+	store    store.Store
 	runner   GraphRunner
 	registry *nodetype.Registry
 }
@@ -34,15 +35,15 @@ var _ api.StrictServerInterface = (*API)(nil)
 
 // NewAPI returns the HTTP API implementation. When registry is nil, the
 // process-wide Temporal registry (built-ins) is used for ListNodeTypes.
-func NewAPI(store *Store, runner GraphRunner, registry *nodetype.Registry) *API {
+func NewAPI(graphStore store.Store, runner GraphRunner, registry *nodetype.Registry) *API {
 	if registry == nil {
 		registry = temporal.CurrentRegistry()
 	}
-	return &API{store: store, runner: runner, registry: registry}
+	return &API{store: graphStore, runner: runner, registry: registry}
 }
 
 func (apiServer *API) CreateGraph(
-	_ context.Context,
+	ctx context.Context,
 	request api.CreateGraphRequestObject,
 ) (api.CreateGraphResponseObject, error) {
 	if request.Body == nil {
@@ -72,15 +73,20 @@ func (apiServer *API) CreateGraph(
 		}
 	}
 
-	apiServer.store.PutGraph(graph)
+	if err := apiServer.store.PutGraph(ctx, graph); err != nil {
+		return api.CreateGraph500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
 	return api.CreateGraph201JSONResponse(graph), nil
 }
 
 func (apiServer *API) GetGraph(
-	_ context.Context,
+	ctx context.Context,
 	request api.GetGraphRequestObject,
 ) (api.GetGraphResponseObject, error) {
-	graph, ok := apiServer.store.GetGraph(request.GraphId)
+	graph, ok, err := apiServer.store.GetGraph(ctx, request.GraphId)
+	if err != nil {
+		return api.GetGraph500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
 	if !ok {
 		return api.GetGraph404JSONResponse{NotFoundJSONResponse: notFound("graph not found")}, nil
 	}
@@ -91,7 +97,10 @@ func (apiServer *API) StartGraphRun(
 	ctx context.Context,
 	request api.StartGraphRunRequestObject,
 ) (api.StartGraphRunResponseObject, error) {
-	graph, ok := apiServer.store.GetGraph(request.GraphId)
+	graph, ok, err := apiServer.store.GetGraph(ctx, request.GraphId)
+	if err != nil {
+		return api.StartGraphRun500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
 	if !ok {
 		return api.StartGraphRun404JSONResponse{NotFoundJSONResponse: notFound("graph not found")}, nil
 	}
@@ -121,11 +130,13 @@ func (apiServer *API) StartGraphRun(
 		Status:    api.Running,
 		StartedAt: startedAt,
 	}
-	apiServer.store.PutRun(RunRecord{
+	if err := apiServer.store.PutRun(ctx, store.RunRecord{
 		Run:                run,
 		TemporalWorkflowID: execution.ID,
 		TemporalRunID:      execution.RunID,
-	})
+	}); err != nil {
+		return api.StartGraphRun500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
 	return api.StartGraphRun202JSONResponse(run), nil
 }
 
@@ -175,7 +186,10 @@ func (apiServer *API) GetRun(
 	ctx context.Context,
 	request api.GetRunRequestObject,
 ) (api.GetRunResponseObject, error) {
-	record, ok := apiServer.store.GetRun(request.RunId)
+	record, ok, err := apiServer.store.GetRun(ctx, request.RunId)
+	if err != nil {
+		return api.GetRun500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
 	if !ok {
 		return api.GetRun404JSONResponse{NotFoundJSONResponse: notFound("run not found")}, nil
 	}
@@ -212,7 +226,9 @@ func (apiServer *API) GetRun(
 		record.Run.Result = nil
 	}
 
-	apiServer.store.UpdateRun(record)
+	if err := apiServer.store.UpdateRun(ctx, record); err != nil {
+		return api.GetRun500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
 	return api.GetRun200JSONResponse(record.Run), nil
 }
 

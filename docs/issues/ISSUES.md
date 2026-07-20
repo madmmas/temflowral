@@ -22,18 +22,20 @@ first node types (#21–#23), cleanup & docs (#24–#27). All closed.
 
 ## 6. Extensibility & durable execution
 
-**[#55](https://github.com/madmmas/temflowral/issues/55) — External node-type & activity registration (extensibility hook)** `[executor][extensibility]`
+**[#55](https://github.com/madmmas/temflowral/issues/55) — External node-type & activity registration (extensibility hook)** `[executor][extensibility]` ✅
 Interface/SDK for registering a custom node type (config schema + output
 handles) and its backing Temporal activity, resolvable at worker startup,
 independent of built-in node types. Schema must support output handles derived
 from config (not just a fixed list). Without this, adopters fork temflowral.
-Depends on: Graph → Temporal translator (#12, done).
+Depends on: Graph → Temporal translator (#12, done). **Shipped:**
+`backend/pkg/nodetype` + OpenAPI handle fields.
 
-**[#56](https://github.com/madmmas/temflowral/issues/56) — Durable storage backend for graph/run store** `[executor][storage]`
+**[#56](https://github.com/madmmas/temflowral/issues/56) — Durable storage backend for graph/run store** `[executor][storage]` ✅
 Pluggable durable store (Postgres to start; keep it an interface). Startup
 check that fails loudly if a durable store isn't configured, instead of
 silently defaulting to in-memory. A worker restart today loses every in-flight
-run. Depends on: Graph → Temporal translator (#12, done).
+run. Depends on: Graph → Temporal translator (#12, done). **Shipped:**
+`backend/internal/store` with Postgres via `DATABASE_URL`.
 
 **[#57](https://github.com/madmmas/temflowral/issues/57) — Caller-supplied idempotency key on `StartGraphRun`** `[executor]`
 Accept an optional idempotency key on `StartGraphRun`; dedupe against it before
