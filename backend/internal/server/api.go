@@ -79,6 +79,18 @@ func (apiServer *API) CreateGraph(
 		graph.Edges = []api.Edge{}
 	}
 	for _, node := range graph.Nodes {
+		if node.Type == "" {
+			return api.CreateGraph400JSONResponse{
+				BadRequestJSONResponse: badRequest(fmt.Sprintf("node %q has empty type", node.Id)),
+			}, nil
+		}
+		if _, ok := apiServer.registry.Get(node.Type); !ok {
+			return api.CreateGraph400JSONResponse{
+				BadRequestJSONResponse: badRequest(
+					fmt.Sprintf("unsupported node type %q on node %q", node.Type, node.Id),
+				),
+			}, nil
+		}
 		if err := temporal.ValidateNodeConfig(node); err != nil {
 			return api.CreateGraph400JSONResponse{
 				BadRequestJSONResponse: badRequest(err.Error()),
@@ -123,7 +135,9 @@ func (apiServer *API) StartGraphRun(
 		return api.StartGraphRun404JSONResponse{NotFoundJSONResponse: notFound("graph not found")}, nil
 	}
 
-	if _, err := temporal.BuildExecutionPlan(graph); err != nil {
+	// Reject unknown registry types, cycles, and other structural problems
+	// before starting Temporal so failures surface at submission time.
+	if err := temporal.ValidateGraph(graph, apiServer.registry); err != nil {
 		return api.StartGraphRun409JSONResponse(conflict(err.Error())), nil
 	}
 

@@ -105,8 +105,11 @@ Decode the generic `Node.Config` into the generated config type. Follow
 - bound strings, collections, payloads, and durations;
 - return useful errors without exposing secrets or user-controlled URLs.
 
-Register the parser in `ValidateNodeConfig`. This validation is called when a
-graph is created and again while `BuildExecutionPlan` validates a run.
+Register the parser in `ValidateConfig` on the registry definition (wired through
+`ValidateNodeConfig`). Config validation runs when a graph is created and again
+while `ValidateGraph` / `BuildExecutionPlan` gates a run. Create also rejects
+node types missing from the registry; full topology checks (cycles, reachability,
+single start) run at `POST .../run` before Temporal starts.
 
 OpenAPI constraints, the parser, and the discovery schema must agree. A request
 passing the HTTP transport's OpenAPI validation is not proof that a specific

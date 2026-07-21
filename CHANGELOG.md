@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Pre-run graph validation (`ValidateGraph`): `StartGraphRun` rejects unknown
+  registry node types, cycles, and unreachable nodes with 409 before Temporal
+  starts; `CreateGraph` rejects unregistered types with 400.
 - Minimal node-config templating: `{{ nodes.<nodeId>.output.<path> }}` resolved
   at run time from active predecessor outputs (HTTP url/headers/body supported;
   rendered requests revalidated; wait configs reject templates).

@@ -16,6 +16,9 @@ export interface paths {
         /**
          * Create a graph
          * @description Persist a new workflow graph (nodes and edges) in the durable store.
+         *     Each node `type` must be registered in the worker's node-type registry
+         *     (`GET /node-types`); unknown types are rejected with 400. Full topology
+         *     checks (cycles, reachability, single start) run when starting a run.
          *
          */
         post: operations["createGraph"];
@@ -54,6 +57,11 @@ export interface paths {
         /**
          * Start a workflow run from a graph
          * @description Translates the graph into a Temporal workflow and starts execution.
+         *     Before Temporal is started, the graph is validated against the node-type
+         *     registry: unknown types, cycles, unreachable nodes, missing/duplicate
+         *     start, invalid edges/handles, and invalid per-type config are rejected
+         *     with 409 so failures surface at submission time rather than mid-run.
+         *
          *     Returns immediately with a run record persisted in the durable store;
          *     poll GET /runs/{id} for status (survives backend restarts).
          *
@@ -1095,7 +1103,10 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
-            /** @description Graph cannot be run (e.g. invalid structure) */
+            /** @description Graph cannot be run. Typical causes: unsupported (unregistered) node
+             *     type, cycle or unreachable nodes, missing or duplicate start node,
+             *     invalid edges/sourceHandles, or invalid node config / activityOptions.
+             *      */
             409: {
                 headers: {
                     [name: string]: unknown;
