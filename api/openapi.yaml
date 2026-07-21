@@ -9,8 +9,16 @@ info:
     Visual workflow engine API. Users design graphs (nodes + edges) in the
     frontend; the backend translates them into Temporal workflows and runs them.
 
-# v0.1 has no authentication; declare explicitly for spec linters.
-security: []
+    Authentication: production deployments should require `Authorization: Bearer`
+    with the shared secret from `API_AUTH_TOKEN` (see SECURITY.md). Local and
+    mock servers may run without the env var (open mode). mTLS may terminate at
+    a reverse proxy in front of this API.
+
+# Bearer shared-secret is the documented baseline; `{}` allows open mode when
+# the server has not configured API_AUTH_TOKEN (local/Prism).
+security:
+  - BearerAuth: []
+  - {}
 
 servers:
   - url: http://localhost:8080
@@ -74,6 +82,8 @@ paths:
                 $ref: '#/components/schemas/Graph'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -91,6 +101,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Graph'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -137,6 +149,8 @@ paths:
                 $ref: '#/components/schemas/Run'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -165,6 +179,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Run'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -202,6 +218,8 @@ paths:
                 $ref: '#/components/schemas/SignalRunResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -239,10 +257,25 @@ paths:
                 $ref: '#/components/schemas/NodeTypeList'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
 
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: |
+        Shared secret for service-to-service callers. Send
+        `Authorization: Bearer <token>` where `<token>` matches the server's
+        `API_AUTH_TOKEN` environment variable. When `API_AUTH_TOKEN` is unset,
+        the server runs in open mode (local/dev/Prism). Prefer terminating mTLS
+        at a reverse proxy in front of this API when mutual TLS is required;
+        see SECURITY.md.
+
   parameters:
     GraphId:
       name: graphId
@@ -267,6 +300,15 @@ components:
   responses:
     BadRequest:
       description: Invalid request body or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: |
+        Missing or invalid Bearer token when `API_AUTH_TOKEN` is configured on
+        the server.
       content:
         application/json:
           schema:

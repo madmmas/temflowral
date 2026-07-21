@@ -943,6 +943,17 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description Missing or invalid Bearer token when `API_AUTH_TOKEN` is configured on
+         *     the server.
+         *      */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
         /** @description Resource not found */
         NotFound: {
             headers: {
@@ -1038,6 +1049,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -1065,6 +1077,7 @@ export interface operations {
                     "application/json": components["schemas"]["Graph"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];
         };
@@ -1106,6 +1119,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             /** @description Graph cannot be run. Typical causes: unsupported (unregistered) node
              *     type, cycle or unreachable nodes, missing or duplicate start node,
@@ -1146,6 +1160,7 @@ export interface operations {
                     "application/json": components["schemas"]["Run"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];
         };
@@ -1185,6 +1200,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             /** @description Run cannot accept this signal (not running, or not currently
              *     waiting on this signal name).
@@ -1219,6 +1235,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             500: components["responses"]["InternalError"];
         };
     };

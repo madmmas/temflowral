@@ -81,6 +81,9 @@ services:
       # Deny-by-default outbound policy for HTTP activity nodes; override with a
       # comma-separated allowlist. See SECURITY.md.
       HTTP_ALLOWED_HOSTS: ${HTTP_ALLOWED_HOSTS:-}
+      # Optional service-to-service Bearer auth. Leave unset for open local demo
+      # (default). Set API_AUTH_TOKEN when exposing the API beyond localhost.
+      API_AUTH_TOKEN: ${API_AUTH_TOKEN:-}
     ports:
       - "8080:8080"
 

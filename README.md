@@ -89,7 +89,10 @@ the matching signal with `POST /runs/{runId}/signal`.
 
 The `http` node is the primary attack surface; its outbound policy (host
 allowlisting, SSRF protection, and size/time limits) is documented in
-[`SECURITY.md`](SECURITY.md).
+[`SECURITY.md`](SECURITY.md). That file also states the **trust boundary**
+(no tenant isolation — authorize graph/run/signal access before calling
+temflowral) and the API auth baseline (`API_AUTH_TOKEN` Bearer shared secret;
+mTLS at a reverse proxy).
 
 ## Adding a custom node type
 

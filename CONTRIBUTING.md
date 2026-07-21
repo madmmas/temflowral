@@ -171,6 +171,9 @@ needed:
   `DATABASE_URL`)
 - `HTTP_ALLOWED_HOSTS` (default empty/deny all; comma-separated exact
   hostnames permitted for HTTP activity nodes)
+- `API_AUTH_TOKEN` (optional; when set, OpenAPI routes require
+  `Authorization: Bearer <token>` — see `SECURITY.md`. Leave unset for local
+  open mode / Prism)
 
 For example, with Temporal + Postgres already up via `make temporal-dev`
 (Postgres is published on `localhost:5432`):
@@ -180,8 +183,19 @@ DATABASE_URL='postgres://temporal:temporal@localhost:5432/temflowral?sslmode=dis
   HTTP_ALLOWED_HOSTS=httpbin.org make run-backend
 ```
 
+To require Bearer auth locally:
+
+```sh
+API_AUTH_TOKEN='dev-secret' \
+  DATABASE_URL='postgres://temporal:temporal@localhost:5432/temflowral?sslmode=disable' \
+  make run-backend
+
+curl -sS -H "Authorization: Bearer dev-secret" http://127.0.0.1:8080/node-types
+```
+
 Schemes, ports, wildcards, localhost, and private IPs are not valid allowlist
-entries. See `SECURITY.md` for the full outbound-request policy.
+entries. See `SECURITY.md` for the full outbound-request policy and the
+trust-boundary / auth baseline.
 
 To prove the client and worker path end to end, run the registered smoke
 workflow from a third terminal. This uses the CLI already inside the dev
@@ -193,7 +207,9 @@ make temporal-smoke
 
 The workflow runs one activity and returns `"hello"`.
 
-To exercise the graph translator over HTTP (create → run → poll):
+To exercise the graph translator over HTTP (create → run → poll). If you set
+`API_AUTH_TOKEN`, add `-H "Authorization: Bearer $API_AUTH_TOKEN"` to each
+curl:
 
 ```sh
 GRAPH_ID=$(curl -sS -X POST http://127.0.0.1:8080/graphs \

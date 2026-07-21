@@ -25,6 +25,75 @@ concerns are:
 - Arbitrary HTTP requests made by the HTTP activity node
 - Template injection in node configuration fields
 - Server-side request forgery via user-supplied URLs
+- Unauthenticated or overly trusted access to the HTTP API
+
+## Trust boundary (no tenant isolation)
+
+temflowral is a **single-trust-domain engine**. It does **not** enforce
+multi-tenant isolation, ownership, or per-caller ACLs on graphs, runs, or
+signals.
+
+- Knowing a graph ID or run ID is sufficient to fetch, run, or signal that
+  resource once a caller can reach the API with a valid shared secret (when
+  auth is enabled).
+- Callers (API gateways, BFF layers, product backends) **must** authorize
+  which principals may access which graph/run/signal IDs **before** forwarding
+  traffic to temflowral.
+- Do not assume UUID opacity is an access-control mechanism.
+
+## API authentication baseline
+
+Production and shared deployments should enable service-to-service auth:
+
+```sh
+API_AUTH_TOKEN='long-random-secret'
+```
+
+When `API_AUTH_TOKEN` is set, every OpenAPI route requires:
+
+```http
+Authorization: Bearer <API_AUTH_TOKEN>
+```
+
+Missing or incorrect tokens return `401` with `code: unauthorized`.
+`GET /docs` and `GET /openapi.yaml` stay reachable without a token so operators
+can read the contract.
+
+When `API_AUTH_TOKEN` is unset, the API runs in **open mode** (local
+development, Prism mocks, and compose defaults). Do not expose an open-mode
+server on an untrusted network.
+
+### mTLS
+
+Mutual TLS is supported as a **deployment** option: terminate client
+certificates at a reverse proxy or service mesh (nginx, Caddy, Envoy, ingress)
+in front of the Go process. temflowral does not implement application-level
+mTLS identity checks in v0.x; combine proxy mTLS with `API_AUTH_TOKEN` when you
+want defense in depth.
+
+Do not put shared secrets in `NEXT_PUBLIC_*` frontend env vars — the reference
+canvas is not a place to embed service credentials. Service callers and BFFs
+should attach the Bearer header server-side.
+
+## Interpreter / upgrade compatibility
+
+Upgrading the temflowral backend (graph interpreter + worker) can change
+execution semantics for graphs that already exist. Watch for:
+
+- **Node-type registry** — new required config fields, removed types, or
+  stricter validation on `POST /graphs` / `POST .../run` (`GET /node-types`
+  is the discovery surface).
+- **HTTP allowlist / SSRF policy** — `HTTP_ALLOWED_HOSTS` and destination
+  checks may reject URLs that previously worked.
+- **Templating** — path resolution and forbidden contexts (e.g. wait config)
+  can tighten.
+- **Signals** — wait signal names and `POST /runs/{id}/signal` matching rules.
+- **In-flight Temporal workflows** — workflow/activity code changes can be
+  non-replay-safe for runs started on an older binary; drain or pin worker
+  versions before rolling breaking interpreter changes.
+
+Pin versions in production, re-validate stored graphs after upgrades, and treat
+Temporal worker rollouts like any other durable-execution code change.
 
 ## HTTP activity controls
 

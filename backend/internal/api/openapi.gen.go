@@ -427,6 +427,9 @@ type InternalError = Error
 // NotFound defines model for NotFound.
 type NotFound = Error
 
+// Unauthorized defines model for Unauthorized.
+type Unauthorized = Error
+
 // CreateGraphJSONRequestBody defines body for CreateGraph for application/json ContentType.
 type CreateGraphJSONRequestBody = CreateGraphRequest
 
@@ -735,6 +738,8 @@ type InternalErrorJSONResponse Error
 
 type NotFoundJSONResponse Error
 
+type UnauthorizedJSONResponse Error
+
 type CreateGraphRequestObject struct {
 	Body *CreateGraphJSONRequestBody
 }
@@ -771,6 +776,20 @@ func (response CreateGraph400JSONResponse) VisitCreateGraphResponse(w http.Respo
 	return err
 }
 
+type CreateGraph401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateGraph401JSONResponse) VisitCreateGraphResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type CreateGraph500JSONResponse struct{ InternalErrorJSONResponse }
 
 func (response CreateGraph500JSONResponse) VisitCreateGraphResponse(w http.ResponseWriter) error {
@@ -803,6 +822,20 @@ func (response GetGraph200JSONResponse) VisitGetGraphResponse(w http.ResponseWri
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGraph401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetGraph401JSONResponse) VisitGetGraphResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -868,6 +901,20 @@ func (response StartGraphRun400JSONResponse) VisitStartGraphRunResponse(w http.R
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartGraphRun401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response StartGraphRun401JSONResponse) VisitStartGraphRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -949,6 +996,20 @@ func (response ListNodeTypes400JSONResponse) VisitListNodeTypesResponse(w http.R
 	return err
 }
 
+type ListNodeTypes401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListNodeTypes401JSONResponse) VisitListNodeTypesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListNodeTypes500JSONResponse struct{ InternalErrorJSONResponse }
 
 func (response ListNodeTypes500JSONResponse) VisitListNodeTypesResponse(w http.ResponseWriter) error {
@@ -981,6 +1042,20 @@ func (response GetRun200JSONResponse) VisitGetRunResponse(w http.ResponseWriter)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRun401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetRun401JSONResponse) VisitGetRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -1046,6 +1121,20 @@ func (response SignalRun400JSONResponse) VisitSignalRunResponse(w http.ResponseW
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignalRun401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SignalRun401JSONResponse) VisitSignalRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
