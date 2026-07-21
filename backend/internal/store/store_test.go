@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -90,6 +91,60 @@ func TestMemoryStoreRoundTrip(t *testing.T) {
 	}
 }
 
+func TestMemoryStoreIdempotencyKey(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	memory := NewMemoryStore()
+	graphID := uuid.New()
+	if err := memory.PutGraph(ctx, api.Graph{
+		Id:        graphID,
+		Nodes:     []api.Node{},
+		Edges:     []api.Edge{},
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("PutGraph() error = %v", err)
+	}
+
+	key := "delivery-1"
+	runID := uuid.New()
+	if err := memory.PutRun(ctx, RunRecord{
+		Run: api.Run{
+			Id:        runID,
+			GraphId:   graphID,
+			Status:    api.Running,
+			StartedAt: time.Now().UTC(),
+		},
+		TemporalWorkflowID: runID.String(),
+		TemporalRunID:      "t1",
+		IdempotencyKey:     &key,
+	}); err != nil {
+		t.Fatalf("PutRun() error = %v", err)
+	}
+
+	got, ok, err := memory.GetRunByIdempotencyKey(ctx, graphID, key)
+	if err != nil || !ok || got.Run.Id != runID {
+		t.Fatalf("GetRunByIdempotencyKey() = %#v ok=%v err=%v", got, ok, err)
+	}
+
+	otherID := uuid.New()
+	err = memory.PutRun(ctx, RunRecord{
+		Run: api.Run{
+			Id:        otherID,
+			GraphId:   graphID,
+			Status:    api.Running,
+			StartedAt: time.Now().UTC(),
+		},
+		TemporalWorkflowID: otherID.String(),
+		TemporalRunID:      "t2",
+		IdempotencyKey:     &key,
+	})
+	if !errors.Is(err, ErrDuplicateIdempotencyKey) {
+		t.Fatalf("PutRun() duplicate error = %v, want ErrDuplicateIdempotencyKey", err)
+	}
+}
+
 func TestPostgresStoreRoundTrip(t *testing.T) {
 	databaseURL := strings.TrimSpace(os.Getenv(databaseURLEnv))
 	if databaseURL == "" {
@@ -151,5 +206,67 @@ func TestPostgresStoreRoundTrip(t *testing.T) {
 	}
 	if gotRun.Run.Status != api.Completed || gotRun.TemporalRunID != "pg-run-1" || gotRun.Run.Result == nil {
 		t.Fatalf("GetRun() = %#v", gotRun)
+	}
+}
+
+func TestPostgresStoreIdempotencyKey(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv(databaseURLEnv))
+	if databaseURL == "" {
+		t.Skip("DATABASE_URL not set")
+	}
+
+	ctx := context.Background()
+	pgStore, err := OpenPostgres(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("OpenPostgres() error = %v", err)
+	}
+	defer pgStore.Close()
+
+	graphID := uuid.New()
+	if err := pgStore.PutGraph(ctx, api.Graph{
+		Id:        graphID,
+		Nodes:     []api.Node{},
+		Edges:     []api.Edge{},
+		CreatedAt: time.Now().UTC().Truncate(time.Microsecond),
+		UpdatedAt: time.Now().UTC().Truncate(time.Microsecond),
+	}); err != nil {
+		t.Fatalf("PutGraph() error = %v", err)
+	}
+
+	key := "pg-delivery-" + uuid.NewString()
+	runID := uuid.New()
+	if err := pgStore.PutRun(ctx, RunRecord{
+		Run: api.Run{
+			Id:        runID,
+			GraphId:   graphID,
+			Status:    api.Running,
+			StartedAt: time.Now().UTC().Truncate(time.Microsecond),
+		},
+		TemporalWorkflowID: runID.String(),
+		TemporalRunID:      "pg-t1",
+		IdempotencyKey:     &key,
+	}); err != nil {
+		t.Fatalf("PutRun() error = %v", err)
+	}
+
+	got, ok, err := pgStore.GetRunByIdempotencyKey(ctx, graphID, key)
+	if err != nil || !ok || got.Run.Id != runID {
+		t.Fatalf("GetRunByIdempotencyKey() = %#v ok=%v err=%v", got, ok, err)
+	}
+
+	otherID := uuid.New()
+	err = pgStore.PutRun(ctx, RunRecord{
+		Run: api.Run{
+			Id:        otherID,
+			GraphId:   graphID,
+			Status:    api.Running,
+			StartedAt: time.Now().UTC().Truncate(time.Microsecond),
+		},
+		TemporalWorkflowID: otherID.String(),
+		TemporalRunID:      "pg-t2",
+		IdempotencyKey:     &key,
+	})
+	if !errors.Is(err, ErrDuplicateIdempotencyKey) {
+		t.Fatalf("PutRun() duplicate error = %v, want ErrDuplicateIdempotencyKey", err)
 	}
 }

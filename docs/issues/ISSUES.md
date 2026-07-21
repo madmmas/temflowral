@@ -37,10 +37,11 @@ silently defaulting to in-memory. A worker restart today loses every in-flight
 run. Depends on: Graph → Temporal translator (#12, done). **Shipped:**
 `backend/internal/store` with Postgres via `DATABASE_URL`.
 
-**[#57](https://github.com/madmmas/temflowral/issues/57) — Caller-supplied idempotency key on `StartGraphRun`** `[executor]`
+**[#57](https://github.com/madmmas/temflowral/issues/57) — Caller-supplied idempotency key on `StartGraphRun`** `[executor]` ✅
 Accept an optional idempotency key on `StartGraphRun`; dedupe against it before
 starting a new Temporal workflow. Needed for at-least-once callers (webhooks,
-queues, retried API calls). Depends on: #56.
+queues, retried API calls). Depends on: #56. **Shipped:** optional
+`idempotencyKey` on `StartRunRequest`, unique per graph in the durable store.
 
 ## 7. Signals & execution controls
 

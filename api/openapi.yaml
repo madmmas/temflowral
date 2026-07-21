@@ -102,6 +102,10 @@ paths:
         Translates the graph into a Temporal workflow and starts execution.
         Returns immediately with a run record persisted in the durable store;
         poll GET /runs/{id} for status (survives backend restarts).
+
+        When `idempotencyKey` is supplied, a second start for the same graph and
+        key returns the original run (202) without starting another Temporal
+        workflow — safe for at-least-once callers (webhooks, queues, retries).
       parameters:
         - $ref: '#/components/parameters/GraphId'
       requestBody:
@@ -111,15 +115,20 @@ paths:
             schema:
               $ref: '#/components/schemas/StartRunRequest'
             example:
+              idempotencyKey: webhook-delivery-abc123
               input:
                 message: hello
       responses:
         '202':
-          description: Run accepted and started
+          description: |
+            Run accepted and started, or an existing run returned for a repeated
+            idempotency key on this graph.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Run'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -511,10 +520,23 @@ components:
     StartRunRequest:
       type: object
       properties:
+        idempotencyKey:
+          type: string
+          description: |
+            Optional caller-supplied key scoped to the graph. Repeating
+            StartGraphRun with the same key returns the first run instead of
+            starting a duplicate Temporal workflow. Omit for fire-and-forget
+            starts that always create a new run.
+          minLength: 1
+          maxLength: 128
         input:
           type: object
           description: Optional input payload passed to the workflow
           additionalProperties: true
+      example:
+        idempotencyKey: webhook-delivery-abc123
+        input:
+          message: hello
 
     NodeOutputHandle:
       type: object

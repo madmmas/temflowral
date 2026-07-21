@@ -5,6 +5,30 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-19 — Idempotency key on StartGraphRun (#57)
+
+**Did:**
+- Added optional `idempotencyKey` to OpenAPI `StartRunRequest` (and 400 on the
+  start-run operation); regenerated clients.
+- Persist `idempotency_key` on runs (unique per graph); `GetRunByIdempotencyKey`
+  + duplicate handling so a repeated key returns the first run without another
+  Temporal start.
+- API/handler tests for dedupe; store tests for memory and Postgres.
+
+**Decided / learned:**
+- Keys are scoped to `graph_id` (not global). Blank/whitespace-only keys are
+  rejected as 400 after trim.
+- Concurrent races that lose the unique insert still return the winning run via
+  `ErrDuplicateIdempotencyKey` recovery.
+
+**Verified:**
+- `make generate`, Redocly, `make test` / lint / contract.
+- Memory + Postgres idempotency store tests; API dedupe test.
+**Next:**
+- #58 signal/wait can proceed independently of idempotency.
+
+---
+
 ## 2026-07-19 — Durable graph/run store (#56)
 
 **Did:**
