@@ -5,6 +5,25 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-21 — Canvas packaging decision (#65)
+
+**Did:**
+- ADR-001: reference-only canvas; no npm package or embed service for now.
+- Linked from README, frontend README, adding-a-node-type, and `GET /node-types`
+  OpenAPI description; ISSUES/CHANGELOG updated.
+
+**Decided / learned:**
+- Integration surface is OpenAPI + node-type registry, not a published UI SDK.
+- Revisit if multiple first-party UIs or a real embed requirement appears.
+
+**Verified:**
+- Redocly + `make generate` / lint / test / contract (docs-only; see PR).
+
+**Next:**
+- #66 auth/trust-boundary docs, or #67 external-registration docs.
+
+---
+
 ## 2026-07-21 — Graph validation before run (#64)
 
 **Did:**

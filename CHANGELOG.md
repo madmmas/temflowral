@@ -10,6 +10,8 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- ADR-001: canvas packaging decision — reference-only UI; consumers build
+  against OpenAPI + `GET /node-types` (no npm package / embed service yet).
 - Pre-run graph validation (`ValidateGraph`): `StartGraphRun` rejects unknown
   registry node types, cycles, and unreachable nodes with 409 before Temporal
   starts; `CreateGraph` rejects unregistered types with 400.

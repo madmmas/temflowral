@@ -134,6 +134,10 @@ export interface paths {
          *     types (and their Temporal activities) at worker startup via the
          *     `pkg/nodetype` registry so discovery and execution stay in sync.
          *
+         *     External or replacement canvases should integrate against this endpoint
+         *     and the OpenAPI graph/run APIs rather than depending on a published UI
+         *     package — see `docs/adr/001-canvas-packaging.md`.
+         *
          */
         get: operations["listNodeTypes"];
         put?: never;

@@ -28,6 +28,11 @@ server types and the TypeScript client are generated from it, so the two sides
 never drift by hand. See [`docs/adding-a-node-type.md`](docs/adding-a-node-type.md)
 for the contract-first workflow.
 
+The React Flow UI under `frontend/` is a **reference canvas**, not a published
+npm package or embeddable service. Build or fork your own designer against
+`GET /node-types` and the graph/run APIs — decision recorded in
+[`docs/adr/001-canvas-packaging.md`](docs/adr/001-canvas-packaging.md).
+
 ## Quickstart
 
 Requires Docker. From the repository root:
