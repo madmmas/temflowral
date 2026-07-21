@@ -21,11 +21,33 @@ const (
 	// WaitTimedOutHandle is the sourceHandle when the timeout wins.
 	WaitTimedOutHandle = "timedOut"
 
+	// CurrentWaitQueryName is the Temporal query that reports which wait node
+	// (if any) GraphWorkflow is currently blocked on. Used by POST /runs/{id}/signal.
+	CurrentWaitQueryName = "temflowral.currentWait"
+
 	maxWaitSignalLength = 128
 	maxWaitSeconds      = 604800 // 7 days, same cap as delay
 )
 
+// CurrentWait is the answer to CurrentWaitQueryName. An empty Signal means the
+// workflow is not blocked on a wait node.
+type CurrentWait struct {
+	NodeID string `json:"nodeId,omitempty"`
+	Signal string `json:"signal,omitempty"`
+}
+
 var waitSignalPattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
+// ValidateSignalName checks the same rules as WaitNodeConfig.signal.
+func ValidateSignalName(signal string) error {
+	if signal == "" || utf8.RuneCountInString(signal) > maxWaitSignalLength {
+		return fmt.Errorf("signal must be 1-%d characters", maxWaitSignalLength)
+	}
+	if !waitSignalPattern.MatchString(signal) {
+		return fmt.Errorf("signal must match %s", waitSignalPattern.String())
+	}
+	return nil
+}
 
 // parseWaitNodeConfig validates a wait node's configuration.
 func parseWaitNodeConfig(node api.Node) (api.WaitNodeConfig, error) {
@@ -50,19 +72,8 @@ func parseWaitNodeConfig(node api.Node) (api.WaitNodeConfig, error) {
 	if err := decoder.Decode(&config); err != nil {
 		return api.WaitNodeConfig{}, fmt.Errorf("invalid wait node %q config: %w", node.Id, err)
 	}
-	if config.Signal == "" || utf8.RuneCountInString(config.Signal) > maxWaitSignalLength {
-		return api.WaitNodeConfig{}, fmt.Errorf(
-			"wait node %q signal must be 1-%d characters",
-			node.Id,
-			maxWaitSignalLength,
-		)
-	}
-	if !waitSignalPattern.MatchString(config.Signal) {
-		return api.WaitNodeConfig{}, fmt.Errorf(
-			"wait node %q signal must match %s",
-			node.Id,
-			waitSignalPattern.String(),
-		)
+	if err := ValidateSignalName(config.Signal); err != nil {
+		return api.WaitNodeConfig{}, fmt.Errorf("wait node %q: %w", node.Id, err)
 	}
 	if config.TimeoutSeconds < 0 || config.TimeoutSeconds > maxWaitSeconds {
 		return api.WaitNodeConfig{}, fmt.Errorf(

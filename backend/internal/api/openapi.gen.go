@@ -266,6 +266,24 @@ type Run struct {
 // RunStatus Current lifecycle state of a workflow run
 type RunStatus string
 
+// SignalRunRequest defines model for SignalRunRequest.
+type SignalRunRequest struct {
+	// Payload Optional JSON value delivered with the Temporal signal and stored on
+	// the wait node's result when the signal wins the timeout race.
+	Payload *interface{} `json:"payload,omitempty"`
+
+	// Signal Must match the `WaitNodeConfig.signal` of the wait node the run is
+	// currently blocked on.
+	Signal string `json:"signal"`
+}
+
+// SignalRunResponse defines model for SignalRunResponse.
+type SignalRunResponse struct {
+	AcceptedAt time.Time          `json:"acceptedAt"`
+	RunId      openapi_types.UUID `json:"runId"`
+	Signal     string             `json:"signal"`
+}
+
 // StartRunRequest defines model for StartRunRequest.
 type StartRunRequest struct {
 	// IdempotencyKey Optional caller-supplied key scoped to the graph. Repeating
@@ -280,9 +298,8 @@ type StartRunRequest struct {
 
 // WaitNodeConfig defines model for WaitNodeConfig.
 type WaitNodeConfig struct {
-	// Signal Temporal signal name this node waits on. Callers (and the future
-	// POST /runs/{id}/signal endpoint) must send this exact name via
-	// Temporal SignalWorkflow. Letters, digits, `.`, `_`, and `-` only.
+	// Signal Temporal signal name this node waits on. Deliver the same name via
+	// `POST /runs/{runId}/signal`. Letters, digits, `.`, `_`, and `-` only.
 	Signal string `json:"signal"`
 
 	// TimeoutSeconds Max wait in seconds (0 to 604800 = 7 days) before taking the
@@ -312,6 +329,9 @@ type CreateGraphJSONRequestBody = CreateGraphRequest
 // StartGraphRunJSONRequestBody defines body for StartGraphRun for application/json ContentType.
 type StartGraphRunJSONRequestBody = StartRunRequest
 
+// SignalRunJSONRequestBody defines body for SignalRun for application/json ContentType.
+type SignalRunJSONRequestBody = SignalRunRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// CreateGraph Create a graph
@@ -329,6 +349,9 @@ type ServerInterface interface {
 	// GetRun Poll run status and result
 	// (GET /runs/{runId})
 	GetRun(w http.ResponseWriter, r *http.Request, runId RunId)
+	// SignalRun Deliver a Temporal signal to a running workflow
+	// (POST /runs/{runId}/signal)
+	SignalRun(w http.ResponseWriter, r *http.Request, runId RunId)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -437,6 +460,32 @@ func (siw *ServerInterfaceWrapper) GetRun(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SignalRun operation middleware
+func (siw *ServerInterfaceWrapper) SignalRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId RunId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", r.PathValue("runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SignalRun(w, r, runId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -570,6 +619,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/graphs/{graphId}", wrapper.GetGraph)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/graphs/{graphId}/run", wrapper.StartGraphRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/runs/{runId}", wrapper.GetRun)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/runs/{runId}/signal", wrapper.SignalRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/node-types", wrapper.ListNodeTypes)
 
 	return m
@@ -859,6 +909,85 @@ func (response GetRun500JSONResponse) VisitGetRunResponse(w http.ResponseWriter)
 	return err
 }
 
+type SignalRunRequestObject struct {
+	RunId RunId `json:"runId"`
+	Body  *SignalRunJSONRequestBody
+}
+
+type SignalRunResponseObject interface {
+	VisitSignalRunResponse(w http.ResponseWriter) error
+}
+
+type SignalRun202JSONResponse SignalRunResponse
+
+func (response SignalRun202JSONResponse) VisitSignalRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignalRun400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SignalRun400JSONResponse) VisitSignalRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignalRun404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response SignalRun404JSONResponse) VisitSignalRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignalRun409JSONResponse Error
+
+func (response SignalRun409JSONResponse) VisitSignalRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignalRun500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response SignalRun500JSONResponse) VisitSignalRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// CreateGraph Create a graph
@@ -876,6 +1005,9 @@ type StrictServerInterface interface {
 	// GetRun Poll run status and result
 	// (GET /runs/{runId})
 	GetRun(ctx context.Context, request GetRunRequestObject) (GetRunResponseObject, error)
+	// SignalRun Deliver a Temporal signal to a running workflow
+	// (POST /runs/{runId}/signal)
+	SignalRun(ctx context.Context, request SignalRunRequestObject) (SignalRunResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -1053,6 +1185,39 @@ func (sh *strictHandler) GetRun(w http.ResponseWriter, r *http.Request, runId Ru
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetRunResponseObject); ok {
 		if err := validResponse.VisitGetRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SignalRun operation middleware
+func (sh *strictHandler) SignalRun(w http.ResponseWriter, r *http.Request, runId RunId) {
+	var request SignalRunRequestObject
+
+	request.RunId = runId
+
+	var body SignalRunJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SignalRun(ctx, request.(SignalRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SignalRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SignalRunResponseObject); ok {
+		if err := validResponse.VisitSignalRunResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

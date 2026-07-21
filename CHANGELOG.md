@@ -10,9 +10,12 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- `POST /runs/{runId}/signal`: deliver a named Temporal signal to a running
+  graph. Rejects with 409 unless the workflow is currently blocked on a wait
+  node whose signal name matches (Temporal `temflowral.currentWait` query).
 - `wait` node type (`WaitNodeConfig`): suspend until a named Temporal signal
   arrives or a durable timeout elapses; branch via `received` / `timedOut`
-  source handles. HTTP signal delivery is tracked separately (#59).
+  source handles.
 - Optional `idempotencyKey` on `StartGraphRun` (`StartRunRequest`): repeating
   the same key for a graph returns the original run without starting another
   Temporal workflow.

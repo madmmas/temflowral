@@ -159,6 +159,51 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /runs/{runId}/signal:
+    post:
+      operationId: signalRun
+      tags: [runs]
+      summary: Deliver a Temporal signal to a running workflow
+      description: |
+        Forwards a named signal to the Temporal workflow for this run. The run
+        must be running and currently blocked on a wait node whose
+        `WaitNodeConfig.signal` matches the request. Early or unmatched
+        signals are rejected with 409 (Temporal buffering is not exposed via
+        this API). Poll `GET /runs/{runId}` for progress after acceptance.
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignalRunRequest'
+            example:
+              signal: approval.granted
+              payload:
+                approvedBy: alice
+      responses:
+        '202':
+          description: Signal accepted and forwarded to Temporal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignalRunResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: |
+            Run cannot accept this signal (not running, or not currently
+            waiting on this signal name).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /node-types:
     get:
       operationId: listNodeTypes
@@ -472,9 +517,8 @@ components:
           maxLength: 128
           pattern: '^[A-Za-z0-9._-]+$'
           description: |
-            Temporal signal name this node waits on. Callers (and the future
-            POST /runs/{id}/signal endpoint) must send this exact name via
-            Temporal SignalWorkflow. Letters, digits, `.`, `_`, and `-` only.
+            Temporal signal name this node waits on. Deliver the same name via
+            `POST /runs/{runId}/signal`. Letters, digits, `.`, `_`, and `-` only.
         timeoutSeconds:
           type: number
           format: double
@@ -567,6 +611,46 @@ components:
         idempotencyKey: webhook-delivery-abc123
         input:
           message: hello
+
+    SignalRunRequest:
+      type: object
+      required: [signal]
+      additionalProperties: false
+      properties:
+        signal:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^[A-Za-z0-9._-]+$'
+          description: |
+            Must match the `WaitNodeConfig.signal` of the wait node the run is
+            currently blocked on.
+        payload:
+          description: |
+            Optional JSON value delivered with the Temporal signal and stored on
+            the wait node's result when the signal wins the timeout race.
+          x-go-type: interface{}
+      example:
+        signal: approval.granted
+        payload:
+          approvedBy: alice
+
+    SignalRunResponse:
+      type: object
+      required: [runId, signal, acceptedAt]
+      properties:
+        runId:
+          type: string
+          format: uuid
+        signal:
+          type: string
+        acceptedAt:
+          type: string
+          format: date-time
+      example:
+        runId: 550e8400-e29b-41d4-a716-446655440000
+        signal: approval.granted
+        acceptedAt: '2026-07-21T12:00:00Z'
 
     NodeOutputHandle:
       type: object

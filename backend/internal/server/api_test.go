@@ -20,6 +20,8 @@ import (
 type stubRunner struct {
 	startFn    func(context.Context, string, temporal.GraphWorkflowInput) (temporal.WorkflowExecution, error)
 	describeFn func(context.Context, temporal.WorkflowExecution) (temporal.WorkflowStatus, error)
+	queryFn    func(context.Context, temporal.WorkflowExecution) (temporal.CurrentWait, error)
+	signalFn   func(context.Context, temporal.WorkflowExecution, string, interface{}) error
 }
 
 func (stub *stubRunner) StartGraphWorkflow(
@@ -27,6 +29,9 @@ func (stub *stubRunner) StartGraphWorkflow(
 	workflowID string,
 	input temporal.GraphWorkflowInput,
 ) (temporal.WorkflowExecution, error) {
+	if stub.startFn == nil {
+		return temporal.WorkflowExecution{}, fmt.Errorf("startFn not set")
+	}
 	return stub.startFn(ctx, workflowID, input)
 }
 
@@ -34,7 +39,32 @@ func (stub *stubRunner) DescribeGraphWorkflow(
 	ctx context.Context,
 	execution temporal.WorkflowExecution,
 ) (temporal.WorkflowStatus, error) {
+	if stub.describeFn == nil {
+		return temporal.WorkflowStatus{}, fmt.Errorf("describeFn not set")
+	}
 	return stub.describeFn(ctx, execution)
+}
+
+func (stub *stubRunner) QueryCurrentWait(
+	ctx context.Context,
+	execution temporal.WorkflowExecution,
+) (temporal.CurrentWait, error) {
+	if stub.queryFn == nil {
+		return temporal.CurrentWait{}, fmt.Errorf("queryFn not set")
+	}
+	return stub.queryFn(ctx, execution)
+}
+
+func (stub *stubRunner) SignalGraphWorkflow(
+	ctx context.Context,
+	execution temporal.WorkflowExecution,
+	signalName string,
+	payload interface{},
+) error {
+	if stub.signalFn == nil {
+		return fmt.Errorf("signalFn not set")
+	}
+	return stub.signalFn(ctx, execution, signalName, payload)
 }
 
 func TestCreateAndGetGraph(t *testing.T) {
@@ -363,5 +393,329 @@ func TestListNodeTypes(t *testing.T) {
 	}
 	if waitType.OutputHandles == nil || len(*waitType.OutputHandles) != 2 {
 		t.Fatalf("wait outputHandles = %#v, want received/timedOut", waitType.OutputHandles)
+	}
+}
+
+func TestSignalRunForwardsMatchingSignal(t *testing.T) {
+	t.Parallel()
+
+	var signaled struct {
+		execution temporal.WorkflowExecution
+		name      string
+		payload   interface{}
+		count     int
+	}
+	runner := &stubRunner{
+		startFn: func(_ context.Context, workflowID string, _ temporal.GraphWorkflowInput) (temporal.WorkflowExecution, error) {
+			return temporal.WorkflowExecution{ID: workflowID, RunID: "temporal-run-1"}, nil
+		},
+		describeFn: func(_ context.Context, _ temporal.WorkflowExecution) (temporal.WorkflowStatus, error) {
+			return temporal.WorkflowStatus{Status: enums.WORKFLOW_EXECUTION_STATUS_RUNNING}, nil
+		},
+		queryFn: func(_ context.Context, _ temporal.WorkflowExecution) (temporal.CurrentWait, error) {
+			return temporal.CurrentWait{NodeID: "wait-1", Signal: "approval.granted"}, nil
+		},
+		signalFn: func(_ context.Context, execution temporal.WorkflowExecution, name string, payload interface{}) error {
+			signaled.execution = execution
+			signaled.name = name
+			signaled.payload = payload
+			signaled.count++
+			return nil
+		},
+	}
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), runner, nil))
+
+	createRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs",
+		strings.NewReader(`{
+			"nodes":[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"wait-1","type":"wait","position":{"x":100,"y":0},"config":{"signal":"approval.granted","timeoutSeconds":60}},
+				{"id":"noop-received","type":"noop","position":{"x":200,"y":0}},
+				{"id":"noop-timeout","type":"noop","position":{"x":200,"y":100}}
+			],
+			"edges":[
+				{"id":"e0","source":"start-1","target":"wait-1"},
+				{"id":"e-recv","source":"wait-1","target":"noop-received","sourceHandle":"received"},
+				{"id":"e-to","source":"wait-1","target":"noop-timeout","sourceHandle":"timedOut"}
+			]
+		}`),
+	)
+	createRequest.Header.Set("Content-Type", "application/json")
+	createRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(createRecorder, createRequest)
+	if createRecorder.Code != http.StatusCreated {
+		t.Fatalf("create status = %d body=%s", createRecorder.Code, createRecorder.Body.String())
+	}
+	var created api.Graph
+	if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	runRequest := httptest.NewRequest(http.MethodPost, "/graphs/"+created.Id.String()+"/run", strings.NewReader(`{}`))
+	runRequest.Header.Set("Content-Type", "application/json")
+	runRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(runRecorder, runRequest)
+	if runRecorder.Code != http.StatusAccepted {
+		t.Fatalf("run status = %d body=%s", runRecorder.Code, runRecorder.Body.String())
+	}
+	var started api.Run
+	if err := json.Unmarshal(runRecorder.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode run: %v", err)
+	}
+
+	signalRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/runs/"+started.Id.String()+"/signal",
+		strings.NewReader(`{"signal":"approval.granted","payload":{"approvedBy":"alice"}}`),
+	)
+	signalRequest.Header.Set("Content-Type", "application/json")
+	signalRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(signalRecorder, signalRequest)
+	if signalRecorder.Code != http.StatusAccepted {
+		t.Fatalf("signal status = %d body=%s", signalRecorder.Code, signalRecorder.Body.String())
+	}
+
+	var accepted api.SignalRunResponse
+	if err := json.Unmarshal(signalRecorder.Body.Bytes(), &accepted); err != nil {
+		t.Fatalf("decode signal response: %v", err)
+	}
+	if accepted.RunId != started.Id || accepted.Signal != "approval.granted" {
+		t.Fatalf("accepted = %#v, want run %s signal approval.granted", accepted, started.Id)
+	}
+	if signaled.count != 1 || signaled.name != "approval.granted" || signaled.execution.ID != started.Id.String() {
+		t.Fatalf("signaled = %#v, want one signal to workflow %s", signaled, started.Id)
+	}
+	payload, ok := signaled.payload.(map[string]interface{})
+	if !ok || payload["approvedBy"] != "alice" {
+		t.Fatalf("payload = %#v, want approvedBy=alice", signaled.payload)
+	}
+}
+
+func TestSignalRunRejectsUnknownRun(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), &stubRunner{}, nil))
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/runs/550e8400-e29b-41d4-a716-446655440000/signal",
+		strings.NewReader(`{"signal":"approval.granted"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusNotFound, recorder.Body.String())
+	}
+}
+
+func TestSignalRunRejectsInvalidSignalName(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), &stubRunner{}, nil))
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/runs/550e8400-e29b-41d4-a716-446655440000/signal",
+		strings.NewReader(`{"signal":"not a valid signal"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+}
+
+func TestSignalRunConflictWhenNotWaiting(t *testing.T) {
+	t.Parallel()
+
+	runner := &stubRunner{
+		startFn: func(_ context.Context, workflowID string, _ temporal.GraphWorkflowInput) (temporal.WorkflowExecution, error) {
+			return temporal.WorkflowExecution{ID: workflowID, RunID: "temporal-run-1"}, nil
+		},
+		describeFn: func(_ context.Context, _ temporal.WorkflowExecution) (temporal.WorkflowStatus, error) {
+			return temporal.WorkflowStatus{Status: enums.WORKFLOW_EXECUTION_STATUS_RUNNING}, nil
+		},
+		queryFn: func(_ context.Context, _ temporal.WorkflowExecution) (temporal.CurrentWait, error) {
+			return temporal.CurrentWait{}, nil
+		},
+		signalFn: func(context.Context, temporal.WorkflowExecution, string, interface{}) error {
+			t.Fatal("SignalGraphWorkflow should not be called")
+			return nil
+		},
+	}
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), runner, nil))
+
+	createRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs",
+		strings.NewReader(`{
+			"nodes":[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"noop-1","type":"noop","position":{"x":100,"y":0}}
+			],
+			"edges":[{"id":"e1","source":"start-1","target":"noop-1"}]
+		}`),
+	)
+	createRequest.Header.Set("Content-Type", "application/json")
+	createRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(createRecorder, createRequest)
+	var created api.Graph
+	if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+
+	runRequest := httptest.NewRequest(http.MethodPost, "/graphs/"+created.Id.String()+"/run", strings.NewReader(`{}`))
+	runRequest.Header.Set("Content-Type", "application/json")
+	runRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(runRecorder, runRequest)
+	var started api.Run
+	if err := json.Unmarshal(runRecorder.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode run: %v", err)
+	}
+
+	signalRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/runs/"+started.Id.String()+"/signal",
+		strings.NewReader(`{"signal":"approval.granted"}`),
+	)
+	signalRequest.Header.Set("Content-Type", "application/json")
+	signalRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(signalRecorder, signalRequest)
+	if signalRecorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d body=%s", signalRecorder.Code, http.StatusConflict, signalRecorder.Body.String())
+	}
+	if !strings.Contains(signalRecorder.Body.String(), "not currently waiting") {
+		t.Fatalf("body = %s, want not currently waiting", signalRecorder.Body.String())
+	}
+}
+
+func TestSignalRunConflictWhenWrongSignal(t *testing.T) {
+	t.Parallel()
+
+	runner := &stubRunner{
+		startFn: func(_ context.Context, workflowID string, _ temporal.GraphWorkflowInput) (temporal.WorkflowExecution, error) {
+			return temporal.WorkflowExecution{ID: workflowID, RunID: "temporal-run-1"}, nil
+		},
+		describeFn: func(_ context.Context, _ temporal.WorkflowExecution) (temporal.WorkflowStatus, error) {
+			return temporal.WorkflowStatus{Status: enums.WORKFLOW_EXECUTION_STATUS_RUNNING}, nil
+		},
+		queryFn: func(_ context.Context, _ temporal.WorkflowExecution) (temporal.CurrentWait, error) {
+			return temporal.CurrentWait{NodeID: "wait-1", Signal: "approval.granted"}, nil
+		},
+		signalFn: func(context.Context, temporal.WorkflowExecution, string, interface{}) error {
+			t.Fatal("SignalGraphWorkflow should not be called")
+			return nil
+		},
+	}
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), runner, nil))
+
+	createRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs",
+		strings.NewReader(`{
+			"nodes":[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"wait-1","type":"wait","position":{"x":100,"y":0},"config":{"signal":"approval.granted","timeoutSeconds":60}},
+				{"id":"noop-received","type":"noop","position":{"x":200,"y":0}},
+				{"id":"noop-timeout","type":"noop","position":{"x":200,"y":100}}
+			],
+			"edges":[
+				{"id":"e0","source":"start-1","target":"wait-1"},
+				{"id":"e-recv","source":"wait-1","target":"noop-received","sourceHandle":"received"},
+				{"id":"e-to","source":"wait-1","target":"noop-timeout","sourceHandle":"timedOut"}
+			]
+		}`),
+	)
+	createRequest.Header.Set("Content-Type", "application/json")
+	createRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(createRecorder, createRequest)
+	var created api.Graph
+	if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+
+	runRequest := httptest.NewRequest(http.MethodPost, "/graphs/"+created.Id.String()+"/run", strings.NewReader(`{}`))
+	runRequest.Header.Set("Content-Type", "application/json")
+	runRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(runRecorder, runRequest)
+	var started api.Run
+	if err := json.Unmarshal(runRecorder.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode run: %v", err)
+	}
+
+	signalRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/runs/"+started.Id.String()+"/signal",
+		strings.NewReader(`{"signal":"other.signal"}`),
+	)
+	signalRequest.Header.Set("Content-Type", "application/json")
+	signalRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(signalRecorder, signalRequest)
+	if signalRecorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d body=%s", signalRecorder.Code, http.StatusConflict, signalRecorder.Body.String())
+	}
+}
+
+func TestSignalRunConflictWhenNotRunning(t *testing.T) {
+	t.Parallel()
+
+	runner := &stubRunner{
+		startFn: func(_ context.Context, workflowID string, _ temporal.GraphWorkflowInput) (temporal.WorkflowExecution, error) {
+			return temporal.WorkflowExecution{ID: workflowID, RunID: "temporal-run-1"}, nil
+		},
+		describeFn: func(_ context.Context, _ temporal.WorkflowExecution) (temporal.WorkflowStatus, error) {
+			return temporal.WorkflowStatus{Status: enums.WORKFLOW_EXECUTION_STATUS_COMPLETED}, nil
+		},
+		queryFn: func(context.Context, temporal.WorkflowExecution) (temporal.CurrentWait, error) {
+			t.Fatal("QueryCurrentWait should not be called")
+			return temporal.CurrentWait{}, nil
+		},
+		signalFn: func(context.Context, temporal.WorkflowExecution, string, interface{}) error {
+			t.Fatal("SignalGraphWorkflow should not be called")
+			return nil
+		},
+	}
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), runner, nil))
+
+	createRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs",
+		strings.NewReader(`{
+			"nodes":[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"noop-1","type":"noop","position":{"x":100,"y":0}}
+			],
+			"edges":[{"id":"e1","source":"start-1","target":"noop-1"}]
+		}`),
+	)
+	createRequest.Header.Set("Content-Type", "application/json")
+	createRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(createRecorder, createRequest)
+	var created api.Graph
+	if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+
+	runRequest := httptest.NewRequest(http.MethodPost, "/graphs/"+created.Id.String()+"/run", strings.NewReader(`{}`))
+	runRequest.Header.Set("Content-Type", "application/json")
+	runRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(runRecorder, runRequest)
+	var started api.Run
+	if err := json.Unmarshal(runRecorder.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode run: %v", err)
+	}
+
+	signalRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/runs/"+started.Id.String()+"/signal",
+		strings.NewReader(`{"signal":"approval.granted"}`),
+	)
+	signalRequest.Header.Set("Content-Type", "application/json")
+	signalRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(signalRecorder, signalRequest)
+	if signalRecorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d body=%s", signalRecorder.Code, http.StatusConflict, signalRecorder.Body.String())
 	}
 }
