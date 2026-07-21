@@ -5,8 +5,8 @@ temflowral is contract-first: define a node's public configuration in
 Generated Go and TypeScript files are outputs, not editing points.
 
 The existing HTTP node is the complete reference for an activity-backed node.
-The delay and condition nodes show when behavior belongs directly in Temporal
-workflow code.
+The delay, condition, and wait nodes show when behavior belongs directly in
+Temporal workflow code.
 
 ## 1. Design the node
 
@@ -166,7 +166,7 @@ Multi-output activity nodes select a branch by setting
 `result.Value["branch"]` to a handle ID. The planner validates
 `Edge.sourceHandle` against fixed or config-derived handles. Workflow-native
 kinds (`KindWorkflow`) remain reserved for built-in orchestration (start,
-delay, condition).
+delay, condition, wait).
 
 A fuller external-package walkthrough is tracked as issue #67.
 
@@ -202,6 +202,8 @@ orchestration itself:
 - delay uses `workflow.Sleep`, producing a durable timer;
 - condition evaluates deterministic JSON values and routes edges using
   `Edge.sourceHandle`;
+- wait races `workflow.GetSignalChannel` against a durable timer and routes
+  via `received` / `timedOut` handles;
 - branch-specific graph rules live in planner validation.
 
 Add workflow-native types to `isExecutableNodeType`. For named handles, validate
@@ -223,10 +225,10 @@ without a frontend code change after `GET /node-types` exposes it.
 The current frontend does **not** generate a config form from `ConfigSchema`;
 new nodes are created with `{}` config. A configured node needs a form or
 editor that writes validated values to `CanvasNodeData.config` before save.
-A node with named handles, such as condition's `true` and `false` outputs,
-also needs a custom renderer exposing those handle IDs. Keep type-specific UI
-in sibling components rather than adding node-specific logic throughout the
-canvas.
+A node with named handles, such as condition's `true`/`false` or wait's
+`received`/`timedOut` outputs, also needs a custom renderer exposing those
+handle IDs. Keep type-specific UI in sibling components rather than adding
+node-specific logic throughout the canvas.
 
 Continue using the generated API client and generated schema types. Do not add
 handwritten fetch calls or duplicate request/response interfaces.

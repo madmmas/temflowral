@@ -116,6 +116,45 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 					nodetype.BranchKey: handle,
 				},
 			}
+		case WaitNodeType:
+			config, err := parseWaitNodeConfig(node)
+			if err != nil {
+				return GraphWorkflowResult{}, err
+			}
+			// Race a durable timer against a Temporal signal channel so the
+			// wait survives worker restarts (same durability class as delay).
+			signalCh := workflow.GetSignalChannel(ctx, config.Signal)
+			timerCtx, cancelTimer := workflow.WithCancel(ctx)
+			timerFuture := workflow.NewTimer(timerCtx, waitTimeoutDuration(config))
+			var (
+				timedOut bool
+				payload  interface{}
+			)
+			selector := workflow.NewSelector(ctx)
+			selector.AddReceive(signalCh, func(channel workflow.ReceiveChannel, _ bool) {
+				channel.Receive(ctx, &payload)
+				timedOut = false
+				cancelTimer()
+			})
+			selector.AddFuture(timerFuture, func(future workflow.Future) {
+				_ = future.Get(ctx, nil)
+				timedOut = true
+			})
+			selector.Select(ctx)
+
+			handle := waitHandle(timedOut)
+			branchTaken[node.Id] = handle
+			value := map[string]interface{}{
+				"type":             WaitNodeType,
+				"signal":           config.Signal,
+				"timeoutSeconds":   config.TimeoutSeconds,
+				"timedOut":         timedOut,
+				nodetype.BranchKey: handle,
+			}
+			if !timedOut && payload != nil {
+				value["payload"] = payload
+			}
+			result = NodeResult{NodeID: node.Id, Value: value}
 		default:
 			activityName, ok := CurrentRegistry().ActivityName(node.Type)
 			if !ok {

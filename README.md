@@ -61,8 +61,8 @@ its type before persisting.
 Starting a run (`POST /graphs/{graphId}/run`) hands the graph to the backend
 translator. It validates the graph, orders the nodes topologically, and starts
 a Temporal workflow. The workflow walks the graph, running one activity per
-executable node, evaluating condition branches, and sleeping on durable timers
-for delay nodes.
+executable node, evaluating condition and wait branches, and sleeping on
+durable timers for delay nodes (and wait timeouts).
 
 Progress and results are durable in Temporal. Poll `GET /runs/{runId}` for the
 current status and, once complete, the per-node output — or watch the same run
@@ -77,6 +77,7 @@ live in the Temporal Web UI.
 | `http` | integration | Allowlisted outbound HTTP request (deny-by-default). |
 | `delay` | core | Pause with a durable Temporal timer. |
 | `condition` | core | Branch on a predecessor field (`true`/`false`). |
+| `wait` | core | Suspend until a named Temporal signal or timeout (`received`/`timedOut`). |
 
 The `http` node is the primary attack surface; its outbound policy (host
 allowlisting, SSRF protection, and size/time limits) is documented in
