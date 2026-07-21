@@ -333,6 +333,18 @@ components:
           x-go-type: map[string]interface{}
         activityOptions:
           $ref: '#/components/schemas/ActivityOptions'
+        taskQueue:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: '^[A-Za-z0-9._-]+$'
+          description: |
+            Optional Temporal task queue for this node's activity. When omitted,
+            the activity uses the workflow's default task queue (the worker that
+            runs GraphWorkflow). Only valid on activity-backed node types
+            (`KindActivity`); rejected on workflow-native nodes (start, delay,
+            condition, wait). Use a dedicated worker polling this queue when the
+            activity needs specialized capabilities (region, hardware, licenses).
       example:
         id: http-1
         type: http
@@ -345,6 +357,7 @@ components:
           startToCloseTimeoutSeconds: 60
           retryPolicy:
             maximumAttempts: 1
+        taskQueue: temflowral.http
 
     RetryPolicy:
       type: object

@@ -2,7 +2,9 @@ package temporal
 
 import (
 	"fmt"
+	"regexp"
 	"time"
+	"unicode/utf8"
 
 	sdktemporal "go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -26,10 +28,15 @@ const (
 	maxRetryAttempts              = 100
 	maxNonRetryableErrorTypeCount = 32
 	maxNonRetryableErrorTypeLen   = 128
+
+	minTaskQueueLength = 1
+	maxTaskQueueLength = 200
 )
 
+var taskQueuePattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
 // defaultActivityOptions is the GraphWorkflow engine default for KindActivity
-// nodes when Node.activityOptions is omitted.
+// nodes when Node.activityOptions / Node.taskQueue are omitted.
 func defaultActivityOptions() workflow.ActivityOptions {
 	return workflow.ActivityOptions{
 		StartToCloseTimeout: defaultActivityStartToClose,
@@ -39,17 +46,22 @@ func defaultActivityOptions() workflow.ActivityOptions {
 	}
 }
 
-// ValidateActivityOptions ensures activityOptions is only set on activity-backed
-// types and that numeric fields are within contract bounds.
+// ValidateActivityOptions ensures activityOptions and taskQueue are only set on
+// activity-backed types and that fields are within contract bounds.
 func ValidateActivityOptions(node api.Node) error {
-	if node.ActivityOptions == nil {
+	if node.ActivityOptions == nil && !hasTaskQueue(node) {
 		return nil
 	}
 	def, ok := CurrentRegistry().Get(node.Type)
 	if !ok || def.Kind != nodetype.KindActivity {
+		field := "activityOptions"
+		if node.ActivityOptions == nil {
+			field = "taskQueue"
+		}
 		return fmt.Errorf(
-			"node %q: activityOptions is only valid for activity-backed node types",
+			"node %q: %s is only valid for activity-backed node types",
 			node.Id,
+			field,
 		)
 	}
 	_, err := activityOptionsForNode(node)
@@ -59,43 +71,64 @@ func ValidateActivityOptions(node api.Node) error {
 	return nil
 }
 
-// activityOptionsForNode merges Node.activityOptions onto engine defaults.
+func hasTaskQueue(node api.Node) bool {
+	return node.TaskQueue != nil && *node.TaskQueue != ""
+}
+
+// activityOptionsForNode merges Node.activityOptions and Node.taskQueue onto
+// engine defaults.
 func activityOptionsForNode(node api.Node) (workflow.ActivityOptions, error) {
 	opts := defaultActivityOptions()
-	if node.ActivityOptions == nil {
-		return opts, nil
-	}
-	raw := node.ActivityOptions
+	if node.ActivityOptions != nil {
+		raw := node.ActivityOptions
 
-	if raw.StartToCloseTimeoutSeconds != nil {
-		seconds := *raw.StartToCloseTimeoutSeconds
-		if err := validateTimeoutSeconds("startToCloseTimeoutSeconds", seconds, maxStartToCloseSeconds); err != nil {
-			return workflow.ActivityOptions{}, err
+		if raw.StartToCloseTimeoutSeconds != nil {
+			seconds := *raw.StartToCloseTimeoutSeconds
+			if err := validateTimeoutSeconds("startToCloseTimeoutSeconds", seconds, maxStartToCloseSeconds); err != nil {
+				return workflow.ActivityOptions{}, err
+			}
+			opts.StartToCloseTimeout = secondsToDuration(seconds)
 		}
-		opts.StartToCloseTimeout = secondsToDuration(seconds)
+		if raw.ScheduleToCloseTimeoutSeconds != nil {
+			seconds := *raw.ScheduleToCloseTimeoutSeconds
+			if err := validateTimeoutSeconds("scheduleToCloseTimeoutSeconds", seconds, maxScheduleToCloseSeconds); err != nil {
+				return workflow.ActivityOptions{}, err
+			}
+			opts.ScheduleToCloseTimeout = secondsToDuration(seconds)
+		}
+		if raw.HeartbeatTimeoutSeconds != nil {
+			seconds := *raw.HeartbeatTimeoutSeconds
+			if err := validateTimeoutSeconds("heartbeatTimeoutSeconds", seconds, maxHeartbeatSeconds); err != nil {
+				return workflow.ActivityOptions{}, err
+			}
+			opts.HeartbeatTimeout = secondsToDuration(seconds)
+		}
+		if raw.RetryPolicy != nil {
+			policy, err := retryPolicyFromAPI(*raw.RetryPolicy)
+			if err != nil {
+				return workflow.ActivityOptions{}, err
+			}
+			opts.RetryPolicy = policy
+		}
 	}
-	if raw.ScheduleToCloseTimeoutSeconds != nil {
-		seconds := *raw.ScheduleToCloseTimeoutSeconds
-		if err := validateTimeoutSeconds("scheduleToCloseTimeoutSeconds", seconds, maxScheduleToCloseSeconds); err != nil {
+	if node.TaskQueue != nil {
+		if err := validateTaskQueueName(*node.TaskQueue); err != nil {
 			return workflow.ActivityOptions{}, err
 		}
-		opts.ScheduleToCloseTimeout = secondsToDuration(seconds)
-	}
-	if raw.HeartbeatTimeoutSeconds != nil {
-		seconds := *raw.HeartbeatTimeoutSeconds
-		if err := validateTimeoutSeconds("heartbeatTimeoutSeconds", seconds, maxHeartbeatSeconds); err != nil {
-			return workflow.ActivityOptions{}, err
-		}
-		opts.HeartbeatTimeout = secondsToDuration(seconds)
-	}
-	if raw.RetryPolicy != nil {
-		policy, err := retryPolicyFromAPI(*raw.RetryPolicy)
-		if err != nil {
-			return workflow.ActivityOptions{}, err
-		}
-		opts.RetryPolicy = policy
+		opts.TaskQueue = *node.TaskQueue
 	}
 	return opts, nil
+}
+
+func validateTaskQueueName(name string) error {
+	length := utf8.RuneCountInString(name)
+	if length < minTaskQueueLength || length > maxTaskQueueLength {
+		return fmt.Errorf("taskQueue must be %d-%d characters", minTaskQueueLength, maxTaskQueueLength)
+	}
+	if !taskQueuePattern.MatchString(name) {
+		return fmt.Errorf("taskQueue must match %s", taskQueuePattern.String())
+	}
+	return nil
 }
 
 func retryPolicyFromAPI(raw api.RetryPolicy) (*sdktemporal.RetryPolicy, error) {

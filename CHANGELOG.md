@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Optional `Node.taskQueue`: route an activity-backed node to a Temporal task
+  queue other than the workflow default (for specialized workers). Rejected on
+  workflow-native nodes.
 - Optional `Node.activityOptions` (`ActivityOptions` / `RetryPolicy`): per-node
   Temporal timeout and retry overrides for activity-backed nodes (engine
   defaults remain 30s start-to-close and `maximumAttempts: 1`). Rejected on

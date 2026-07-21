@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/testsuite"
 
 	"github.com/madmmas/temflowral/backend/internal/api"
@@ -246,6 +247,39 @@ func TestGraphWorkflowJoinAfterTakenBranch(t *testing.T) {
 	want := []string{"start-1", "cond-1", "noop-true", "join"}
 	if !equalStrings(got, want) {
 		t.Fatalf("executed nodes = %v, want %v", got, want)
+	}
+}
+
+func TestGraphWorkflowRoutesActivityToTaskQueue(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+	environment.RegisterActivityWithOptions(NoopNodeActivity, activity.RegisterOptions{
+		Name: NoopNodeActivityName,
+	})
+
+	const wantQueue = "worker.gpu"
+	var gotQueue string
+	environment.SetOnActivityStartedListener(func(info *activity.Info, _ context.Context, _ converter.EncodedValues) {
+		gotQueue = info.TaskQueue
+	})
+
+	queue := wantQueue
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "noop-1", Type: NoopNodeType, TaskQueue: &queue},
+			},
+			Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "noop-1"}},
+		},
+	})
+	if err := environment.GetWorkflowError(); err != nil {
+		t.Fatalf("workflow error = %v", err)
+	}
+	if gotQueue != wantQueue {
+		t.Fatalf("activity TaskQueue = %q, want %q", gotQueue, wantQueue)
 	}
 }
 

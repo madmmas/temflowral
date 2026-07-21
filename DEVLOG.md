@@ -5,6 +5,28 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-21 — Per-node task-queue routing (#61)
+
+**Did:**
+- Contract-first optional `Node.taskQueue`; regenerated clients.
+- Applied via `ActivityOptions.TaskQueue` in `activityOptionsForNode`;
+  CreateGraph/planner reject queues on workflow-native types.
+- Workflow test asserts scheduled activity TaskQueue; API/plan tests for
+  accept/reject paths.
+
+**Decided / learned:**
+- Sibling on `Node` (alongside `activityOptions`), not inside type configs —
+  same placement rationale as #60.
+- Empty/omitted queue keeps the workflow worker's default task queue.
+
+**Verified:**
+- `make generate`, Redocly, `make test` / lint / contract (see PR).
+
+**Next:**
+- #62 child workflow node, or #67 external-registration docs.
+
+---
+
 ## 2026-07-21 — Per-node ActivityOptions (#60)
 
 **Did:**
