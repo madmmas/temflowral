@@ -30,11 +30,26 @@ func TestValidateHTTPNodeConfig(t *testing.T) {
 				"body":    `{"ok":true}`,
 			},
 		},
+		{
+			name: "templated URL",
+			config: map[string]interface{}{
+				"method": "GET",
+				"url":    "https://api.example.com/items/{{ nodes.start-1.output.id }}",
+			},
+		},
+		{
+			name: "full templated URL",
+			config: map[string]interface{}{
+				"method": "GET",
+				"url":    "{{ nodes.start-1.output.url }}",
+			},
+		},
 		{name: "missing method", config: map[string]interface{}{"url": "https://api.example.com"}, wantErr: true},
 		{name: "unsupported method", config: map[string]interface{}{"method": "TRACE", "url": "https://api.example.com"}, wantErr: true},
 		{name: "relative URL", config: map[string]interface{}{"method": "GET", "url": "/private"}, wantErr: true},
 		{name: "non HTTP URL", config: map[string]interface{}{"method": "GET", "url": "file:///etc/passwd"}, wantErr: true},
 		{name: "URL credentials", config: map[string]interface{}{"method": "GET", "url": "https://user:pass@example.com"}, wantErr: true},
+		{name: "invalid template path", config: map[string]interface{}{"method": "GET", "url": "{{ env.SECRET }}"}, wantErr: true},
 		{name: "unknown property", config: map[string]interface{}{"method": "GET", "url": "https://example.com", "template": "{{ secret }}"}, wantErr: true},
 		{name: "forbidden header", config: map[string]interface{}{"method": "GET", "url": "https://example.com", "headers": map[string]interface{}{"Host": "internal"}}, wantErr: true},
 		{name: "oversized body", config: map[string]interface{}{"method": "POST", "url": "https://example.com", "body": strings.Repeat("x", maxHTTPRequestBody+1)}, wantErr: true},

@@ -72,16 +72,21 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 			continue
 		}
 
+		execNode, err := nodeWithResolvedConfig(node, inputs)
+		if err != nil {
+			return GraphWorkflowResult{}, fmt.Errorf("node %q: %w", node.Id, err)
+		}
+
 		var result NodeResult
-		switch node.Type {
+		switch execNode.Type {
 		case StartNodeType:
 			value := map[string]interface{}{}
 			if input.Input != nil {
 				value = input.Input
 			}
-			result = NodeResult{NodeID: node.Id, Value: value}
+			result = NodeResult{NodeID: execNode.Id, Value: value}
 		case DelayNodeType:
-			config, err := parseDelayNodeConfig(node)
+			config, err := parseDelayNodeConfig(execNode)
 			if err != nil {
 				return GraphWorkflowResult{}, err
 			}
@@ -91,22 +96,22 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 				return GraphWorkflowResult{}, err
 			}
 			result = NodeResult{
-				NodeID: node.Id,
+				NodeID: execNode.Id,
 				Value: map[string]interface{}{
 					"type":    DelayNodeType,
 					"seconds": config.Seconds,
 				},
 			}
 		case ConditionNodeType:
-			config, err := parseConditionNodeConfig(node)
+			config, err := parseConditionNodeConfig(execNode)
 			if err != nil {
 				return GraphWorkflowResult{}, err
 			}
 			matched := evaluateCondition(config, inputs)
 			handle := conditionHandle(matched)
-			branchTaken[node.Id] = handle
+			branchTaken[execNode.Id] = handle
 			result = NodeResult{
-				NodeID: node.Id,
+				NodeID: execNode.Id,
 				Value: map[string]interface{}{
 					"type":             ConditionNodeType,
 					"field":            config.Field,
@@ -115,7 +120,7 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 				},
 			}
 		case WaitNodeType:
-			config, err := parseWaitNodeConfig(node)
+			config, err := parseWaitNodeConfig(execNode)
 			if err != nil {
 				return GraphWorkflowResult{}, err
 			}
@@ -138,12 +143,12 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 				_ = future.Get(ctx, nil)
 				timedOut = true
 			})
-			currentWait = CurrentWait{NodeID: node.Id, Signal: config.Signal}
+			currentWait = CurrentWait{NodeID: execNode.Id, Signal: config.Signal}
 			selector.Select(ctx)
 			currentWait = CurrentWait{}
 
 			handle := waitHandle(timedOut)
-			branchTaken[node.Id] = handle
+			branchTaken[execNode.Id] = handle
 			value := map[string]interface{}{
 				"type":             WaitNodeType,
 				"signal":           config.Signal,
@@ -154,9 +159,9 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 			if !timedOut && payload != nil {
 				value["payload"] = payload
 			}
-			result = NodeResult{NodeID: node.Id, Value: value}
+			result = NodeResult{NodeID: execNode.Id, Value: value}
 		case ChildWorkflowNodeType:
-			config, err := parseChildWorkflowNodeConfig(node)
+			config, err := parseChildWorkflowNodeConfig(execNode)
 			if err != nil {
 				return GraphWorkflowResult{}, err
 			}
@@ -166,41 +171,41 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 			}
 			parentInfo := workflow.GetInfo(ctx)
 			childCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-				WorkflowID: parentInfo.WorkflowExecution.ID + "/" + node.Id,
+				WorkflowID: parentInfo.WorkflowExecution.ID + "/" + execNode.Id,
 			})
 			var childResult GraphWorkflowResult
 			if err := workflow.ExecuteChildWorkflow(childCtx, GraphWorkflow, childInput).Get(ctx, &childResult); err != nil {
-				return GraphWorkflowResult{}, fmt.Errorf("childWorkflow node %q: %w", node.Id, err)
+				return GraphWorkflowResult{}, fmt.Errorf("childWorkflow node %q: %w", execNode.Id, err)
 			}
-			result = NodeResult{NodeID: node.Id, Value: childWorkflowResultValue(childResult)}
+			result = NodeResult{NodeID: execNode.Id, Value: childWorkflowResultValue(childResult)}
 		default:
-			activityName, ok := CurrentRegistry().ActivityName(node.Type)
+			activityName, ok := CurrentRegistry().ActivityName(execNode.Type)
 			if !ok {
-				return GraphWorkflowResult{}, fmt.Errorf("unsupported node type %q on node %q", node.Type, node.Id)
+				return GraphWorkflowResult{}, fmt.Errorf("unsupported node type %q on node %q", execNode.Type, execNode.Id)
 			}
-			opts, err := activityOptionsForNode(node)
+			opts, err := activityOptionsForNode(execNode)
 			if err != nil {
-				return GraphWorkflowResult{}, fmt.Errorf("node %q: %w", node.Id, err)
+				return GraphWorkflowResult{}, fmt.Errorf("node %q: %w", execNode.Id, err)
 			}
 			activityCtx := workflow.WithActivityOptions(ctx, opts)
 			err = workflow.ExecuteActivity(
 				activityCtx,
 				activityName,
-				NodeActivityInput{Node: toActivityNode(node), Inputs: inputs},
+				NodeActivityInput{Node: toActivityNode(execNode), Inputs: inputs},
 			).Get(ctx, &result)
 			if err != nil {
 				return GraphWorkflowResult{}, err
 			}
 			if result.NodeID == "" {
-				result.NodeID = node.Id
+				result.NodeID = execNode.Id
 			}
 			if branch, ok := nodetype.SelectedBranch(result); ok {
-				branchTaken[node.Id] = branch
+				branchTaken[execNode.Id] = branch
 			}
 		}
 
-		executed[node.Id] = struct{}{}
-		resultsByID[node.Id] = result
+		executed[execNode.Id] = struct{}{}
+		resultsByID[execNode.Id] = result
 		orderedResults = append(orderedResults, result)
 	}
 

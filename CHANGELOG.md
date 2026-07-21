@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Minimal node-config templating: `{{ nodes.<nodeId>.output.<path> }}` resolved
+  at run time from active predecessor outputs (HTTP url/headers/body supported;
+  rendered requests revalidated; wait configs reject templates).
 - `childWorkflow` node type (`ChildWorkflowNodeConfig` / `NestedGraph`): run an
   inline nested graph as a Temporal child workflow and wait for its result.
   Nested `childWorkflow` nodes are rejected (depth capped at one).

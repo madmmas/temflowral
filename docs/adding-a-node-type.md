@@ -188,6 +188,9 @@ Most nodes should be activities. Model them on the HTTP node:
    for each new built-in.
 
 Planning and `GraphWorkflow` resolve activity names through the registry.
+Before a node runs, GraphWorkflow resolves `{{ nodes.<id>.output.<path> }}`
+templates in that node's `config` string leaves using active predecessor
+outputs (the nested `graph` key on `childWorkflow` is skipped).
 
 The graph workflow defaults node activities to `StartToCloseTimeout: 30s` and
 `MaximumAttempts: 1`. Do not raise retries globally: side-effecting activities
@@ -265,8 +268,9 @@ Read `SECURITY.md` before adding an integration node. In particular:
 - deny external destinations by default and use explicit operator policy;
 - prevent SSRF after DNS resolution and again after redirects;
 - reject unknown fields and bound all user-controlled data;
-- avoid template or expression evaluation unless it has a separately reviewed
-  safe design;
+- avoid inventing a second template engine per node type — use the shared
+  `{{ nodes.<id>.output.<path> }}` resolver in GraphWorkflow and revalidate
+  rendered HTTP requests through the existing URL/header policy;
 - never include credentials, request bodies, or sensitive URLs in errors;
 - enforce deployment-specific checks inside the activity, not only at graph
   save time;

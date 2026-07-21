@@ -198,21 +198,32 @@ func parseHTTPNodeConfig(node api.Node) (api.HttpNodeConfig, error) {
 	if len(config.Url) == 0 || len(config.Url) > maxHTTPURLLength {
 		return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q URL must be 1-%d bytes", node.Id, maxHTTPURLLength)
 	}
-	parsedURL, err := url.Parse(config.Url)
-	if err != nil || !parsedURL.IsAbs() {
-		return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q URL must be absolute", node.Id)
-	}
-	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q URL scheme must be http or https", node.Id)
-	}
-	if parsedURL.Hostname() == "" {
-		return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q URL must include a hostname", node.Id)
-	}
-	if parsedURL.User != nil {
-		return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q URL must not contain user information", node.Id)
+	if containsTemplate(config.Url) {
+		if err := validateTemplateSyntaxInString(config.Url); err != nil {
+			return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q URL: %w", node.Id, err)
+		}
+	} else {
+		parsedURL, err := url.Parse(config.Url)
+		if err != nil || !parsedURL.IsAbs() {
+			return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q URL must be absolute", node.Id)
+		}
+		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+			return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q URL scheme must be http or https", node.Id)
+		}
+		if parsedURL.Hostname() == "" {
+			return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q URL must include a hostname", node.Id)
+		}
+		if parsedURL.User != nil {
+			return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q URL must not contain user information", node.Id)
+		}
 	}
 	if config.Body != nil && len(*config.Body) > maxHTTPRequestBody {
 		return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q body exceeds %d bytes", node.Id, maxHTTPRequestBody)
+	}
+	if config.Body != nil && containsTemplate(*config.Body) {
+		if err := validateTemplateSyntaxInString(*config.Body); err != nil {
+			return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q body: %w", node.Id, err)
+		}
 	}
 	if config.Headers != nil && len(*config.Headers) > maxHTTPHeaders {
 		return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q has more than %d headers", node.Id, maxHTTPHeaders)
@@ -220,7 +231,14 @@ func parseHTTPNodeConfig(node api.Node) (api.HttpNodeConfig, error) {
 	if config.Headers != nil {
 		for name, value := range *config.Headers {
 			canonicalName := http.CanonicalHeaderKey(name)
-			if !httpguts.ValidHeaderFieldName(name) || !httpguts.ValidHeaderFieldValue(value) {
+			if !httpguts.ValidHeaderFieldName(name) {
+				return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q contains an invalid header", node.Id)
+			}
+			if containsTemplate(value) {
+				if err := validateTemplateSyntaxInString(value); err != nil {
+					return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q header %q: %w", node.Id, canonicalName, err)
+				}
+			} else if !httpguts.ValidHeaderFieldValue(value) {
 				return api.HttpNodeConfig{}, fmt.Errorf("HTTP node %q contains an invalid header", node.Id)
 			}
 			if _, forbidden := forbiddenHTTPHeaders[canonicalName]; forbidden {
