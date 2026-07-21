@@ -51,9 +51,11 @@ until a named signal arrives, with a timeout fallback. Only timers exist today.
 Depends on: #55. **Shipped:** `wait` node (`WaitNodeConfig`) racing a Temporal
 signal channel against a durable timeout; branches via `received`/`timedOut`.
 
-**[#59](https://github.com/madmmas/temflowral/issues/59) — Signal-delivery endpoint** `[executor]`
+**[#59](https://github.com/madmmas/temflowral/issues/59) — Signal-delivery endpoint** `[executor]` ✅
 `POST /runs/{id}/signal` (or similar), validating the run is waiting on that
 signal name before forwarding to the Temporal workflow. Depends on: #58.
+**Shipped:** `POST /runs/{runId}/signal` with Temporal `currentWait` query
+validation, then `SignalWorkflow`.
 
 **[#60](https://github.com/madmmas/temflowral/issues/60) — Per-node ActivityOptions (timeout/retry override)** `[executor]`
 Allow a node's config to specify `startToCloseTimeout`, `retryPolicy`, etc.,

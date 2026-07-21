@@ -92,4 +92,24 @@ test.describe("contract conformance", () => {
     expect(response.status(), await response.text()).toBe(200);
     assertMatchesSchema("Run", await response.json());
   });
+
+  test("POST /runs/{id}/signal returns a valid SignalRunResponse", async ({
+    request,
+  }) => {
+    const { id: graphId } = await createGraph(request);
+    const started = await request.post(`/graphs/${graphId}/run`, {
+      data: { input: {} },
+    });
+    expect(started.status(), await started.text()).toBe(202);
+    const run = await started.json();
+
+    const response = await request.post(`/runs/${run.id}/signal`, {
+      data: {
+        signal: "approval.granted",
+        payload: { approvedBy: "alice" },
+      },
+    });
+    expect(response.status(), await response.text()).toBe(202);
+    assertMatchesSchema("SignalRunResponse", await response.json());
+  });
 });

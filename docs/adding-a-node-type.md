@@ -203,7 +203,9 @@ orchestration itself:
 - condition evaluates deterministic JSON values and routes edges using
   `Edge.sourceHandle`;
 - wait races `workflow.GetSignalChannel` against a durable timer and routes
-  via `received` / `timedOut` handles;
+  via `received` / `timedOut` handles (HTTP delivery is
+  `POST /runs/{runId}/signal`, which queries `temflowral.currentWait` before
+  calling Temporal `SignalWorkflow`);
 - branch-specific graph rules live in planner validation.
 
 Add workflow-native types to `isExecutableNodeType`. For named handles, validate

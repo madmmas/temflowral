@@ -308,6 +308,19 @@ func TestGraphWorkflowWaitReceivesSignal(t *testing.T) {
 
 	// Signal before the durable timeout so the received branch wins.
 	environment.RegisterDelayedCallback(func() {
+		encoded, err := environment.QueryWorkflow(CurrentWaitQueryName)
+		if err != nil {
+			t.Errorf("QueryWorkflow(%s) error = %v", CurrentWaitQueryName, err)
+			return
+		}
+		var wait CurrentWait
+		if err := encoded.Get(&wait); err != nil {
+			t.Errorf("decode current wait: %v", err)
+			return
+		}
+		if wait.NodeID != "wait-1" || wait.Signal != "approval.granted" {
+			t.Errorf("current wait = %#v, want wait-1/approval.granted", wait)
+		}
 		environment.SignalWorkflow("approval.granted", payload)
 	}, time.Second)
 

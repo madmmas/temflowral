@@ -45,6 +45,13 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 		return GraphWorkflowResult{}, err
 	}
 
+	var currentWait CurrentWait
+	if err := workflow.SetQueryHandler(ctx, CurrentWaitQueryName, func() (CurrentWait, error) {
+		return currentWait, nil
+	}); err != nil {
+		return GraphWorkflowResult{}, fmt.Errorf("register %s query: %w", CurrentWaitQueryName, err)
+	}
+
 	nodesByID := make(map[string]api.Node, len(input.Graph.Nodes))
 	for _, node := range input.Graph.Nodes {
 		nodesByID[node.Id] = node
@@ -140,7 +147,9 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 				_ = future.Get(ctx, nil)
 				timedOut = true
 			})
+			currentWait = CurrentWait{NodeID: node.Id, Signal: config.Signal}
 			selector.Select(ctx)
+			currentWait = CurrentWait{}
 
 			handle := waitHandle(timedOut)
 			branchTaken[node.Id] = handle

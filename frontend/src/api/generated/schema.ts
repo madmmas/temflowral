@@ -86,6 +86,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{runId}/signal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deliver a Temporal signal to a running workflow
+         * @description Forwards a named signal to the Temporal workflow for this run. The run
+         *     must be running and currently blocked on a wait node whose
+         *     `WaitNodeConfig.signal` matches the request. Early or unmatched
+         *     signals are rejected with 409 (Temporal buffering is not exposed via
+         *     this API). Poll `GET /runs/{runId}` for progress after acceptance.
+         *
+         */
+        post: operations["signalRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/node-types": {
         parameters: {
             query?: never;
@@ -301,9 +326,8 @@ export interface components {
          *       "timeoutSeconds": 3600
          *     } */
         WaitNodeConfig: {
-            /** @description Temporal signal name this node waits on. Callers (and the future
-             *     POST /runs/{id}/signal endpoint) must send this exact name via
-             *     Temporal SignalWorkflow. Letters, digits, `.`, `_`, and `-` only.
+            /** @description Temporal signal name this node waits on. Deliver the same name via
+             *     `POST /runs/{runId}/signal`. Letters, digits, `.`, `_`, and `-` only.
              *      */
             signal: string;
             /**
@@ -396,6 +420,34 @@ export interface components {
             input?: {
                 [key: string]: unknown;
             };
+        };
+        /** @example {
+         *       "signal": "approval.granted",
+         *       "payload": {
+         *         "approvedBy": "alice"
+         *       }
+         *     } */
+        SignalRunRequest: {
+            /** @description Must match the `WaitNodeConfig.signal` of the wait node the run is
+             *     currently blocked on.
+             *      */
+            signal: string;
+            /** @description Optional JSON value delivered with the Temporal signal and stored on
+             *     the wait node's result when the signal wins the timeout race.
+             *      */
+            payload?: unknown;
+        };
+        /** @example {
+         *       "runId": "550e8400-e29b-41d4-a716-446655440000",
+         *       "signal": "approval.granted",
+         *       "acceptedAt": "2026-07-21T12:00:00Z"
+         *     } */
+        SignalRunResponse: {
+            /** Format: uuid */
+            runId: string;
+            signal: string;
+            /** Format: date-time */
+            acceptedAt: string;
         };
         /** @example {
          *       "id": "true",
@@ -853,6 +905,56 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    signalRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Workflow run identifier
+                 * @example 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+                 */
+                runId: components["parameters"]["RunId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @example {
+                 *       "signal": "approval.granted",
+                 *       "payload": {
+                 *         "approvedBy": "alice"
+                 *       }
+                 *     } */
+                "application/json": components["schemas"]["SignalRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Signal accepted and forwarded to Temporal */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignalRunResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            /** @description Run cannot accept this signal (not running, or not currently
+             *     waiting on this signal name).
+             *      */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["InternalError"];
         };
     };

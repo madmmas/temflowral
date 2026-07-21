@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	enums "go.temporal.io/api/enums/v1"
@@ -13,7 +14,7 @@ import (
 	"github.com/madmmas/temflowral/backend/pkg/nodetype"
 )
 
-// GraphRunner starts and inspects graph workflows.
+// GraphRunner starts, inspects, and signals graph workflows.
 type GraphRunner interface {
 	StartGraphWorkflow(
 		ctx context.Context,
@@ -24,6 +25,16 @@ type GraphRunner interface {
 		ctx context.Context,
 		execution temporal.WorkflowExecution,
 	) (temporal.WorkflowStatus, error)
+	QueryCurrentWait(
+		ctx context.Context,
+		execution temporal.WorkflowExecution,
+	) (temporal.CurrentWait, error)
+	SignalGraphWorkflow(
+		ctx context.Context,
+		execution temporal.WorkflowExecution,
+		signalName string,
+		payload interface{},
+	) error
 }
 
 // API implements the generated strict server interface.
@@ -266,6 +277,73 @@ func (apiServer *API) GetRun(
 		return api.GetRun500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
 	}
 	return api.GetRun200JSONResponse(record.Run), nil
+}
+
+func (apiServer *API) SignalRun(
+	ctx context.Context,
+	request api.SignalRunRequestObject,
+) (api.SignalRunResponseObject, error) {
+	if request.Body == nil {
+		return api.SignalRun400JSONResponse{BadRequestJSONResponse: badRequest("request body is required")}, nil
+	}
+	if err := temporal.ValidateSignalName(request.Body.Signal); err != nil {
+		return api.SignalRun400JSONResponse{BadRequestJSONResponse: badRequest(err.Error())}, nil
+	}
+
+	record, ok, err := apiServer.store.GetRun(ctx, request.RunId)
+	if err != nil {
+		return api.SignalRun500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
+	if !ok {
+		return api.SignalRun404JSONResponse{NotFoundJSONResponse: notFound("run not found")}, nil
+	}
+
+	execution := temporal.WorkflowExecution{
+		ID:    record.TemporalWorkflowID,
+		RunID: record.TemporalRunID,
+	}
+	status, err := apiServer.runner.DescribeGraphWorkflow(ctx, execution)
+	if err != nil {
+		return api.SignalRun500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
+	if mapTemporalStatus(status.Status) != api.Running {
+		return api.SignalRun409JSONResponse(
+			conflict(fmt.Sprintf("run is %s and cannot accept signals", mapTemporalStatus(status.Status))),
+		), nil
+	}
+
+	currentWait, err := apiServer.runner.QueryCurrentWait(ctx, execution)
+	if err != nil {
+		return api.SignalRun500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
+	if currentWait.Signal == "" {
+		return api.SignalRun409JSONResponse(
+			conflict("run is not currently waiting on a signal"),
+		), nil
+	}
+	if currentWait.Signal != request.Body.Signal {
+		return api.SignalRun409JSONResponse(
+			conflict(fmt.Sprintf(
+				"run is waiting on signal %q, not %q",
+				currentWait.Signal,
+				request.Body.Signal,
+			)),
+		), nil
+	}
+
+	var payload interface{}
+	if request.Body.Payload != nil {
+		payload = *request.Body.Payload
+	}
+	if err := apiServer.runner.SignalGraphWorkflow(ctx, execution, request.Body.Signal, payload); err != nil {
+		return api.SignalRun500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
+
+	return api.SignalRun202JSONResponse{
+		RunId:      request.RunId,
+		Signal:     request.Body.Signal,
+		AcceptedAt: nowUTC(),
+	}, nil
 }
 
 func mapTemporalStatus(status enums.WorkflowExecutionStatus) api.RunStatus {

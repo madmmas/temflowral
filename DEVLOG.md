@@ -5,6 +5,31 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-21 — Signal-delivery endpoint (#59)
+
+**Did:**
+- Contract-first `POST /runs/{runId}/signal` (`SignalRunRequest` /
+  `SignalRunResponse`); regenerated Go/TS clients.
+- GraphWorkflow registers `temflowral.currentWait` query around wait
+  `Select`; Runtime adds `QueryCurrentWait` + `SignalGraphWorkflow`.
+- Handler requires running status + matching current wait signal before
+  forwarding; 404/400/409/202 as documented.
+- API and workflow tests; docs/CHANGELOG/ISSUES updated.
+
+**Decided / learned:**
+- Strong validation (query) over graph allowlist alone so early/wrong signals
+  get 409 instead of silent Temporal buffering via this API.
+- Race between query and signal vs timeout remains possible; callers should
+  poll `GET /runs/{id}` after 202.
+
+**Verified:**
+- `make generate`, Redocly, `make test` / lint / contract (see PR).
+
+**Next:**
+- #60 per-node ActivityOptions, or frontend wait/condition handle UI.
+
+---
+
 ## 2026-07-21 — Signal/wait primitive (#58)
 
 **Did:**

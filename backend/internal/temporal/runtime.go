@@ -170,3 +170,32 @@ func (runtime *Runtime) DescribeGraphWorkflow(
 
 	return status, nil
 }
+
+// QueryCurrentWait returns which wait node GraphWorkflow is blocked on, if any.
+func (runtime *Runtime) QueryCurrentWait(
+	ctx context.Context,
+	execution WorkflowExecution,
+) (CurrentWait, error) {
+	encoded, err := runtime.client.QueryWorkflow(ctx, execution.ID, execution.RunID, CurrentWaitQueryName)
+	if err != nil {
+		return CurrentWait{}, fmt.Errorf("query current wait on workflow %q: %w", execution.ID, err)
+	}
+	var wait CurrentWait
+	if err := encoded.Get(&wait); err != nil {
+		return CurrentWait{}, fmt.Errorf("decode current wait on workflow %q: %w", execution.ID, err)
+	}
+	return wait, nil
+}
+
+// SignalGraphWorkflow delivers a Temporal signal to a running graph workflow.
+func (runtime *Runtime) SignalGraphWorkflow(
+	ctx context.Context,
+	execution WorkflowExecution,
+	signalName string,
+	payload interface{},
+) error {
+	if err := runtime.client.SignalWorkflow(ctx, execution.ID, execution.RunID, signalName, payload); err != nil {
+		return fmt.Errorf("signal workflow %q (%s): %w", execution.ID, signalName, err)
+	}
+	return nil
+}

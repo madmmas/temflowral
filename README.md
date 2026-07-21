@@ -66,7 +66,8 @@ durable timers for delay nodes (and wait timeouts).
 
 Progress and results are durable in Temporal. Poll `GET /runs/{runId}` for the
 current status and, once complete, the per-node output — or watch the same run
-live in the Temporal Web UI.
+live in the Temporal Web UI. While a run is blocked on a `wait` node, deliver
+the matching signal with `POST /runs/{runId}/signal`.
 
 ## Node types
 
