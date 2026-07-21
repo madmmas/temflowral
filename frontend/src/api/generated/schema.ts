@@ -171,6 +171,12 @@ export interface components {
          *       "config": {
          *         "method": "GET",
          *         "url": "https://httpbin.org/get"
+         *       },
+         *       "activityOptions": {
+         *         "startToCloseTimeoutSeconds": 60,
+         *         "retryPolicy": {
+         *           "maximumAttempts": 1
+         *         }
          *       }
          *     } */
         Node: {
@@ -189,6 +195,82 @@ export interface components {
             config?: components["schemas"]["HttpNodeConfig"] | components["schemas"]["DelayNodeConfig"] | components["schemas"]["ConditionNodeConfig"] | components["schemas"]["WaitNodeConfig"] | {
                 [key: string]: unknown;
             };
+            activityOptions?: components["schemas"]["ActivityOptions"];
+        };
+        /**
+         * @description Temporal activity retry policy. Engine default is maximumAttempts: 1
+         *     (no retries). Raising attempts for side-effecting nodes (e.g. HTTP POST)
+         *     is the caller's responsibility — only do so for idempotent work.
+         *     Temporal treats maximumAttempts 0 as unlimited; this API rejects 0 so
+         *     callers must set an explicit bound.
+         *
+         * @example {
+         *       "maximumAttempts": 3,
+         *       "initialIntervalSeconds": 1,
+         *       "backoffCoefficient": 2,
+         *       "maximumIntervalSeconds": 30
+         *     }
+         */
+        RetryPolicy: {
+            /**
+             * Format: double
+             * @description Delay before the first retry (Temporal InitialInterval).
+             */
+            initialIntervalSeconds?: number;
+            /**
+             * Format: double
+             * @description Multiplier applied after each retry (Temporal BackoffCoefficient).
+             */
+            backoffCoefficient?: number;
+            /**
+             * Format: double
+             * @description Cap on the delay between retries (Temporal MaximumInterval).
+             */
+            maximumIntervalSeconds?: number;
+            /** @description Maximum activity attempts including the first. 1 disables retries
+             *     (engine default).
+             *      */
+            maximumAttempts: number;
+            /** @description Temporal error type names that must not be retried. */
+            nonRetryableErrorTypes?: string[];
+        };
+        /**
+         * @description Per-node Temporal ActivityOptions overriding GraphWorkflow defaults
+         *     (`startToCloseTimeout` = 30s, `maximumAttempts` = 1). Omitted fields
+         *     keep engine defaults. Only valid on activity-backed node types
+         *     (`KindActivity`); rejected on workflow-native nodes (start, delay,
+         *     condition, wait).
+         *
+         * @example {
+         *       "startToCloseTimeoutSeconds": 120,
+         *       "retryPolicy": {
+         *         "maximumAttempts": 3,
+         *         "initialIntervalSeconds": 1
+         *       }
+         *     }
+         */
+        ActivityOptions: {
+            /**
+             * Format: double
+             * @description Max time for a single activity attempt (Temporal StartToCloseTimeout).
+             *     Note: the built-in HTTP activity still caps its own HTTP client at
+             *     20s; raising this above 20s does not lengthen that client timeout.
+             *
+             */
+            startToCloseTimeoutSeconds?: number;
+            /**
+             * Format: double
+             * @description Max time from schedule to completion across all attempts
+             *     (Temporal ScheduleToCloseTimeout).
+             *
+             */
+            scheduleToCloseTimeoutSeconds?: number;
+            /**
+             * Format: double
+             * @description Heartbeat timeout for long-running activities.
+             */
+            heartbeatTimeoutSeconds?: number;
+            retryPolicy?: components["schemas"]["RetryPolicy"];
         };
         /** @example {
          *       "id": "e-start-http",

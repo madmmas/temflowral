@@ -57,9 +57,11 @@ signal name before forwarding to the Temporal workflow. Depends on: #58.
 **Shipped:** `POST /runs/{runId}/signal` with Temporal `currentWait` query
 validation, then `SignalWorkflow`.
 
-**[#60](https://github.com/madmmas/temflowral/issues/60) — Per-node ActivityOptions (timeout/retry override)** `[executor]`
+**[#60](https://github.com/madmmas/temflowral/issues/60) — Per-node ActivityOptions (timeout/retry override)** `[executor]` ✅
 Allow a node's config to specify `startToCloseTimeout`, `retryPolicy`, etc.,
-overriding engine defaults. Depends on: #55.
+overriding engine defaults. Depends on: #55. **Shipped:** optional
+`Node.activityOptions` (`ActivityOptions` / `RetryPolicy`) applied on
+`KindActivity` nodes; rejected on workflow-native types.
 
 **[#61](https://github.com/madmmas/temflowral/issues/61) — Per-node task-queue routing** `[executor]`
 Allow a node's config to specify a target Temporal task queue so activities run

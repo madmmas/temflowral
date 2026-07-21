@@ -45,6 +45,9 @@ func BuildExecutionPlan(graph api.Graph) ([]api.Node, error) {
 		if err := ValidateNodeConfig(node); err != nil {
 			return nil, err
 		}
+		if err := ValidateActivityOptions(node); err != nil {
+			return nil, err
+		}
 		nodesByID[node.Id] = node
 	}
 

@@ -3,9 +3,7 @@ package temporal
 import (
 	"context"
 	"fmt"
-	"time"
 
-	sdktemporal "go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 
 	"github.com/madmmas/temflowral/backend/internal/api"
@@ -66,13 +64,6 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 	executed := make(map[string]struct{}, len(plan))
 	branchTaken := make(map[string]string)
 	orderedResults := make([]NodeResult, 0, len(plan))
-
-	activityCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
-		StartToCloseTimeout: 30 * time.Second,
-		RetryPolicy: &sdktemporal.RetryPolicy{
-			MaximumAttempts: 1,
-		},
-	})
 
 	for _, node := range plan {
 		inputs := activeInputs(node, incomingEdges, executed, branchTaken, resultsByID)
@@ -169,7 +160,12 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 			if !ok {
 				return GraphWorkflowResult{}, fmt.Errorf("unsupported node type %q on node %q", node.Type, node.Id)
 			}
-			err := workflow.ExecuteActivity(
+			opts, err := activityOptionsForNode(node)
+			if err != nil {
+				return GraphWorkflowResult{}, fmt.Errorf("node %q: %w", node.Id, err)
+			}
+			activityCtx := workflow.WithActivityOptions(ctx, opts)
+			err = workflow.ExecuteActivity(
 				activityCtx,
 				activityName,
 				NodeActivityInput{Node: toActivityNode(node), Inputs: inputs},

@@ -73,6 +73,32 @@ func (e RunStatus) Valid() bool {
 	}
 }
 
+// ActivityOptions Per-node Temporal ActivityOptions overriding GraphWorkflow defaults
+// (`startToCloseTimeout` = 30s, `maximumAttempts` = 1). Omitted fields
+// keep engine defaults. Only valid on activity-backed node types
+// (`KindActivity`); rejected on workflow-native nodes (start, delay,
+// condition, wait).
+type ActivityOptions struct {
+	// HeartbeatTimeoutSeconds Heartbeat timeout for long-running activities.
+	HeartbeatTimeoutSeconds *float64 `json:"heartbeatTimeoutSeconds,omitempty"`
+
+	// RetryPolicy Temporal activity retry policy. Engine default is maximumAttempts: 1
+	// (no retries). Raising attempts for side-effecting nodes (e.g. HTTP POST)
+	// is the caller's responsibility — only do so for idempotent work.
+	// Temporal treats maximumAttempts 0 as unlimited; this API rejects 0 so
+	// callers must set an explicit bound.
+	RetryPolicy *RetryPolicy `json:"retryPolicy,omitempty"`
+
+	// ScheduleToCloseTimeoutSeconds Max time from schedule to completion across all attempts
+	// (Temporal ScheduleToCloseTimeout).
+	ScheduleToCloseTimeoutSeconds *float64 `json:"scheduleToCloseTimeoutSeconds,omitempty"`
+
+	// StartToCloseTimeoutSeconds Max time for a single activity attempt (Temporal StartToCloseTimeout).
+	// Note: the built-in HTTP activity still caps its own HTTP client at
+	// 20s; raising this above 20s does not lengthen that client timeout.
+	StartToCloseTimeoutSeconds *float64 `json:"startToCloseTimeoutSeconds,omitempty"`
+}
+
 // ConditionNodeConfig defines model for ConditionNodeConfig.
 type ConditionNodeConfig struct {
 	// Equals Expected value compared with JSON equality against value[field].
@@ -165,6 +191,13 @@ type HttpNodeConfigMethod string
 
 // Node defines model for Node.
 type Node struct {
+	// ActivityOptions Per-node Temporal ActivityOptions overriding GraphWorkflow defaults
+	// (`startToCloseTimeout` = 30s, `maximumAttempts` = 1). Omitted fields
+	// keep engine defaults. Only valid on activity-backed node types
+	// (`KindActivity`); rejected on workflow-native nodes (start, delay,
+	// condition, wait).
+	ActivityOptions *ActivityOptions `json:"activityOptions,omitempty"`
+
 	// Config Node-type-specific configuration. Validated against the node type's
 	// configSchema from GET /node-types. HTTP nodes use HttpNodeConfig;
 	// delay nodes use DelayNodeConfig; condition nodes use ConditionNodeConfig;
@@ -238,6 +271,29 @@ type OutputHandlesFromConfig struct {
 type Position struct {
 	X float64 `json:"x"`
 	Y float64 `json:"y"`
+}
+
+// RetryPolicy Temporal activity retry policy. Engine default is maximumAttempts: 1
+// (no retries). Raising attempts for side-effecting nodes (e.g. HTTP POST)
+// is the caller's responsibility — only do so for idempotent work.
+// Temporal treats maximumAttempts 0 as unlimited; this API rejects 0 so
+// callers must set an explicit bound.
+type RetryPolicy struct {
+	// BackoffCoefficient Multiplier applied after each retry (Temporal BackoffCoefficient).
+	BackoffCoefficient *float64 `json:"backoffCoefficient,omitempty"`
+
+	// InitialIntervalSeconds Delay before the first retry (Temporal InitialInterval).
+	InitialIntervalSeconds *float64 `json:"initialIntervalSeconds,omitempty"`
+
+	// MaximumAttempts Maximum activity attempts including the first. 1 disables retries
+	// (engine default).
+	MaximumAttempts int `json:"maximumAttempts"`
+
+	// MaximumIntervalSeconds Cap on the delay between retries (Temporal MaximumInterval).
+	MaximumIntervalSeconds *float64 `json:"maximumIntervalSeconds,omitempty"`
+
+	// NonRetryableErrorTypes Temporal error type names that must not be retried.
+	NonRetryableErrorTypes *[]string `json:"nonRetryableErrorTypes,omitempty"`
 }
 
 // Run defines model for Run.

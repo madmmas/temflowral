@@ -189,10 +189,12 @@ Most nodes should be activities. Model them on the HTTP node:
 
 Planning and `GraphWorkflow` resolve activity names through the registry.
 
-The graph workflow currently sets `MaximumAttempts: 1` for node activities.
-Do not increase retries globally: side-effecting activities such as HTTP POST
-may not be safe to replay. If a node needs retries, design and test its
-idempotency policy explicitly.
+The graph workflow defaults node activities to `StartToCloseTimeout: 30s` and
+`MaximumAttempts: 1`. Do not raise retries globally: side-effecting activities
+such as HTTP POST may not be safe to replay. Callers may override per activity
+node via optional `Node.activityOptions` (timeouts + `retryPolicy`); only do so
+for idempotent work. Workflow-native nodes (start, delay, condition, wait)
+reject `activityOptions`.
 
 ### Workflow-native control nodes
 

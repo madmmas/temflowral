@@ -84,6 +84,11 @@ func (apiServer *API) CreateGraph(
 				BadRequestJSONResponse: badRequest(err.Error()),
 			}, nil
 		}
+		if err := temporal.ValidateActivityOptions(node); err != nil {
+			return api.CreateGraph400JSONResponse{
+				BadRequestJSONResponse: badRequest(err.Error()),
+			}, nil
+		}
 	}
 
 	if err := apiServer.store.PutGraph(ctx, graph); err != nil {

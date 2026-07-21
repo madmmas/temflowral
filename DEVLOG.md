@@ -5,6 +5,30 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-21 — Per-node ActivityOptions (#60)
+
+**Did:**
+- Contract-first optional `Node.activityOptions` (`ActivityOptions`,
+  `RetryPolicy`); regenerated clients.
+- GraphWorkflow applies per-node `WithActivityOptions` for KindActivity
+  dispatch; planner/CreateGraph reject options on workflow-native types.
+- Unit + workflow tests for merge/bounds, retries (attempts=3), and default
+  no-retry behavior.
+
+**Decided / learned:**
+- Sibling on `Node`, not inside closed type configs — keeps HTTP/delay/etc.
+  parsers untouched and leaves room for #61 `taskQueue`.
+- `retryPolicy.maximumAttempts` is required when retryPolicy is set (no
+  Temporal unlimited-via-0). HTTP client still caps at 20s independently.
+
+**Verified:**
+- `make generate`, Redocly, `make test` / lint / contract (see PR).
+
+**Next:**
+- #61 per-node task-queue routing.
+
+---
+
 ## 2026-07-21 — Signal-delivery endpoint (#59)
 
 **Did:**
