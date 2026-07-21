@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- API auth baseline: optional `API_AUTH_TOKEN` requires `Authorization: Bearer`
+  on OpenAPI routes (401 otherwise); SECURITY.md documents trust boundary (no
+  tenant isolation), mTLS-at-proxy, and interpreter upgrade compatibility.
 - ADR-001: canvas packaging decision — reference-only UI; consumers build
   against OpenAPI + `GET /node-types` (no npm package / embed service yet).
 - Pre-run graph validation (`ValidateGraph`): `StartGraphRun` rejects unknown

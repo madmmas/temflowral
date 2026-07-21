@@ -101,10 +101,12 @@ against the node-type registry API" is a valid answer. **Decided:**
 reference-only; integrate via OpenAPI + `GET /node-types` —
 [`docs/adr/001-canvas-packaging.md`](../adr/001-canvas-packaging.md).
 
-**[#66](https://github.com/madmmas/temflowral/issues/66) — Document API auth baseline and trust-boundary stance** `[docs][security]`
+**[#66](https://github.com/madmmas/temflowral/issues/66) — Document API auth baseline and trust-boundary stance** `[docs][security]` ✅
 Minimal service-to-service auth (shared secret or mTLS); extend SECURITY.md
 with an explicit trust-boundary statement (no tenant isolation enforced);
-short compatibility note for interpreter upgrades.
+short compatibility note for interpreter upgrades. **Shipped:** opt-in
+`API_AUTH_TOKEN` Bearer gate on OpenAPI routes; SECURITY.md trust boundary +
+mTLS-at-proxy + upgrade compatibility; OpenAPI `BearerAuth` / `401`.
 
 **[#67](https://github.com/madmmas/temflowral/issues/67) — Extend `docs/adding-a-node-type.md` for external registration** `[docs]`
 Document registering a node type from outside this repo once #55 lands.

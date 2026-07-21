@@ -41,6 +41,11 @@ Point `NEXT_PUBLIC_API_BASE_URL` at the Prism mock (`http://127.0.0.1:4010`)
 or the local backend (`http://127.0.0.1:8080`). See the repo
 `CONTRIBUTING.md` for mock-server details.
 
+If the backend has `API_AUTH_TOKEN` set, pass the token into
+`createApiClient(url, { authToken })` or set `TEMFLOWRAL_API_TOKEN` for
+Node/test processes. Never put the shared secret in `NEXT_PUBLIC_*` (see
+`SECURITY.md`).
+
 ## Typed API client
 
 Generated types live in `src/api/generated/` (do not hand-edit). Use the

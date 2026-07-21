@@ -31,4 +31,11 @@ describe("createApiClient", () => {
     const client = createApiClient("http://127.0.0.1:8080");
     expect(client).toBeDefined();
   });
+
+  it("accepts an authToken option without throwing", () => {
+    const client = createApiClient("http://127.0.0.1:8080", {
+      authToken: "test-secret",
+    });
+    expect(client).toBeDefined();
+  });
 });

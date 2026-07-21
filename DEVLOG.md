@@ -5,6 +5,27 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-21 — API auth baseline & trust boundary (#66)
+
+**Did:**
+- Opt-in `API_AUTH_TOKEN` Bearer middleware on OpenAPI routes; `/docs` and
+  `/openapi.yaml` stay public. OpenAPI `BearerAuth` + `401 Unauthorized`.
+- SECURITY.md: trust boundary (no tenant isolation), auth baseline, mTLS at
+  reverse proxy, interpreter upgrade compatibility. CONTRIBUTING / README /
+  compose wired.
+
+**Decided / learned:**
+- Open mode when token unset keeps Prism/local/demo UI working; production
+  must set the token. No secrets in `NEXT_PUBLIC_*`.
+
+**Verified:**
+- `make generate`, Redocly, lint / test / contract (see PR).
+
+**Next:**
+- #67 external-registration docs.
+
+---
+
 ## 2026-07-21 — Canvas packaging decision (#65)
 
 **Did:**
