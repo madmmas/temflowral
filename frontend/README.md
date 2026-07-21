@@ -2,6 +2,11 @@
 
 Next.js (App Router) + TypeScript UI for authoring and running workflow graphs.
 
+This app is a **reference implementation** of a temflowral canvas. It is not
+published as an npm package and is not an embeddable hosted designer. If you
+need a canvas in another product, integrate against the OpenAPI contract and
+`GET /node-types` (see [`docs/adr/001-canvas-packaging.md`](../docs/adr/001-canvas-packaging.md)).
+
 ## Prerequisites
 
 - Node 20+

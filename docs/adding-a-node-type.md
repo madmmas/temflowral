@@ -235,6 +235,10 @@ Basic discovery and rendering are generic:
 Therefore, an unconfigured node with one input and one output normally appears
 without a frontend code change after `GET /node-types` exposes it.
 
+The `frontend/` app is a reference canvas only (not a published package or
+embed). External UIs should use the same discovery + graph APIs — see
+[`docs/adr/001-canvas-packaging.md`](adr/001-canvas-packaging.md).
+
 The current frontend does **not** generate a config form from `ConfigSchema`;
 new nodes are created with `{}` config. A configured node needs a form or
 editor that writes validated values to `CanvasNodeData.config` before save.

@@ -94,10 +94,12 @@ covered by API and plan tests.
 
 ## 9. Product decisions & docs
 
-**[#65](https://github.com/madmmas/temflowral/issues/65) — Canvas packaging decision** `[canvas][decision]`
+**[#65](https://github.com/madmmas/temflowral/issues/65) — Canvas packaging decision** `[canvas][decision]` ✅
 ADR-style doc: whether the React Flow frontend becomes an importable package,
 an embeddable service, or stays reference-only. "No shared package yet — build
-against the node-type registry API" is a valid answer.
+against the node-type registry API" is a valid answer. **Decided:**
+reference-only; integrate via OpenAPI + `GET /node-types` —
+[`docs/adr/001-canvas-packaging.md`](../adr/001-canvas-packaging.md).
 
 **[#66](https://github.com/madmmas/temflowral/issues/66) — Document API auth baseline and trust-boundary stance** `[docs][security]`
 Minimal service-to-service auth (shared secret or mTLS); extend SECURITY.md
