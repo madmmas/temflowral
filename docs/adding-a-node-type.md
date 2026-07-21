@@ -5,8 +5,8 @@ temflowral is contract-first: define a node's public configuration in
 Generated Go and TypeScript files are outputs, not editing points.
 
 The existing HTTP node is the complete reference for an activity-backed node.
-The delay, condition, and wait nodes show when behavior belongs directly in
-Temporal workflow code.
+The delay, condition, wait, and childWorkflow nodes show when behavior belongs
+directly in Temporal workflow code.
 
 ## 1. Design the node
 
@@ -166,7 +166,7 @@ Multi-output activity nodes select a branch by setting
 `result.Value["branch"]` to a handle ID. The planner validates
 `Edge.sourceHandle` against fixed or config-derived handles. Workflow-native
 kinds (`KindWorkflow`) remain reserved for built-in orchestration (start,
-delay, condition, wait).
+delay, condition, wait, childWorkflow).
 
 A fuller external-package walkthrough is tracked as issue #67.
 
@@ -195,7 +195,7 @@ such as HTTP POST may not be safe to replay. Callers may override per activity
 node via optional `Node.activityOptions` (timeouts + `retryPolicy`) and
 `Node.taskQueue` (route the activity to a specialized worker queue); only raise
 retries for idempotent work. Workflow-native nodes (start, delay, condition,
-wait) reject both fields.
+wait, childWorkflow) reject both fields.
 
 ### Workflow-native control nodes
 
@@ -209,6 +209,8 @@ orchestration itself:
   via `received` / `timedOut` handles (HTTP delivery is
   `POST /runs/{runId}/signal`, which queries `temflowral.currentWait` before
   calling Temporal `SignalWorkflow`);
+- childWorkflow runs `workflow.ExecuteChildWorkflow` with an inline nested
+  graph (same `GraphWorkflow`); nesting another `childWorkflow` is rejected;
 - branch-specific graph rules live in planner validation.
 
 Add workflow-native types to `isExecutableNodeType`. For named handles, validate

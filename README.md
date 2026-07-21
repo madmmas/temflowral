@@ -80,6 +80,7 @@ the matching signal with `POST /runs/{runId}/signal`.
 | `delay` | core | Pause with a durable Temporal timer. |
 | `condition` | core | Branch on a predecessor field (`true`/`false`). |
 | `wait` | core | Suspend until a named Temporal signal or timeout (`received`/`timedOut`). |
+| `childWorkflow` | core | Run a nested graph as a Temporal child workflow and wait for its result. |
 
 The `http` node is the primary attack surface; its outbound policy (host
 allowlisting, SSRF protection, and size/time limits) is documented in

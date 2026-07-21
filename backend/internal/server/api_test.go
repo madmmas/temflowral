@@ -446,8 +446,9 @@ func TestListNodeTypes(t *testing.T) {
 		!strings.Contains(body, `"id":"http"`) ||
 		!strings.Contains(body, `"id":"delay"`) ||
 		!strings.Contains(body, `"id":"condition"`) ||
-		!strings.Contains(body, `"id":"wait"`) {
-		t.Fatalf("body = %s, want start, noop, http, delay, condition, and wait node types", body)
+		!strings.Contains(body, `"id":"wait"`) ||
+		!strings.Contains(body, `"id":"childWorkflow"`) {
+		t.Fatalf("body = %s, want start, noop, http, delay, condition, wait, and childWorkflow node types", body)
 	}
 
 	var registry api.NodeTypeList
@@ -505,6 +506,15 @@ func TestListNodeTypes(t *testing.T) {
 	}
 	if waitType.OutputHandles == nil || len(*waitType.OutputHandles) != 2 {
 		t.Fatalf("wait outputHandles = %#v, want received/timedOut", waitType.OutputHandles)
+	}
+
+	childType, ok := byID[temporal.ChildWorkflowNodeType]
+	if !ok {
+		t.Fatal("childWorkflow node type not found")
+	}
+	childProps, ok := childType.ConfigSchema["properties"].(map[string]interface{})
+	if !ok || childProps["graph"] == nil {
+		t.Errorf("childWorkflow config properties = %#v, want graph", childType.ConfigSchema["properties"])
 	}
 }
 

@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- `childWorkflow` node type (`ChildWorkflowNodeConfig` / `NestedGraph`): run an
+  inline nested graph as a Temporal child workflow and wait for its result.
+  Nested `childWorkflow` nodes are rejected (depth capped at one).
 - Optional `Node.taskQueue`: route an activity-backed node to a Temporal task
   queue other than the workflow default (for specialized workers). Rejected on
   workflow-native nodes.
@@ -43,7 +46,8 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
   orders nodes, plus a workflow and worker that execute the graph durably.
 - Node types: `start`, `noop`, an allowlisted `http` activity node, a durable
   `delay` timer node, a `condition` branch node with `true`/`false` handles,
-  and a `wait` signal/timeout node with `received`/`timedOut` handles.
+  a `wait` signal/timeout node with `received`/`timedOut` handles, and a
+  `childWorkflow` nested-graph node.
 - Frontend: a Next.js + React Flow canvas with an API-driven node palette and
   save/run against the typed client.
 - Testing: Go unit tests, frontend Vitest, Playwright E2E, and OpenAPI contract

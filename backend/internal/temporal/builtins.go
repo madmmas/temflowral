@@ -226,6 +226,48 @@ func RegisterBuiltins(registry *nodetype.Registry, options BuiltinOptions) error
 				},
 			},
 		},
+		{
+			ID:          ChildWorkflowNodeType,
+			Name:        "Child Workflow",
+			Description: "Run a nested graph as a Temporal child workflow and wait for its result",
+			Category:    "core",
+			Kind:        nodetype.KindWorkflow,
+			ValidateConfig: func(nodeID string, config map[string]interface{}) error {
+				_, err := parseChildWorkflowNodeConfig(api.Node{
+					Id:     nodeID,
+					Type:   ChildWorkflowNodeType,
+					Config: configPtr(config),
+				})
+				return err
+			},
+			ConfigSchema: map[string]interface{}{
+				"type":                 "object",
+				"required":             []string{"graph"},
+				"additionalProperties": false,
+				"properties": map[string]interface{}{
+					"graph": map[string]interface{}{
+						"type":                 "object",
+						"required":             []string{"nodes", "edges"},
+						"additionalProperties": false,
+						"properties": map[string]interface{}{
+							"nodes": map[string]interface{}{
+								"type":     "array",
+								"minItems": 1,
+								"maxItems": maxChildWorkflowNodes,
+							},
+							"edges": map[string]interface{}{
+								"type":     "array",
+								"maxItems": maxChildWorkflowEdges,
+							},
+						},
+					},
+					"input": map[string]interface{}{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
+			},
+		},
 	}
 
 	for _, def := range builtins {
