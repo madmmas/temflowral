@@ -5,6 +5,32 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-21 — Signal/wait primitive (#58)
+
+**Did:**
+- Contract-first `WaitNodeConfig` (`signal`, `timeoutSeconds`) and `wait` entry
+  in `NodeTypeList.example` with `received`/`timedOut` output handles.
+- Registered `wait` as a workflow-native built-in; GraphWorkflow races
+  `GetSignalChannel` against a cancelable durable timer and routes via
+  `Edge.sourceHandle`.
+- Unit tests for config validation, planner branch requirements, signal
+  received vs timeout paths (Temporal testsuite `SignalWorkflow`), and
+  `ListNodeTypes`.
+- Docs: README node table, adding-a-node-type guide, ISSUES/CHANGELOG.
+
+**Decided / learned:**
+- HTTP `POST /runs/{id}/signal` stays in #59; tests signal the workflow
+  directly. Frontend still needs dual handles + config editor (same gap as
+  condition).
+
+**Verified:**
+- `make generate`, Redocly, backend tests / lint (see PR checks).
+
+**Next:**
+- #59 signal-delivery endpoint.
+
+---
+
 ## 2026-07-19 — Idempotency key on StartGraphRun (#57)
 
 **Did:**

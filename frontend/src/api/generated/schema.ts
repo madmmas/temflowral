@@ -158,9 +158,10 @@ export interface components {
             position: components["schemas"]["Position"];
             /** @description Node-type-specific configuration. Validated against the node type's
              *     configSchema from GET /node-types. HTTP nodes use HttpNodeConfig;
-             *     delay nodes use DelayNodeConfig; condition nodes use ConditionNodeConfig.
+             *     delay nodes use DelayNodeConfig; condition nodes use ConditionNodeConfig;
+             *     wait nodes use WaitNodeConfig.
              *      */
-            config?: components["schemas"]["HttpNodeConfig"] | components["schemas"]["DelayNodeConfig"] | components["schemas"]["ConditionNodeConfig"] | {
+            config?: components["schemas"]["HttpNodeConfig"] | components["schemas"]["DelayNodeConfig"] | components["schemas"]["ConditionNodeConfig"] | components["schemas"]["WaitNodeConfig"] | {
                 [key: string]: unknown;
             };
         };
@@ -179,8 +180,8 @@ export interface components {
             /** @description Source handle ID selecting which output of a multi-output node this
              *     edge belongs to. Must match a handle advertised by the source
              *     node's type (`NodeType.outputHandles` or handles derived via
-             *     `NodeType.outputHandlesFromConfig`). For the built-in condition
-             *     node the handles are "true" and "false".
+             *     `NodeType.outputHandlesFromConfig`). Built-in condition handles are
+             *     "true" and "false"; wait handles are "received" and "timedOut".
              *      */
             sourceHandle?: string;
             /** @description Target handle ID */
@@ -295,6 +296,25 @@ export interface components {
              *      */
             equals: unknown;
         };
+        /** @example {
+         *       "signal": "approval.granted",
+         *       "timeoutSeconds": 3600
+         *     } */
+        WaitNodeConfig: {
+            /** @description Temporal signal name this node waits on. Callers (and the future
+             *     POST /runs/{id}/signal endpoint) must send this exact name via
+             *     Temporal SignalWorkflow. Letters, digits, `.`, `_`, and `-` only.
+             *      */
+            signal: string;
+            /**
+             * Format: double
+             * @description Max wait in seconds (0 to 604800 = 7 days) before taking the
+             *     timedOut branch. Implemented with a durable Temporal timer racing
+             *     the signal channel, so the wait survives worker restarts.
+             *
+             */
+            timeoutSeconds: number;
+        };
         /**
          * @description Current lifecycle state of a workflow run
          * @enum {string}
@@ -324,7 +344,8 @@ export interface components {
              *     `{ "nodes": [ { "nodeId": "<id>", "value": { ... } } ] }`.
              *     `value` is node-type-specific (start echoes the run input; http
              *     includes statusCode/body; delay includes seconds; condition
-             *     includes matched/branch; noop echoes type/inputs).
+             *     includes matched/branch; wait includes signal/timedOut/branch and
+             *     optional payload; noop echoes type/inputs).
              *
              * @example {
              *       "nodes": [
@@ -575,6 +596,43 @@ export interface components {
          *             {
          *               "id": "false",
          *               "label": "False"
+         *             }
+         *           ]
+         *         },
+         *         {
+         *           "id": "wait",
+         *           "name": "Wait for Signal",
+         *           "description": "Suspend until a named Temporal signal arrives or a timeout elapses",
+         *           "category": "core",
+         *           "configSchema": {
+         *             "type": "object",
+         *             "required": [
+         *               "signal",
+         *               "timeoutSeconds"
+         *             ],
+         *             "additionalProperties": false,
+         *             "properties": {
+         *               "signal": {
+         *                 "type": "string",
+         *                 "minLength": 1,
+         *                 "maxLength": 128,
+         *                 "pattern": "^[A-Za-z0-9._-]+$"
+         *               },
+         *               "timeoutSeconds": {
+         *                 "type": "number",
+         *                 "minimum": 0,
+         *                 "maximum": 604800
+         *               }
+         *             }
+         *           },
+         *           "outputHandles": [
+         *             {
+         *               "id": "received",
+         *               "label": "Received"
+         *             },
+         *             {
+         *               "id": "timedOut",
+         *               "label": "Timed out"
          *             }
          *           ]
          *         }

@@ -111,8 +111,8 @@ type Edge struct {
 	// SourceHandle Source handle ID selecting which output of a multi-output node this
 	// edge belongs to. Must match a handle advertised by the source
 	// node's type (`NodeType.outputHandles` or handles derived via
-	// `NodeType.outputHandlesFromConfig`). For the built-in condition
-	// node the handles are "true" and "false".
+	// `NodeType.outputHandlesFromConfig`). Built-in condition handles are
+	// "true" and "false"; wait handles are "received" and "timedOut".
 	SourceHandle *string `json:"sourceHandle,omitempty"`
 
 	// Target Target node ID
@@ -167,7 +167,8 @@ type HttpNodeConfigMethod string
 type Node struct {
 	// Config Node-type-specific configuration. Validated against the node type's
 	// configSchema from GET /node-types. HTTP nodes use HttpNodeConfig;
-	// delay nodes use DelayNodeConfig; condition nodes use ConditionNodeConfig.
+	// delay nodes use DelayNodeConfig; condition nodes use ConditionNodeConfig;
+	// wait nodes use WaitNodeConfig.
 	Config *map[string]interface{} `json:"config,omitempty"`
 
 	// Id Unique node ID within the graph (client-assigned)
@@ -253,7 +254,8 @@ type Run struct {
 	// `{ "nodes": [ { "nodeId": "<id>", "value": { ... } } ] }`.
 	// `value` is node-type-specific (start echoes the run input; http
 	// includes statusCode/body; delay includes seconds; condition
-	// includes matched/branch; noop echoes type/inputs).
+	// includes matched/branch; wait includes signal/timedOut/branch and
+	// optional payload; noop echoes type/inputs).
 	Result    *map[string]interface{} `json:"result,omitempty"`
 	StartedAt time.Time               `json:"startedAt"`
 
@@ -274,6 +276,19 @@ type StartRunRequest struct {
 
 	// Input Optional input payload passed to the workflow
 	Input *map[string]interface{} `json:"input,omitempty"`
+}
+
+// WaitNodeConfig defines model for WaitNodeConfig.
+type WaitNodeConfig struct {
+	// Signal Temporal signal name this node waits on. Callers (and the future
+	// POST /runs/{id}/signal endpoint) must send this exact name via
+	// Temporal SignalWorkflow. Letters, digits, `.`, `_`, and `-` only.
+	Signal string `json:"signal"`
+
+	// TimeoutSeconds Max wait in seconds (0 to 604800 = 7 days) before taking the
+	// timedOut branch. Implemented with a durable Temporal timer racing
+	// the signal channel, so the wait survives worker restarts.
+	TimeoutSeconds float64 `json:"timeoutSeconds"`
 }
 
 // GraphId defines model for GraphId.

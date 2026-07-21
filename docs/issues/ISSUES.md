@@ -45,10 +45,11 @@ queues, retried API calls). Depends on: #56. **Shipped:** optional
 
 ## 7. Signals & execution controls
 
-**[#58](https://github.com/madmmas/temflowral/issues/58) — Signal/wait primitive** `[executor]`
+**[#58](https://github.com/madmmas/temflowral/issues/58) — Signal/wait primitive** `[executor]` ✅
 A "wait for signal" node type or run-level primitive that suspends execution
 until a named signal arrives, with a timeout fallback. Only timers exist today.
-Depends on: #55.
+Depends on: #55. **Shipped:** `wait` node (`WaitNodeConfig`) racing a Temporal
+signal channel against a durable timeout; branches via `received`/`timedOut`.
 
 **[#59](https://github.com/madmmas/temflowral/issues/59) — Signal-delivery endpoint** `[executor]`
 `POST /runs/{id}/signal` (or similar), validating the run is waiting on that

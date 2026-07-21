@@ -193,6 +193,39 @@ func RegisterBuiltins(registry *nodetype.Registry, options BuiltinOptions) error
 				},
 			},
 		},
+		{
+			ID:          WaitNodeType,
+			Name:        "Wait for Signal",
+			Description: "Suspend until a named Temporal signal arrives or a timeout elapses",
+			Category:    "core",
+			Kind:        nodetype.KindWorkflow,
+			OutputHandles: []nodetype.OutputHandle{
+				{ID: WaitReceivedHandle, Label: "Received"},
+				{ID: WaitTimedOutHandle, Label: "Timed out"},
+			},
+			ValidateConfig: func(nodeID string, config map[string]interface{}) error {
+				_, err := parseWaitNodeConfig(api.Node{Id: nodeID, Type: WaitNodeType, Config: configPtr(config)})
+				return err
+			},
+			ConfigSchema: map[string]interface{}{
+				"type":                 "object",
+				"required":             []string{"signal", "timeoutSeconds"},
+				"additionalProperties": false,
+				"properties": map[string]interface{}{
+					"signal": map[string]interface{}{
+						"type":      "string",
+						"minLength": 1,
+						"maxLength": 128,
+						"pattern":   "^[A-Za-z0-9._-]+$",
+					},
+					"timeoutSeconds": map[string]interface{}{
+						"type":    "number",
+						"minimum": 0,
+						"maximum": 604800,
+					},
+				},
+			},
+		},
 	}
 
 	for _, def := range builtins {

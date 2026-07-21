@@ -303,8 +303,9 @@ func TestListNodeTypes(t *testing.T) {
 		!strings.Contains(body, `"id":"noop"`) ||
 		!strings.Contains(body, `"id":"http"`) ||
 		!strings.Contains(body, `"id":"delay"`) ||
-		!strings.Contains(body, `"id":"condition"`) {
-		t.Fatalf("body = %s, want start, noop, http, delay, and condition node types", body)
+		!strings.Contains(body, `"id":"condition"`) ||
+		!strings.Contains(body, `"id":"wait"`) {
+		t.Fatalf("body = %s, want start, noop, http, delay, condition, and wait node types", body)
 	}
 
 	var registry api.NodeTypeList
@@ -350,5 +351,17 @@ func TestListNodeTypes(t *testing.T) {
 	}
 	if conditionType.OutputHandles == nil || len(*conditionType.OutputHandles) != 2 {
 		t.Fatalf("condition outputHandles = %#v, want true/false", conditionType.OutputHandles)
+	}
+
+	waitType, ok := byID[temporal.WaitNodeType]
+	if !ok {
+		t.Fatal("wait node type not found")
+	}
+	waitProps, ok := waitType.ConfigSchema["properties"].(map[string]interface{})
+	if !ok || waitProps["signal"] == nil || waitProps["timeoutSeconds"] == nil {
+		t.Errorf("wait config properties = %#v, want signal and timeoutSeconds", waitType.ConfigSchema["properties"])
+	}
+	if waitType.OutputHandles == nil || len(*waitType.OutputHandles) != 2 {
+		t.Fatalf("wait outputHandles = %#v, want received/timedOut", waitType.OutputHandles)
 	}
 }

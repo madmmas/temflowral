@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- `wait` node type (`WaitNodeConfig`): suspend until a named Temporal signal
+  arrives or a durable timeout elapses; branch via `received` / `timedOut`
+  source handles. HTTP signal delivery is tracked separately (#59).
 - Optional `idempotencyKey` on `StartGraphRun` (`StartRunRequest`): repeating
   the same key for a graph returns the original run without starting another
   Temporal workflow.
@@ -29,8 +32,8 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 - Temporal integration: a graph translator that validates and topologically
   orders nodes, plus a workflow and worker that execute the graph durably.
 - Node types: `start`, `noop`, an allowlisted `http` activity node, a durable
-  `delay` timer node, and a `condition` branch node with `true`/`false`
-  handles.
+  `delay` timer node, a `condition` branch node with `true`/`false` handles,
+  and a `wait` signal/timeout node with `received`/`timedOut` handles.
 - Frontend: a Next.js + React Flow canvas with an API-driven node palette and
   save/run against the typed client.
 - Testing: Go unit tests, frontend Vitest, Playwright E2E, and OpenAPI contract

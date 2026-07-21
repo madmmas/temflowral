@@ -3,6 +3,7 @@ package temporal
 import (
 	"context"
 	"testing"
+	"time"
 
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/testsuite"
@@ -285,5 +286,137 @@ func TestGraphWorkflowDispatchesHTTPNode(t *testing.T) {
 	}
 	if got := result.Nodes[1].Value["statusCode"]; got != float64(200) {
 		t.Errorf("statusCode = %#v, want 200", got)
+	}
+}
+
+func TestGraphWorkflowWaitReceivesSignal(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+	environment.RegisterActivityWithOptions(NoopNodeActivity, activity.RegisterOptions{
+		Name: NoopNodeActivityName,
+	})
+
+	config := map[string]interface{}{
+		"signal":         "approval.granted",
+		"timeoutSeconds": 60,
+	}
+	received := WaitReceivedHandle
+	timedOut := WaitTimedOutHandle
+	payload := map[string]interface{}{"approvedBy": "alice"}
+
+	// Signal before the durable timeout so the received branch wins.
+	environment.RegisterDelayedCallback(func() {
+		environment.SignalWorkflow("approval.granted", payload)
+	}, time.Second)
+
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "wait-1", Type: WaitNodeType, Config: &config},
+				{Id: "noop-received", Type: NoopNodeType},
+				{Id: "noop-timeout", Type: NoopNodeType},
+			},
+			Edges: []api.Edge{
+				{Id: "e0", Source: "start-1", Target: "wait-1"},
+				{Id: "e-recv", Source: "wait-1", Target: "noop-received", SourceHandle: &received},
+				{Id: "e-to", Source: "wait-1", Target: "noop-timeout", SourceHandle: &timedOut},
+			},
+		},
+	})
+	if err := environment.GetWorkflowError(); err != nil {
+		t.Fatalf("workflow error = %v", err)
+	}
+
+	var result GraphWorkflowResult
+	if err := environment.GetWorkflowResult(&result); err != nil {
+		t.Fatalf("get workflow result: %v", err)
+	}
+	got := make([]string, 0, len(result.Nodes))
+	for _, node := range result.Nodes {
+		got = append(got, node.NodeID)
+	}
+	want := []string{"start-1", "wait-1", "noop-received"}
+	if !equalStrings(got, want) {
+		t.Fatalf("executed nodes = %v, want %v", got, want)
+	}
+	waitResult := result.Nodes[1].Value
+	if got := waitResult["timedOut"]; got != false {
+		t.Errorf("timedOut = %#v, want false", got)
+	}
+	if got := waitResult["branch"]; got != WaitReceivedHandle {
+		t.Errorf("branch = %#v, want %q", got, WaitReceivedHandle)
+	}
+	gotPayload, ok := waitResult["payload"].(map[string]interface{})
+	if !ok || gotPayload["approvedBy"] != "alice" {
+		t.Errorf("payload = %#v, want approvedBy=alice", waitResult["payload"])
+	}
+}
+
+func TestGraphWorkflowWaitTimesOut(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+	environment.RegisterActivityWithOptions(NoopNodeActivity, activity.RegisterOptions{
+		Name: NoopNodeActivityName,
+	})
+
+	timerFired := false
+	environment.SetOnTimerFiredListener(func(string) {
+		timerFired = true
+	})
+
+	config := map[string]interface{}{
+		"signal":         "approval.granted",
+		"timeoutSeconds": 30,
+	}
+	received := WaitReceivedHandle
+	timedOut := WaitTimedOutHandle
+
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "wait-1", Type: WaitNodeType, Config: &config},
+				{Id: "noop-received", Type: NoopNodeType},
+				{Id: "noop-timeout", Type: NoopNodeType},
+			},
+			Edges: []api.Edge{
+				{Id: "e0", Source: "start-1", Target: "wait-1"},
+				{Id: "e-recv", Source: "wait-1", Target: "noop-received", SourceHandle: &received},
+				{Id: "e-to", Source: "wait-1", Target: "noop-timeout", SourceHandle: &timedOut},
+			},
+		},
+	})
+	if !timerFired {
+		t.Fatal("expected a durable timer to fire for the wait timeout")
+	}
+	if err := environment.GetWorkflowError(); err != nil {
+		t.Fatalf("workflow error = %v", err)
+	}
+
+	var result GraphWorkflowResult
+	if err := environment.GetWorkflowResult(&result); err != nil {
+		t.Fatalf("get workflow result: %v", err)
+	}
+	got := make([]string, 0, len(result.Nodes))
+	for _, node := range result.Nodes {
+		got = append(got, node.NodeID)
+	}
+	want := []string{"start-1", "wait-1", "noop-timeout"}
+	if !equalStrings(got, want) {
+		t.Fatalf("executed nodes = %v, want %v", got, want)
+	}
+	if got := result.Nodes[1].Value["timedOut"]; got != true {
+		t.Errorf("timedOut = %#v, want true", got)
+	}
+	if got := result.Nodes[1].Value["branch"]; got != WaitTimedOutHandle {
+		t.Errorf("branch = %#v, want %q", got, WaitTimedOutHandle)
+	}
+	if _, ok := result.Nodes[1].Value["payload"]; ok {
+		t.Errorf("payload = %#v, want absent on timeout", result.Nodes[1].Value["payload"])
 	}
 }

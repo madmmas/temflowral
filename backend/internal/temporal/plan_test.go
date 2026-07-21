@@ -148,6 +148,65 @@ func TestBuildExecutionPlanAcceptsValidConditionNode(t *testing.T) {
 	}
 }
 
+func TestBuildExecutionPlanAcceptsValidWaitNode(t *testing.T) {
+	t.Parallel()
+
+	config := map[string]interface{}{
+		"signal":         "approval.granted",
+		"timeoutSeconds": 60,
+	}
+	received := WaitReceivedHandle
+	timedOut := WaitTimedOutHandle
+	graph := api.Graph{
+		Nodes: []api.Node{
+			{Id: "start-1", Type: StartNodeType},
+			{Id: "wait-1", Type: WaitNodeType, Config: &config},
+			{Id: "noop-received", Type: NoopNodeType},
+			{Id: "noop-timeout", Type: NoopNodeType},
+		},
+		Edges: []api.Edge{
+			{Id: "e0", Source: "start-1", Target: "wait-1"},
+			{Id: "e-recv", Source: "wait-1", Target: "noop-received", SourceHandle: &received},
+			{Id: "e-to", Source: "wait-1", Target: "noop-timeout", SourceHandle: &timedOut},
+		},
+	}
+
+	plan, err := BuildExecutionPlan(graph)
+	if err != nil {
+		t.Fatalf("BuildExecutionPlan() error = %v", err)
+	}
+	want := []string{"start-1", "wait-1", "noop-received", "noop-timeout"}
+	if got := nodeIDs(plan); !equalStrings(got, want) {
+		t.Fatalf("plan = %v, want %v", got, want)
+	}
+}
+
+func TestBuildExecutionPlanRejectsInvalidWaitBranches(t *testing.T) {
+	t.Parallel()
+
+	config := map[string]interface{}{
+		"signal":         "approval.granted",
+		"timeoutSeconds": 60,
+	}
+	received := WaitReceivedHandle
+
+	graph := api.Graph{
+		Nodes: []api.Node{
+			{Id: "start-1", Type: StartNodeType},
+			{Id: "wait-1", Type: WaitNodeType, Config: &config},
+			{Id: "noop-received", Type: NoopNodeType},
+			{Id: "noop-timeout", Type: NoopNodeType},
+		},
+		Edges: []api.Edge{
+			{Id: "e0", Source: "start-1", Target: "wait-1"},
+			{Id: "e1", Source: "wait-1", Target: "noop-received", SourceHandle: &received},
+		},
+	}
+	if _, err := BuildExecutionPlan(graph); err == nil {
+		t.Fatal("BuildExecutionPlan() error = nil, want an error")
+	}
+}
+
 func TestBuildExecutionPlanRejectsInvalidConditionBranches(t *testing.T) {
 	t.Parallel()
 
