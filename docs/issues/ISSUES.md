@@ -85,10 +85,12 @@ execution time so node config can reference another node's output. Depends on:
 from active predecessors; HTTP revalidates rendered URL/headers/body; wait
 configs reject templates.
 
-**[#64](https://github.com/madmmas/temflowral/issues/64) — Graph validation before run start** `[executor]`
+**[#64](https://github.com/madmmas/temflowral/issues/64) — Graph validation before run start** `[executor]` ✅
 Validate node types against the registry and detect cycles before a run starts
 — reject unknown types and cycles at submission time, not mid-run. Depends on:
-#55.
+#55. **Shipped:** `ValidateGraph` on `StartGraphRun` (409) before Temporal
+start; create rejects unregistered types (400); registry + cycle/unreachable
+covered by API and plan tests.
 
 ## 9. Product decisions & docs
 

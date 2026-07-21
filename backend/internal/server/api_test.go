@@ -244,38 +244,152 @@ func TestCreateGraphRejectsInvalidHTTPConfig(t *testing.T) {
 	}
 }
 
-func TestStartGraphRunRejectsInvalidGraph(t *testing.T) {
+func TestCreateGraphRejectsUnknownNodeType(t *testing.T) {
 	t.Parallel()
 
-	graphStore := store.NewMemoryStore()
-	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(graphStore, &stubRunner{}, nil))
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), &stubRunner{}, nil))
 
 	createRequest := httptest.NewRequest(
 		http.MethodPost,
 		"/graphs",
 		strings.NewReader(`{
-			"nodes":[{"id":"noop-1","type":"noop","position":{"x":0,"y":0}}],
-			"edges":[]
+			"nodes":[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"bad-1","type":"not-a-real-type","position":{"x":1,"y":0}}
+			],
+			"edges":[{"id":"e1","source":"start-1","target":"bad-1"}]
 		}`),
 	)
 	createRequest.Header.Set("Content-Type", "application/json")
 	createRecorder := httptest.NewRecorder()
 	handler.ServeHTTP(createRecorder, createRequest)
-	if createRecorder.Code != http.StatusCreated {
-		t.Fatalf("create status = %d, want %d", createRecorder.Code, http.StatusCreated)
+	if createRecorder.Code != http.StatusBadRequest {
+		t.Fatalf("create status = %d, want %d body=%s", createRecorder.Code, http.StatusBadRequest, createRecorder.Body.String())
+	}
+	if !strings.Contains(createRecorder.Body.String(), "unsupported node type") {
+		t.Fatalf("body = %s, want unsupported node type", createRecorder.Body.String())
+	}
+}
+
+func TestStartGraphRunRejectsInvalidGraph(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		nodes      string
+		edges      string
+		wantSubstr string
+	}{
+		{
+			name:       "missing start",
+			nodes:      `[{"id":"noop-1","type":"noop","position":{"x":0,"y":0}}]`,
+			edges:      `[]`,
+			wantSubstr: "exactly one",
+		},
+		{
+			name: "cycle",
+			nodes: `[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"noop-1","type":"noop","position":{"x":1,"y":0}},
+				{"id":"noop-2","type":"noop","position":{"x":2,"y":0}}
+			]`,
+			edges: `[
+				{"id":"e1","source":"start-1","target":"noop-1"},
+				{"id":"e2","source":"noop-1","target":"noop-2"},
+				{"id":"e3","source":"noop-2","target":"noop-1"}
+			]`,
+			wantSubstr: "cycle or unreachable",
+		},
 	}
 
-	var created api.Graph
-	if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
-		t.Fatalf("decode create response: %v", err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			startCalls := 0
+			runner := &stubRunner{
+				startFn: func(context.Context, string, temporal.GraphWorkflowInput) (temporal.WorkflowExecution, error) {
+					startCalls++
+					return temporal.WorkflowExecution{ID: "wf", RunID: "run"}, nil
+				},
+			}
+			graphStore := store.NewMemoryStore()
+			handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(graphStore, runner, nil))
+
+			createRequest := httptest.NewRequest(
+				http.MethodPost,
+				"/graphs",
+				strings.NewReader(fmt.Sprintf(`{"nodes":%s,"edges":%s}`, test.nodes, test.edges)),
+			)
+			createRequest.Header.Set("Content-Type", "application/json")
+			createRecorder := httptest.NewRecorder()
+			handler.ServeHTTP(createRecorder, createRequest)
+			if createRecorder.Code != http.StatusCreated {
+				t.Fatalf("create status = %d, want %d body=%s", createRecorder.Code, http.StatusCreated, createRecorder.Body.String())
+			}
+
+			var created api.Graph
+			if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
+				t.Fatalf("decode create response: %v", err)
+			}
+
+			runRequest := httptest.NewRequest(http.MethodPost, "/graphs/"+created.Id.String()+"/run", strings.NewReader(`{}`))
+			runRequest.Header.Set("Content-Type", "application/json")
+			runRecorder := httptest.NewRecorder()
+			handler.ServeHTTP(runRecorder, runRequest)
+			if runRecorder.Code != http.StatusConflict {
+				t.Fatalf("run status = %d, want %d body=%s", runRecorder.Code, http.StatusConflict, runRecorder.Body.String())
+			}
+			if !strings.Contains(runRecorder.Body.String(), test.wantSubstr) {
+				t.Fatalf("body = %s, want substring %q", runRecorder.Body.String(), test.wantSubstr)
+			}
+			if startCalls != 0 {
+				t.Fatalf("StartGraphWorkflow calls = %d, want 0", startCalls)
+			}
+		})
+	}
+}
+
+func TestStartGraphRunRejectsUnknownNodeTypePersistedWithoutRegistry(t *testing.T) {
+	t.Parallel()
+
+	// Simulate a graph that bypassed create-time checks (e.g. older data) by
+	// writing directly to the store with an unregistered type.
+	graphStore := store.NewMemoryStore()
+	graphID := newGraphID()
+	graph := api.Graph{
+		Id: graphID,
+		Nodes: []api.Node{
+			{Id: "start-1", Type: "start", Position: api.Position{X: 0, Y: 0}},
+			{Id: "bad-1", Type: "ghost-type", Position: api.Position{X: 1, Y: 0}},
+		},
+		Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "bad-1"}},
+	}
+	if err := graphStore.PutGraph(context.Background(), graph); err != nil {
+		t.Fatalf("PutGraph: %v", err)
 	}
 
-	runRequest := httptest.NewRequest(http.MethodPost, "/graphs/"+created.Id.String()+"/run", strings.NewReader(`{}`))
+	startCalls := 0
+	runner := &stubRunner{
+		startFn: func(context.Context, string, temporal.GraphWorkflowInput) (temporal.WorkflowExecution, error) {
+			startCalls++
+			return temporal.WorkflowExecution{ID: "wf", RunID: "run"}, nil
+		},
+	}
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(graphStore, runner, nil))
+
+	runRequest := httptest.NewRequest(http.MethodPost, "/graphs/"+graphID.String()+"/run", strings.NewReader(`{}`))
 	runRequest.Header.Set("Content-Type", "application/json")
 	runRecorder := httptest.NewRecorder()
 	handler.ServeHTTP(runRecorder, runRequest)
 	if runRecorder.Code != http.StatusConflict {
 		t.Fatalf("run status = %d, want %d body=%s", runRecorder.Code, http.StatusConflict, runRecorder.Body.String())
+	}
+	if !strings.Contains(runRecorder.Body.String(), "unsupported node type") {
+		t.Fatalf("body = %s, want unsupported node type", runRecorder.Body.String())
+	}
+	if startCalls != 0 {
+		t.Fatalf("StartGraphWorkflow calls = %d, want 0", startCalls)
 	}
 }
 

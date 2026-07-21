@@ -5,6 +5,26 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-21 — Graph validation before run (#64)
+
+**Did:**
+- Exported `ValidateGraph` / `BuildExecutionPlanWithRegistry`; `StartGraphRun`
+  validates against the API registry and returns 409 before Temporal start.
+- `CreateGraph` rejects unregistered node types (400). OpenAPI documents the
+  create vs run validation split; API + plan tests cover unknown types and cycles.
+
+**Decided / learned:**
+- Full topology (cycles / start / reachability) stays a run-start gate so draft
+  graphs without a start can still be stored; unknown types fail earlier at create.
+
+**Verified:**
+- `make generate`, Redocly, `make test` / lint / contract (see PR).
+
+**Next:**
+- #67 external-registration docs, or #65/#66 product docs.
+
+---
+
 ## 2026-07-21 — Config templating (#63)
 
 **Did:**

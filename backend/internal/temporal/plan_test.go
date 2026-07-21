@@ -1,6 +1,7 @@
 package temporal
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/madmmas/temflowral/backend/internal/api"
@@ -386,14 +387,16 @@ func TestBuildExecutionPlanRejectsInvalidGraphs(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name  string
-		graph api.Graph
+		name       string
+		graph      api.Graph
+		wantSubstr string
 	}{
 		{
 			name: "missing start",
 			graph: api.Graph{
 				Nodes: []api.Node{{Id: "noop-1", Type: NoopNodeType}},
 			},
+			wantSubstr: `exactly one "start" node`,
 		},
 		{
 			name: "unsupported type",
@@ -404,6 +407,7 @@ func TestBuildExecutionPlanRejectsInvalidGraphs(t *testing.T) {
 				},
 				Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "unknown-1"}},
 			},
+			wantSubstr: "unsupported node type",
 		},
 		{
 			name: "cycle",
@@ -419,6 +423,7 @@ func TestBuildExecutionPlanRejectsInvalidGraphs(t *testing.T) {
 					{Id: "e3", Source: "noop-2", Target: "noop-1"},
 				},
 			},
+			wantSubstr: "cycle or unreachable",
 		},
 		{
 			name: "unreachable node",
@@ -430,13 +435,21 @@ func TestBuildExecutionPlanRejectsInvalidGraphs(t *testing.T) {
 				},
 				Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "noop-1"}},
 			},
+			wantSubstr: "cycle or unreachable",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := BuildExecutionPlan(test.graph); err == nil {
+			err := ValidateGraph(test.graph, nil)
+			if err == nil {
+				t.Fatal("ValidateGraph() error = nil, want an error")
+			}
+			if !strings.Contains(err.Error(), test.wantSubstr) {
+				t.Fatalf("ValidateGraph() error = %v, want substring %q", err, test.wantSubstr)
+			}
+			if _, planErr := BuildExecutionPlan(test.graph); planErr == nil {
 				t.Fatal("BuildExecutionPlan() error = nil, want an error")
 			}
 		})

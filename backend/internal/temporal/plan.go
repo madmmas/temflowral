@@ -15,15 +15,29 @@ const (
 	NoopNodeType = "noop"
 )
 
-// isExecutableNodeType reports whether the registry knows how to run a type.
-func isExecutableNodeType(nodeType string) bool {
-	_, ok := CurrentRegistry().Get(nodeType)
-	return ok
+// ValidateGraph checks that a graph may start as a run: every node type is in
+// the given registry (or CurrentRegistry when nil), topology is a DAG reachable
+// from exactly one start node, and per-type config / activity options are valid.
+// Callers must invoke this before starting Temporal so unknown types and cycles
+// fail at submission time rather than mid-run.
+func ValidateGraph(graph api.Graph, registry *nodetype.Registry) error {
+	_, err := BuildExecutionPlanWithRegistry(graph, registry)
+	return err
 }
 
-// BuildExecutionPlan validates a graph and returns nodes in deterministic
-// topological order for sequential Temporal activity dispatch.
+// BuildExecutionPlan validates a graph against CurrentRegistry and returns
+// nodes in deterministic topological order for sequential Temporal dispatch.
 func BuildExecutionPlan(graph api.Graph) ([]api.Node, error) {
+	return BuildExecutionPlanWithRegistry(graph, CurrentRegistry())
+}
+
+// BuildExecutionPlanWithRegistry is BuildExecutionPlan using an explicit
+// registry (the HTTP API and worker must share the same instance).
+func BuildExecutionPlanWithRegistry(graph api.Graph, registry *nodetype.Registry) ([]api.Node, error) {
+	if registry == nil {
+		registry = CurrentRegistry()
+	}
+
 	if len(graph.Nodes) == 0 {
 		return nil, fmt.Errorf("graph has no nodes")
 	}
@@ -39,7 +53,7 @@ func BuildExecutionPlan(graph api.Graph) ([]api.Node, error) {
 		if node.Type == "" {
 			return nil, fmt.Errorf("node %q has empty type", node.Id)
 		}
-		if !isExecutableNodeType(node.Type) {
+		if _, ok := registry.Get(node.Type); !ok {
 			return nil, fmt.Errorf("unsupported node type %q on node %q", node.Type, node.Id)
 		}
 		if err := ValidateNodeConfig(node); err != nil {
@@ -80,7 +94,7 @@ func BuildExecutionPlan(graph api.Graph) ([]api.Node, error) {
 		indegree[edge.Target]++
 	}
 
-	if err := validateOutputHandles(nodesByID, graph.Edges); err != nil {
+	if err := validateOutputHandles(registry, nodesByID, graph.Edges); err != nil {
 		return nil, err
 	}
 
@@ -139,14 +153,14 @@ func BuildExecutionPlan(graph api.Graph) ([]api.Node, error) {
 
 // validateOutputHandles ensures multi-output nodes expose every advertised
 // handle via at least one outgoing Edge.sourceHandle.
-func validateOutputHandles(nodesByID map[string]api.Node, edges []api.Edge) error {
+func validateOutputHandles(registry *nodetype.Registry, nodesByID map[string]api.Node, edges []api.Edge) error {
 	outgoing := make(map[string][]api.Edge)
 	for _, edge := range edges {
 		outgoing[edge.Source] = append(outgoing[edge.Source], edge)
 	}
 
 	for _, node := range nodesByID {
-		def, ok := CurrentRegistry().Get(node.Type)
+		def, ok := registry.Get(node.Type)
 		if !ok {
 			continue
 		}
