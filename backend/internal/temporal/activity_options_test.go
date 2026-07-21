@@ -15,7 +15,7 @@ func TestValidateActivityOptionsRejectsWorkflowNative(t *testing.T) {
 	options := &api.ActivityOptions{
 		StartToCloseTimeoutSeconds: floatPtr(60),
 	}
-	for _, nodeType := range []string{StartNodeType, DelayNodeType, ConditionNodeType, WaitNodeType} {
+	for _, nodeType := range []string{StartNodeType, DelayNodeType, ConditionNodeType, WaitNodeType, ChildWorkflowNodeType} {
 		node := api.Node{Id: "n1", Type: nodeType, ActivityOptions: options}
 		if err := ValidateActivityOptions(node); err == nil {
 			t.Fatalf("ValidateActivityOptions(%s) error = nil, want an error", nodeType)
@@ -27,7 +27,7 @@ func TestValidateTaskQueueRejectsWorkflowNative(t *testing.T) {
 	t.Parallel()
 
 	queue := "special.queue"
-	for _, nodeType := range []string{StartNodeType, DelayNodeType, ConditionNodeType, WaitNodeType} {
+	for _, nodeType := range []string{StartNodeType, DelayNodeType, ConditionNodeType, WaitNodeType, ChildWorkflowNodeType} {
 		node := api.Node{Id: "n1", Type: nodeType, TaskQueue: &queue}
 		if err := ValidateActivityOptions(node); err == nil {
 			t.Fatalf("ValidateActivityOptions(%s taskQueue) error = nil, want an error", nodeType)

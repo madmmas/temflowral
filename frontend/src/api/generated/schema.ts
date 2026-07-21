@@ -191,9 +191,10 @@ export interface components {
             /** @description Node-type-specific configuration. Validated against the node type's
              *     configSchema from GET /node-types. HTTP nodes use HttpNodeConfig;
              *     delay nodes use DelayNodeConfig; condition nodes use ConditionNodeConfig;
-             *     wait nodes use WaitNodeConfig.
+             *     wait nodes use WaitNodeConfig; childWorkflow nodes use
+             *     ChildWorkflowNodeConfig.
              *      */
-            config?: components["schemas"]["HttpNodeConfig"] | components["schemas"]["DelayNodeConfig"] | components["schemas"]["ConditionNodeConfig"] | components["schemas"]["WaitNodeConfig"] | {
+            config?: components["schemas"]["HttpNodeConfig"] | components["schemas"]["DelayNodeConfig"] | components["schemas"]["ConditionNodeConfig"] | components["schemas"]["WaitNodeConfig"] | components["schemas"]["ChildWorkflowNodeConfig"] | {
                 [key: string]: unknown;
             };
             activityOptions?: components["schemas"]["ActivityOptions"];
@@ -201,8 +202,9 @@ export interface components {
              *     the activity uses the workflow's default task queue (the worker that
              *     runs GraphWorkflow). Only valid on activity-backed node types
              *     (`KindActivity`); rejected on workflow-native nodes (start, delay,
-             *     condition, wait). Use a dedicated worker polling this queue when the
-             *     activity needs specialized capabilities (region, hardware, licenses).
+             *     condition, wait, childWorkflow). Use a dedicated worker polling this
+             *     queue when the activity needs specialized capabilities (region,
+             *     hardware, licenses).
              *      */
             taskQueue?: string;
         };
@@ -248,7 +250,7 @@ export interface components {
          *     (`startToCloseTimeout` = 30s, `maximumAttempts` = 1). Omitted fields
          *     keep engine defaults. Only valid on activity-backed node types
          *     (`KindActivity`); rejected on workflow-native nodes (start, delay,
-         *     condition, wait).
+         *     condition, wait, childWorkflow).
          *
          * @example {
          *       "startToCloseTimeoutSeconds": 120,
@@ -431,6 +433,90 @@ export interface components {
             timeoutSeconds: number;
         };
         /**
+         * @description Inline graph executed as a Temporal child workflow. Same node/edge
+         *     shape as a top-level graph, without persisted id/timestamps. Nested
+         *     graphs must not contain childWorkflow nodes (nesting depth is capped
+         *     at one for now).
+         *
+         * @example {
+         *       "nodes": [
+         *         {
+         *           "id": "start-1",
+         *           "type": "start",
+         *           "position": {
+         *             "x": 0,
+         *             "y": 0
+         *           }
+         *         },
+         *         {
+         *           "id": "noop-1",
+         *           "type": "noop",
+         *           "position": {
+         *             "x": 100,
+         *             "y": 0
+         *           }
+         *         }
+         *       ],
+         *       "edges": [
+         *         {
+         *           "id": "e1",
+         *           "source": "start-1",
+         *           "target": "noop-1"
+         *         }
+         *       ]
+         *     }
+         */
+        NestedGraph: {
+            nodes: components["schemas"]["Node"][];
+            edges: components["schemas"]["Edge"][];
+        };
+        /**
+         * @description Run a nested graph as a Temporal child workflow (temflowral.graph) and
+         *     wait for its result. The parent node fails if the child fails.
+         *
+         * @example {
+         *       "graph": {
+         *         "nodes": [
+         *           {
+         *             "id": "start-1",
+         *             "type": "start",
+         *             "position": {
+         *               "x": 0,
+         *               "y": 0
+         *             }
+         *           },
+         *           {
+         *             "id": "noop-1",
+         *             "type": "noop",
+         *             "position": {
+         *               "x": 100,
+         *               "y": 0
+         *             }
+         *           }
+         *         ],
+         *         "edges": [
+         *           {
+         *             "id": "e1",
+         *             "source": "start-1",
+         *             "target": "noop-1"
+         *           }
+         *         ]
+         *       },
+         *       "input": {
+         *         "message": "from-parent"
+         *       }
+         *     }
+         */
+        ChildWorkflowNodeConfig: {
+            graph: components["schemas"]["NestedGraph"];
+            /** @description Optional payload for the child's GraphWorkflowInput. When omitted,
+             *     the first active predecessor's value is used (or an empty object).
+             *      */
+            input?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
          * @description Current lifecycle state of a workflow run
          * @enum {string}
          */
@@ -460,7 +546,8 @@ export interface components {
              *     `value` is node-type-specific (start echoes the run input; http
              *     includes statusCode/body; delay includes seconds; condition
              *     includes matched/branch; wait includes signal/timedOut/branch and
-             *     optional payload; noop echoes type/inputs).
+             *     optional payload; childWorkflow includes type/nodes from the child
+             *     GraphWorkflowResult; noop echoes type/inputs).
              *
              * @example {
              *       "nodes": [
@@ -778,6 +865,44 @@ export interface components {
          *               "label": "Timed out"
          *             }
          *           ]
+         *         },
+         *         {
+         *           "id": "childWorkflow",
+         *           "name": "Child Workflow",
+         *           "description": "Run a nested graph as a Temporal child workflow and wait for its result",
+         *           "category": "core",
+         *           "configSchema": {
+         *             "type": "object",
+         *             "required": [
+         *               "graph"
+         *             ],
+         *             "additionalProperties": false,
+         *             "properties": {
+         *               "graph": {
+         *                 "type": "object",
+         *                 "required": [
+         *                   "nodes",
+         *                   "edges"
+         *                 ],
+         *                 "additionalProperties": false,
+         *                 "properties": {
+         *                   "nodes": {
+         *                     "type": "array",
+         *                     "minItems": 1,
+         *                     "maxItems": 50
+         *                   },
+         *                   "edges": {
+         *                     "type": "array",
+         *                     "maxItems": 100
+         *                   }
+         *                 }
+         *               },
+         *               "input": {
+         *                 "type": "object",
+         *                 "additionalProperties": true
+         *               }
+         *             }
+         *           }
          *         }
          *       ]
          *     } */

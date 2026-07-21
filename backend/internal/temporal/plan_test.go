@@ -190,6 +190,44 @@ func TestBuildExecutionPlanAcceptsTaskQueueOnNoop(t *testing.T) {
 	}
 }
 
+func TestBuildExecutionPlanAcceptsValidChildWorkflow(t *testing.T) {
+	t.Parallel()
+
+	config := map[string]interface{}{
+		"graph": map[string]interface{}{
+			"nodes": []interface{}{
+				map[string]interface{}{
+					"id":       "start-1",
+					"type":     "start",
+					"position": map[string]interface{}{"x": 0.0, "y": 0.0},
+				},
+				map[string]interface{}{
+					"id":       "noop-1",
+					"type":     "noop",
+					"position": map[string]interface{}{"x": 100.0, "y": 0.0},
+				},
+			},
+			"edges": []interface{}{
+				map[string]interface{}{"id": "e1", "source": "start-1", "target": "noop-1"},
+			},
+		},
+	}
+	graph := api.Graph{
+		Nodes: []api.Node{
+			{Id: "start-1", Type: StartNodeType},
+			{Id: "child-1", Type: ChildWorkflowNodeType, Config: &config},
+		},
+		Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "child-1"}},
+	}
+	plan, err := BuildExecutionPlan(graph)
+	if err != nil {
+		t.Fatalf("BuildExecutionPlan() error = %v", err)
+	}
+	if got, want := nodeIDs(plan), []string{"start-1", "child-1"}; !equalStrings(got, want) {
+		t.Fatalf("plan = %v, want %v", got, want)
+	}
+}
+
 func TestBuildExecutionPlanRejectsActivityOptionsOnDelay(t *testing.T) {
 	t.Parallel()
 

@@ -155,6 +155,24 @@ func GraphWorkflow(ctx workflow.Context, input GraphWorkflowInput) (GraphWorkflo
 				value["payload"] = payload
 			}
 			result = NodeResult{NodeID: node.Id, Value: value}
+		case ChildWorkflowNodeType:
+			config, err := parseChildWorkflowNodeConfig(node)
+			if err != nil {
+				return GraphWorkflowResult{}, err
+			}
+			childInput := GraphWorkflowInput{
+				Graph: toRunnableGraph(config.Graph),
+				Input: resolveChildWorkflowInput(config, inputs),
+			}
+			parentInfo := workflow.GetInfo(ctx)
+			childCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+				WorkflowID: parentInfo.WorkflowExecution.ID + "/" + node.Id,
+			})
+			var childResult GraphWorkflowResult
+			if err := workflow.ExecuteChildWorkflow(childCtx, GraphWorkflow, childInput).Get(ctx, &childResult); err != nil {
+				return GraphWorkflowResult{}, fmt.Errorf("childWorkflow node %q: %w", node.Id, err)
+			}
+			result = NodeResult{NodeID: node.Id, Value: childWorkflowResultValue(childResult)}
 		default:
 			activityName, ok := CurrentRegistry().ActivityName(node.Type)
 			if !ok {

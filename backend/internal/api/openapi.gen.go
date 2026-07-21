@@ -77,7 +77,7 @@ func (e RunStatus) Valid() bool {
 // (`startToCloseTimeout` = 30s, `maximumAttempts` = 1). Omitted fields
 // keep engine defaults. Only valid on activity-backed node types
 // (`KindActivity`); rejected on workflow-native nodes (start, delay,
-// condition, wait).
+// condition, wait, childWorkflow).
 type ActivityOptions struct {
 	// HeartbeatTimeoutSeconds Heartbeat timeout for long-running activities.
 	HeartbeatTimeoutSeconds *float64 `json:"heartbeatTimeoutSeconds,omitempty"`
@@ -97,6 +97,20 @@ type ActivityOptions struct {
 	// Note: the built-in HTTP activity still caps its own HTTP client at
 	// 20s; raising this above 20s does not lengthen that client timeout.
 	StartToCloseTimeoutSeconds *float64 `json:"startToCloseTimeoutSeconds,omitempty"`
+}
+
+// ChildWorkflowNodeConfig Run a nested graph as a Temporal child workflow (temflowral.graph) and
+// wait for its result. The parent node fails if the child fails.
+type ChildWorkflowNodeConfig struct {
+	// Graph Inline graph executed as a Temporal child workflow. Same node/edge
+	// shape as a top-level graph, without persisted id/timestamps. Nested
+	// graphs must not contain childWorkflow nodes (nesting depth is capped
+	// at one for now).
+	Graph NestedGraph `json:"graph"`
+
+	// Input Optional payload for the child's GraphWorkflowInput. When omitted,
+	// the first active predecessor's value is used (or an empty object).
+	Input *map[string]interface{} `json:"input,omitempty"`
 }
 
 // ConditionNodeConfig defines model for ConditionNodeConfig.
@@ -189,19 +203,29 @@ type HttpNodeConfig struct {
 // HttpNodeConfigMethod HTTP method. Activity retries are disabled to avoid replaying side effects.
 type HttpNodeConfigMethod string
 
+// NestedGraph Inline graph executed as a Temporal child workflow. Same node/edge
+// shape as a top-level graph, without persisted id/timestamps. Nested
+// graphs must not contain childWorkflow nodes (nesting depth is capped
+// at one for now).
+type NestedGraph struct {
+	Edges []Edge `json:"edges"`
+	Nodes []Node `json:"nodes"`
+}
+
 // Node defines model for Node.
 type Node struct {
 	// ActivityOptions Per-node Temporal ActivityOptions overriding GraphWorkflow defaults
 	// (`startToCloseTimeout` = 30s, `maximumAttempts` = 1). Omitted fields
 	// keep engine defaults. Only valid on activity-backed node types
 	// (`KindActivity`); rejected on workflow-native nodes (start, delay,
-	// condition, wait).
+	// condition, wait, childWorkflow).
 	ActivityOptions *ActivityOptions `json:"activityOptions,omitempty"`
 
 	// Config Node-type-specific configuration. Validated against the node type's
 	// configSchema from GET /node-types. HTTP nodes use HttpNodeConfig;
 	// delay nodes use DelayNodeConfig; condition nodes use ConditionNodeConfig;
-	// wait nodes use WaitNodeConfig.
+	// wait nodes use WaitNodeConfig; childWorkflow nodes use
+	// ChildWorkflowNodeConfig.
 	Config *map[string]interface{} `json:"config,omitempty"`
 
 	// Id Unique node ID within the graph (client-assigned)
@@ -215,8 +239,9 @@ type Node struct {
 	// the activity uses the workflow's default task queue (the worker that
 	// runs GraphWorkflow). Only valid on activity-backed node types
 	// (`KindActivity`); rejected on workflow-native nodes (start, delay,
-	// condition, wait). Use a dedicated worker polling this queue when the
-	// activity needs specialized capabilities (region, hardware, licenses).
+	// condition, wait, childWorkflow). Use a dedicated worker polling this
+	// queue when the activity needs specialized capabilities (region,
+	// hardware, licenses).
 	TaskQueue *string `json:"taskQueue,omitempty"`
 
 	// Type Node type identifier (matches NodeType.id)
@@ -319,7 +344,8 @@ type Run struct {
 	// `value` is node-type-specific (start echoes the run input; http
 	// includes statusCode/body; delay includes seconds; condition
 	// includes matched/branch; wait includes signal/timedOut/branch and
-	// optional payload; noop echoes type/inputs).
+	// optional payload; childWorkflow includes type/nodes from the child
+	// GraphWorkflowResult; noop echoes type/inputs).
 	Result    *map[string]interface{} `json:"result,omitempty"`
 	StartedAt time.Time               `json:"startedAt"`
 

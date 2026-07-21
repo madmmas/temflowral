@@ -250,6 +250,113 @@ func TestGraphWorkflowJoinAfterTakenBranch(t *testing.T) {
 	}
 }
 
+func TestGraphWorkflowRunsChildWorkflow(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+	environment.RegisterWorkflow(GraphWorkflow)
+	environment.RegisterActivityWithOptions(NoopNodeActivity, activity.RegisterOptions{
+		Name: NoopNodeActivityName,
+	})
+
+	childGraph := map[string]interface{}{
+		"nodes": []interface{}{
+			map[string]interface{}{
+				"id":       "start-1",
+				"type":     "start",
+				"position": map[string]interface{}{"x": 0.0, "y": 0.0},
+			},
+			map[string]interface{}{
+				"id":       "noop-1",
+				"type":     "noop",
+				"position": map[string]interface{}{"x": 100.0, "y": 0.0},
+			},
+		},
+		"edges": []interface{}{
+			map[string]interface{}{"id": "e1", "source": "start-1", "target": "noop-1"},
+		},
+	}
+	config := map[string]interface{}{
+		"graph": childGraph,
+		"input": map[string]interface{}{"message": "from-parent"},
+	}
+
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "child-1", Type: ChildWorkflowNodeType, Config: &config},
+			},
+			Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "child-1"}},
+		},
+	})
+	if err := environment.GetWorkflowError(); err != nil {
+		t.Fatalf("workflow error = %v", err)
+	}
+
+	var result GraphWorkflowResult
+	if err := environment.GetWorkflowResult(&result); err != nil {
+		t.Fatalf("get workflow result: %v", err)
+	}
+	if len(result.Nodes) != 2 || result.Nodes[1].NodeID != "child-1" {
+		t.Fatalf("result = %#v, want child-1", result.Nodes)
+	}
+	if got := result.Nodes[1].Value["type"]; got != ChildWorkflowNodeType {
+		t.Fatalf("type = %#v, want %q", got, ChildWorkflowNodeType)
+	}
+	nodes, ok := result.Nodes[1].Value["nodes"].([]interface{})
+	if !ok || len(nodes) != 2 {
+		t.Fatalf("child nodes = %#v, want 2 entries", result.Nodes[1].Value["nodes"])
+	}
+}
+
+func TestGraphWorkflowChildWorkflowFailureFailsParent(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+	environment.RegisterWorkflow(GraphWorkflow)
+	environment.RegisterActivityWithOptions(
+		func(_ context.Context, _ NodeActivityInput) (NodeResult, error) {
+			return NodeResult{}, fmt.Errorf("child activity failed")
+		},
+		activity.RegisterOptions{Name: NoopNodeActivityName},
+	)
+
+	childGraph := map[string]interface{}{
+		"nodes": []interface{}{
+			map[string]interface{}{
+				"id":       "start-1",
+				"type":     "start",
+				"position": map[string]interface{}{"x": 0.0, "y": 0.0},
+			},
+			map[string]interface{}{
+				"id":       "noop-1",
+				"type":     "noop",
+				"position": map[string]interface{}{"x": 100.0, "y": 0.0},
+			},
+		},
+		"edges": []interface{}{
+			map[string]interface{}{"id": "e1", "source": "start-1", "target": "noop-1"},
+		},
+	}
+	config := map[string]interface{}{"graph": childGraph}
+
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "child-1", Type: ChildWorkflowNodeType, Config: &config},
+			},
+			Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "child-1"}},
+		},
+	})
+	if err := environment.GetWorkflowError(); err == nil {
+		t.Fatal("workflow error = nil, want child failure to fail parent")
+	}
+}
+
 func TestGraphWorkflowRoutesActivityToTaskQueue(t *testing.T) {
 	t.Parallel()
 

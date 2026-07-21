@@ -5,6 +5,31 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-21 — Child Workflow node type (#62)
+
+**Did:**
+- Contract-first `ChildWorkflowNodeConfig` / `NestedGraph`; regenerated clients.
+- Registered `childWorkflow` as KindWorkflow; GraphWorkflow runs
+  `ExecuteChildWorkflow(GraphWorkflow)` with deterministic child workflow ID
+  `{parentID}/{nodeID}` and waits via `.Get`.
+- Nested graphs must pass `BuildExecutionPlan` and must not contain another
+  `childWorkflow` (depth 1). Docs/CHANGELOG/ISSUES updated.
+
+**Decided / learned:**
+- Inline nested graph (not graphId / arbitrary workflowType) for MVP —
+  reuses the existing translator without store I/O mid-run.
+- Sibling childWorkflow nodes still run sequentially (true parallel fan-out
+  is a later executor change). Nested waits are not addressable via the parent
+  run's `POST /runs/{id}/signal`.
+
+**Verified:**
+- `make generate`, Redocly, `make test` / lint / contract (see PR).
+
+**Next:**
+- #63 templating, or #67 external-registration docs.
+
+---
+
 ## 2026-07-21 — Per-node task-queue routing (#61)
 
 **Did:**

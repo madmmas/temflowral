@@ -71,10 +71,12 @@ optional `Node.taskQueue` applied via Temporal `ActivityOptions.TaskQueue` on
 
 ## 8. Graph expressiveness
 
-**[#62](https://github.com/madmmas/temflowral/issues/62) — Child Workflow node type** `[node-type][executor]`
+**[#62](https://github.com/madmmas/temflowral/issues/62) — Child Workflow node type** `[node-type][executor]` ✅
 Node that spawns a child Temporal workflow and can gate on its result — for
 fan-out/fan-in or per-item sub-workflows expressed as a graph. Depends on:
-Graph → Temporal translator (#12, done).
+Graph → Temporal translator (#12, done). **Shipped:** `childWorkflow` node with
+inline `NestedGraph`; runs `ExecuteChildWorkflow(GraphWorkflow)` and waits for
+the result. Nested `childWorkflow` nodes are rejected (depth 1).
 
 **[#63](https://github.com/madmmas/temflowral/issues/63) — Templating syntax for node config** `[executor]`
 Minimal templating syntax (e.g. `{{ nodes.foo.output.bar }}`) resolved at
