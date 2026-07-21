@@ -61,9 +61,9 @@ its type before persisting.
 Starting a run (`POST /graphs/{graphId}/run`) hands the graph to the backend
 translator. It validates the graph, orders the nodes topologically, and starts
 a Temporal workflow. The workflow walks the graph, running one activity per
-executable node (with optional per-node `activityOptions` for timeouts/retries),
-evaluating condition and wait branches, and sleeping on durable timers for
-delay nodes (and wait timeouts).
+executable node (with optional per-node `activityOptions` for timeouts/retries
+and `taskQueue` for specialized workers), evaluating condition and wait
+branches, and sleeping on durable timers for delay nodes (and wait timeouts).
 
 Progress and results are durable in Temporal. Poll `GET /runs/{runId}` for the
 current status and, once complete, the per-node output — or watch the same run

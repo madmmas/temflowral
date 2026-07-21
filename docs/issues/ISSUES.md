@@ -63,9 +63,11 @@ overriding engine defaults. Depends on: #55. **Shipped:** optional
 `Node.activityOptions` (`ActivityOptions` / `RetryPolicy`) applied on
 `KindActivity` nodes; rejected on workflow-native types.
 
-**[#61](https://github.com/madmmas/temflowral/issues/61) — Per-node task-queue routing** `[executor]`
+**[#61](https://github.com/madmmas/temflowral/issues/61) — Per-node task-queue routing** `[executor]` ✅
 Allow a node's config to specify a target Temporal task queue so activities run
-only on workers with specific capabilities. Depends on: #55.
+only on workers with specific capabilities. Depends on: #55. **Shipped:**
+optional `Node.taskQueue` applied via Temporal `ActivityOptions.TaskQueue` on
+`KindActivity` nodes; rejected on workflow-native types.
 
 ## 8. Graph expressiveness
 

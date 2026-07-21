@@ -105,6 +105,62 @@ func TestCreateAndGetGraph(t *testing.T) {
 	}
 }
 
+func TestCreateGraphRejectsTaskQueueOnDelay(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), &stubRunner{}, nil))
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs",
+		strings.NewReader(`{
+			"nodes":[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"delay-1","type":"delay","position":{"x":100,"y":0},"config":{"seconds":5},"taskQueue":"special.queue"}
+			],
+			"edges":[{"id":"e1","source":"start-1","target":"delay-1"}]
+		}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "taskQueue") {
+		t.Fatalf("body = %s, want taskQueue validation error", recorder.Body.String())
+	}
+}
+
+func TestCreateGraphAcceptsTaskQueueOnNoop(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), &stubRunner{}, nil))
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs",
+		strings.NewReader(`{
+			"nodes":[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"noop-1","type":"noop","position":{"x":100,"y":0},"taskQueue":"worker.gpu"}
+			],
+			"edges":[{"id":"e1","source":"start-1","target":"noop-1"}]
+		}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusCreated, recorder.Body.String())
+	}
+	var created api.Graph
+	if err := json.Unmarshal(recorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+	if len(created.Nodes) != 2 || created.Nodes[1].TaskQueue == nil || *created.Nodes[1].TaskQueue != "worker.gpu" {
+		t.Fatalf("created nodes = %#v, want taskQueue on noop", created.Nodes)
+	}
+}
+
 func TestCreateGraphRejectsActivityOptionsOnDelay(t *testing.T) {
 	t.Parallel()
 

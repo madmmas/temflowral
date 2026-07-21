@@ -192,9 +192,10 @@ Planning and `GraphWorkflow` resolve activity names through the registry.
 The graph workflow defaults node activities to `StartToCloseTimeout: 30s` and
 `MaximumAttempts: 1`. Do not raise retries globally: side-effecting activities
 such as HTTP POST may not be safe to replay. Callers may override per activity
-node via optional `Node.activityOptions` (timeouts + `retryPolicy`); only do so
-for idempotent work. Workflow-native nodes (start, delay, condition, wait)
-reject `activityOptions`.
+node via optional `Node.activityOptions` (timeouts + `retryPolicy`) and
+`Node.taskQueue` (route the activity to a specialized worker queue); only raise
+retries for idempotent work. Workflow-native nodes (start, delay, condition,
+wait) reject both fields.
 
 ### Workflow-native control nodes
 

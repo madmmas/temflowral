@@ -211,6 +211,14 @@ type Node struct {
 	Label    *string  `json:"label,omitempty"`
 	Position Position `json:"position"`
 
+	// TaskQueue Optional Temporal task queue for this node's activity. When omitted,
+	// the activity uses the workflow's default task queue (the worker that
+	// runs GraphWorkflow). Only valid on activity-backed node types
+	// (`KindActivity`); rejected on workflow-native nodes (start, delay,
+	// condition, wait). Use a dedicated worker polling this queue when the
+	// activity needs specialized capabilities (region, hardware, licenses).
+	TaskQueue *string `json:"taskQueue,omitempty"`
+
 	// Type Node type identifier (matches NodeType.id)
 	Type string `json:"type"`
 }

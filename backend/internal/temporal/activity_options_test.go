@@ -23,6 +23,18 @@ func TestValidateActivityOptionsRejectsWorkflowNative(t *testing.T) {
 	}
 }
 
+func TestValidateTaskQueueRejectsWorkflowNative(t *testing.T) {
+	t.Parallel()
+
+	queue := "special.queue"
+	for _, nodeType := range []string{StartNodeType, DelayNodeType, ConditionNodeType, WaitNodeType} {
+		node := api.Node{Id: "n1", Type: nodeType, TaskQueue: &queue}
+		if err := ValidateActivityOptions(node); err == nil {
+			t.Fatalf("ValidateActivityOptions(%s taskQueue) error = nil, want an error", nodeType)
+		}
+	}
+}
+
 func TestValidateActivityOptionsAcceptsActivityNodes(t *testing.T) {
 	t.Parallel()
 
@@ -34,8 +46,9 @@ func TestValidateActivityOptionsAcceptsActivityNodes(t *testing.T) {
 			BackoffCoefficient:     floatPtr(2),
 		},
 	}
+	queue := "temflowral.http"
 	for _, nodeType := range []string{NoopNodeType, HTTPNodeType} {
-		node := api.Node{Id: "n1", Type: nodeType, ActivityOptions: options}
+		node := api.Node{Id: "n1", Type: nodeType, ActivityOptions: options, TaskQueue: &queue}
 		if err := ValidateActivityOptions(node); err != nil {
 			t.Fatalf("ValidateActivityOptions(%s) error = %v", nodeType, err)
 		}
@@ -55,13 +68,18 @@ func TestActivityOptionsForNodeDefaultsAndMerge(t *testing.T) {
 	if defaults.RetryPolicy == nil || defaults.RetryPolicy.MaximumAttempts != 1 {
 		t.Fatalf("default RetryPolicy = %#v, want MaximumAttempts 1", defaults.RetryPolicy)
 	}
+	if defaults.TaskQueue != "" {
+		t.Fatalf("default TaskQueue = %q, want empty", defaults.TaskQueue)
+	}
 
+	queue := "worker.gpu"
 	merged, err := activityOptionsForNode(api.Node{
 		Id:   "n1",
 		Type: NoopNodeType,
 		ActivityOptions: &api.ActivityOptions{
 			StartToCloseTimeoutSeconds: floatPtr(120),
 		},
+		TaskQueue: &queue,
 	})
 	if err != nil {
 		t.Fatalf("merge error = %v", err)
@@ -71,6 +89,23 @@ func TestActivityOptionsForNodeDefaultsAndMerge(t *testing.T) {
 	}
 	if merged.RetryPolicy == nil || merged.RetryPolicy.MaximumAttempts != 1 {
 		t.Fatalf("merged RetryPolicy = %#v, want MaximumAttempts 1", merged.RetryPolicy)
+	}
+	if merged.TaskQueue != queue {
+		t.Fatalf("merged TaskQueue = %q, want %q", merged.TaskQueue, queue)
+	}
+}
+
+func TestActivityOptionsForNodeRejectsInvalidTaskQueue(t *testing.T) {
+	t.Parallel()
+
+	invalid := "bad queue"
+	_, err := activityOptionsForNode(api.Node{
+		Id:        "n1",
+		Type:      NoopNodeType,
+		TaskQueue: &invalid,
+	})
+	if err == nil {
+		t.Fatal("activityOptionsForNode() error = nil, want an error")
 	}
 }
 

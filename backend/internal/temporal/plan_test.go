@@ -148,6 +148,48 @@ func TestBuildExecutionPlanAcceptsValidConditionNode(t *testing.T) {
 	}
 }
 
+func TestBuildExecutionPlanRejectsTaskQueueOnDelay(t *testing.T) {
+	t.Parallel()
+
+	config := map[string]interface{}{"seconds": 5}
+	queue := "special.queue"
+	graph := api.Graph{
+		Nodes: []api.Node{
+			{Id: "start-1", Type: StartNodeType},
+			{
+				Id:        "delay-1",
+				Type:      DelayNodeType,
+				Config:    &config,
+				TaskQueue: &queue,
+			},
+		},
+		Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "delay-1"}},
+	}
+	if _, err := BuildExecutionPlan(graph); err == nil {
+		t.Fatal("BuildExecutionPlan() error = nil, want an error")
+	}
+}
+
+func TestBuildExecutionPlanAcceptsTaskQueueOnNoop(t *testing.T) {
+	t.Parallel()
+
+	queue := "worker.gpu"
+	graph := api.Graph{
+		Nodes: []api.Node{
+			{Id: "start-1", Type: StartNodeType},
+			{Id: "noop-1", Type: NoopNodeType, TaskQueue: &queue},
+		},
+		Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "noop-1"}},
+	}
+	plan, err := BuildExecutionPlan(graph)
+	if err != nil {
+		t.Fatalf("BuildExecutionPlan() error = %v", err)
+	}
+	if got, want := nodeIDs(plan), []string{"start-1", "noop-1"}; !equalStrings(got, want) {
+		t.Fatalf("plan = %v, want %v", got, want)
+	}
+}
+
 func TestBuildExecutionPlanRejectsActivityOptionsOnDelay(t *testing.T) {
 	t.Parallel()
 

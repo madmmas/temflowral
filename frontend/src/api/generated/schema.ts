@@ -177,7 +177,8 @@ export interface components {
          *         "retryPolicy": {
          *           "maximumAttempts": 1
          *         }
-         *       }
+         *       },
+         *       "taskQueue": "temflowral.http"
          *     } */
         Node: {
             /** @description Unique node ID within the graph (client-assigned) */
@@ -196,6 +197,14 @@ export interface components {
                 [key: string]: unknown;
             };
             activityOptions?: components["schemas"]["ActivityOptions"];
+            /** @description Optional Temporal task queue for this node's activity. When omitted,
+             *     the activity uses the workflow's default task queue (the worker that
+             *     runs GraphWorkflow). Only valid on activity-backed node types
+             *     (`KindActivity`); rejected on workflow-native nodes (start, delay,
+             *     condition, wait). Use a dedicated worker polling this queue when the
+             *     activity needs specialized capabilities (region, hardware, licenses).
+             *      */
+            taskQueue?: string;
         };
         /**
          * @description Temporal activity retry policy. Engine default is maximumAttempts: 1
