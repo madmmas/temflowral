@@ -250,6 +250,50 @@ func TestGraphWorkflowJoinAfterTakenBranch(t *testing.T) {
 	}
 }
 
+func TestGraphWorkflowResolvesHTTPConfigTemplates(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+
+	var gotURL string
+	environment.RegisterActivityWithOptions(
+		func(_ context.Context, input NodeActivityInput) (NodeResult, error) {
+			if input.Node.Config != nil {
+				if url, ok := (*input.Node.Config)["url"].(string); ok {
+					gotURL = url
+				}
+			}
+			return NodeResult{
+				NodeID: input.Node.ID,
+				Value:  map[string]interface{}{"statusCode": 200, "body": "ok"},
+			}, nil
+		},
+		activity.RegisterOptions{Name: HTTPNodeActivityName},
+	)
+
+	config := map[string]interface{}{
+		"method": "GET",
+		"url":    "https://api.example.com/items/{{ nodes.start-1.output.id }}",
+	}
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "http-1", Type: HTTPNodeType, Config: &config},
+			},
+			Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "http-1"}},
+		},
+		Input: map[string]interface{}{"id": "abc"},
+	})
+	if err := environment.GetWorkflowError(); err != nil {
+		t.Fatalf("workflow error = %v", err)
+	}
+	if gotURL != "https://api.example.com/items/abc" {
+		t.Fatalf("resolved url = %q, want https://api.example.com/items/abc", gotURL)
+	}
+}
+
 func TestGraphWorkflowRunsChildWorkflow(t *testing.T) {
 	t.Parallel()
 

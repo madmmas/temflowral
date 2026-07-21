@@ -124,7 +124,6 @@ func RegisterBuiltins(registry *nodetype.Registry, options BuiltinOptions) error
 					},
 					"url": map[string]interface{}{
 						"type":      "string",
-						"format":    "uri",
 						"maxLength": 2048,
 					},
 					"headers": map[string]interface{}{

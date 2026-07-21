@@ -5,6 +5,28 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-21 — Config templating (#63)
+
+**Did:**
+- Shared resolver for `{{ nodes.<id>.output.<path> }}` in GraphWorkflow before
+  node execution (active predecessors only; skip `childWorkflow.graph`).
+- Softened plan-time HTTP URL checks when templates are present; activity still
+  fully revalidates rendered URL/headers/body. Wait configs reject templates.
+- OpenAPI/SECURITY/docs updated; unit + workflow tests.
+
+**Decided / learned:**
+- No expression language/filters/env access — path lookup only.
+- Whole-string templates preserve typed values; mid-string interpolation
+  requires scalars.
+
+**Verified:**
+- `make generate`, Redocly, `make test` / lint / contract (see PR).
+
+**Next:**
+- #64 graph validation before run, or #67 external-registration docs.
+
+---
+
 ## 2026-07-21 — Child Workflow node type (#62)
 
 **Did:**

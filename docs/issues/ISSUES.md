@@ -78,10 +78,12 @@ Graph → Temporal translator (#12, done). **Shipped:** `childWorkflow` node wit
 inline `NestedGraph`; runs `ExecuteChildWorkflow(GraphWorkflow)` and waits for
 the result. Nested `childWorkflow` nodes are rejected (depth 1).
 
-**[#63](https://github.com/madmmas/temflowral/issues/63) — Templating syntax for node config** `[executor]`
+**[#63](https://github.com/madmmas/temflowral/issues/63) — Templating syntax for node config** `[executor]` ✅
 Minimal templating syntax (e.g. `{{ nodes.foo.output.bar }}`) resolved at
 execution time so node config can reference another node's output. Depends on:
-#55.
+#55. **Shipped:** `{{ nodes.<id>.output.<path> }}` resolved in GraphWorkflow
+from active predecessors; HTTP revalidates rendered URL/headers/body; wait
+configs reject templates.
 
 **[#64](https://github.com/madmmas/temflowral/issues/64) — Graph validation before run start** `[executor]`
 Validate node types against the registry and detect cycles before a run starts

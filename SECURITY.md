@@ -43,10 +43,15 @@ addresses. Request and response bodies are limited to 1 MiB, response headers
 to 64 KiB, and requests to 20 seconds. Hop-by-hop/transport-controlled request
 headers are rejected.
 
-Template interpolation is intentionally not implemented. Activity retries are
-disabled so Temporal does not automatically repeat POST/PATCH or other
-side-effecting requests. Never add URL/header/body templating without
-revalidating the fully rendered request through the same URL and header policy.
+Template interpolation is supported for node config string leaves using the
+minimal syntax `{{ nodes.<nodeId>.output.<path> }}`. Paths are resolved at
+execution time from active predecessor outputs only (no env, filters, or
+expression language). Templates are not allowed in wait node config. For HTTP
+nodes, the fully rendered URL, headers, and body are always revalidated through
+the same allowlist, SSRF, header, and size policy as concrete values — never
+treat a templated string as trusted without that second pass. Activity retries
+remain disabled so Temporal does not automatically repeat POST/PATCH or other
+side-effecting requests.
 
 If you find a vulnerability in a dependency, please report it
 to that project directly. You can also open a Dependabot alert

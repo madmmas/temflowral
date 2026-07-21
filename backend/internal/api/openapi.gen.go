@@ -183,20 +183,30 @@ type Graph struct {
 
 // HttpNodeConfig defines model for HttpNodeConfig.
 type HttpNodeConfig struct {
-	// Body Optional request body, limited to 1 MiB. Template interpolation is not supported.
+	// Body Optional request body, limited to 1 MiB. May contain
+	// `{{ nodes.<nodeId>.output.<path> }}` templates resolved at run time.
+	// After resolution the body is still size-capped at 1 MiB.
 	Body *string `json:"body,omitempty"`
 
-	// Headers Optional request headers. Hop-by-hop and transport-controlled headers are rejected.
+	// Headers Optional request headers. Values may use the same
+	// `{{ nodes.<nodeId>.output.<path> }}` templates as url/body; the
+	// fully rendered header set is revalidated (hop-by-hop and
+	// transport-controlled headers remain rejected).
 	Headers *map[string]string `json:"headers,omitempty"`
 
 	// Method HTTP method. Activity retries are disabled to avoid replaying side effects.
 	Method HttpNodeConfigMethod `json:"method"`
 
-	// Url Absolute HTTP(S) URL. Destinations are denied by default: the worker
-	// only permits hostnames listed in HTTP_ALLOWED_HOSTS (exact hostnames,
+	// Url Absolute HTTP(S) URL, or a string containing
+	// `{{ nodes.<nodeId>.output.<path> }}` templates resolved at run time
+	// from active predecessor outputs. After resolution the URL must be
+	// absolute HTTP(S) and pass the same allowlist/SSRF checks as a
+	// concrete URL. Destinations are denied by default: the worker only
+	// permits hostnames listed in HTTP_ALLOWED_HOSTS (exact hostnames,
 	// no schemes/ports/wildcards) and rejects private, loopback,
 	// link-local, multicast, and unspecified destination addresses. See
-	// SECURITY.md for timeouts, size limits, and redirect policy.
+	// SECURITY.md for timeouts, size limits, redirect policy, and
+	// templating rules.
 	Url string `json:"url"`
 }
 
@@ -226,6 +236,10 @@ type Node struct {
 	// delay nodes use DelayNodeConfig; condition nodes use ConditionNodeConfig;
 	// wait nodes use WaitNodeConfig; childWorkflow nodes use
 	// ChildWorkflowNodeConfig.
+	//
+	// String leaves may contain `{{ nodes.<nodeId>.output.<path> }}`
+	// templates resolved at run time from active predecessor outputs.
+	// See SECURITY.md. Templates are not allowed in wait node config.
 	Config *map[string]interface{} `json:"config,omitempty"`
 
 	// Id Unique node ID within the graph (client-assigned)
