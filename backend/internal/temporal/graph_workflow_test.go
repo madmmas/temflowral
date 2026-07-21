@@ -2,6 +2,7 @@ package temporal
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -245,6 +246,91 @@ func TestGraphWorkflowJoinAfterTakenBranch(t *testing.T) {
 	want := []string{"start-1", "cond-1", "noop-true", "join"}
 	if !equalStrings(got, want) {
 		t.Fatalf("executed nodes = %v, want %v", got, want)
+	}
+}
+
+func TestGraphWorkflowAppliesPerNodeRetryPolicy(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+
+	attempts := 0
+	environment.RegisterActivityWithOptions(
+		func(_ context.Context, input NodeActivityInput) (NodeResult, error) {
+			attempts++
+			if attempts < 3 {
+				return NodeResult{}, fmt.Errorf("transient failure %d", attempts)
+			}
+			return NodeResult{
+				NodeID: input.Node.ID,
+				Value:  map[string]interface{}{"attempts": attempts},
+			}, nil
+		},
+		activity.RegisterOptions{Name: NoopNodeActivityName},
+	)
+
+	options := &api.ActivityOptions{
+		RetryPolicy: &api.RetryPolicy{MaximumAttempts: 3},
+	}
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "noop-1", Type: NoopNodeType, ActivityOptions: options},
+			},
+			Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "noop-1"}},
+		},
+	})
+	if err := environment.GetWorkflowError(); err != nil {
+		t.Fatalf("workflow error = %v", err)
+	}
+	if attempts != 3 {
+		t.Fatalf("attempts = %d, want 3", attempts)
+	}
+
+	var result GraphWorkflowResult
+	if err := environment.GetWorkflowResult(&result); err != nil {
+		t.Fatalf("get workflow result: %v", err)
+	}
+	if len(result.Nodes) != 2 {
+		t.Fatalf("result = %#v, want 2 nodes", result.Nodes)
+	}
+	// Temporal payload decode uses JSON numbers → float64.
+	if got := result.Nodes[1].Value["attempts"]; got != float64(3) {
+		t.Fatalf("attempts = %#v, want 3", got)
+	}
+}
+
+func TestGraphWorkflowDefaultRetryDoesNotRetry(t *testing.T) {
+	t.Parallel()
+
+	var suite testsuite.WorkflowTestSuite
+	environment := suite.NewTestWorkflowEnvironment()
+
+	attempts := 0
+	environment.RegisterActivityWithOptions(
+		func(_ context.Context, input NodeActivityInput) (NodeResult, error) {
+			attempts++
+			return NodeResult{}, fmt.Errorf("always fails")
+		},
+		activity.RegisterOptions{Name: NoopNodeActivityName},
+	)
+
+	environment.ExecuteWorkflow(GraphWorkflow, GraphWorkflowInput{
+		Graph: api.Graph{
+			Nodes: []api.Node{
+				{Id: "start-1", Type: StartNodeType},
+				{Id: "noop-1", Type: NoopNodeType},
+			},
+			Edges: []api.Edge{{Id: "e1", Source: "start-1", Target: "noop-1"}},
+		},
+	})
+	if err := environment.GetWorkflowError(); err == nil {
+		t.Fatal("workflow error = nil, want an error")
+	}
+	if attempts != 1 {
+		t.Fatalf("attempts = %d, want 1 (default MaximumAttempts)", attempts)
 	}
 }
 

@@ -10,6 +10,10 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Optional `Node.activityOptions` (`ActivityOptions` / `RetryPolicy`): per-node
+  Temporal timeout and retry overrides for activity-backed nodes (engine
+  defaults remain 30s start-to-close and `maximumAttempts: 1`). Rejected on
+  workflow-native nodes.
 - `POST /runs/{runId}/signal`: deliver a named Temporal signal to a running
   graph. Rejects with 409 unless the workflow is currently blocked on a wait
   node whose signal name matches (Temporal `temflowral.currentWait` query).
