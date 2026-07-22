@@ -108,9 +108,11 @@ short compatibility note for interpreter upgrades. **Shipped:** opt-in
 `API_AUTH_TOKEN` Bearer gate on OpenAPI routes; SECURITY.md trust boundary +
 mTLS-at-proxy + upgrade compatibility; OpenAPI `BearerAuth` / `401`.
 
-**[#67](https://github.com/madmmas/temflowral/issues/67) — Extend `docs/adding-a-node-type.md` for external registration** `[docs]`
+**[#67](https://github.com/madmmas/temflowral/issues/67) — Extend `docs/adding-a-node-type.md` for external registration** `[docs]` ✅
 Document registering a node type from outside this repo once #55 lands.
-Depends on: #55.
+Depends on: #55. **Shipped:** full external-registration walkthrough in
+`docs/adding-a-node-type.md` (custom binary, `WithRegistry`, handles, OpenAPI
+vs registry authority, verify steps).
 
 ---
 

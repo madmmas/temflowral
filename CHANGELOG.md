@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- External node-type registration guide: expanded
+  `docs/adding-a-node-type.md` walkthrough for registering `KindActivity` types
+  from outside this repo via `pkg/nodetype` + `temporal.WithRegistry`.
 - API auth baseline: optional `API_AUTH_TOKEN` requires `Authorization: Bearer`
   on OpenAPI routes (401 otherwise); SECURITY.md documents trust boundary (no
   tenant isolation), mTLS-at-proxy, and interpreter upgrade compatibility.
