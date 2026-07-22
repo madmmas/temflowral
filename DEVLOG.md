@@ -5,6 +5,27 @@ doesn't need to be daily.
 
 ---
 
+## 2026-07-22 — External node-type registration docs (#67)
+
+**Did:**
+- Expanded `docs/adding-a-node-type.md` external-registration walkthrough:
+  custom binary, shared registry, Definition checklist, OpenAPI vs registry,
+  taskQueue, auth, and verify steps (points at `registry_ext_test.go`).
+- OpenAPI `listNodeTypes` description links the guide; ISSUES/CHANGELOG updated.
+
+**Decided / learned:**
+- Stock `cmd/server` stays built-ins-only; activity **code** lives in an
+  external module (`pkg/nodetype` only), while `Start`/`NewAPI` wiring stays in
+  a fork or in-module `cmd` (Go `internal/` rule).
+
+**Verified:**
+- `make generate`, Redocly, lint / test / contract (docs-focused; see PR).
+
+**Next:**
+- Backlog cleared for #55–#67; pick new work from ISSUES or product feedback.
+
+---
+
 ## 2026-07-21 — API auth baseline & trust boundary (#66)
 
 **Did:**

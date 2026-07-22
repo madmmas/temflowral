@@ -134,44 +134,205 @@ so keep those in sync.
 
 ### External registration (outside this repo)
 
-Adopters register custom activity-backed types without forking. Share one
-`*nodetype.Registry` between worker startup and the HTTP API:
+Built-in types live in this repository and follow sections 1–10 (OpenAPI first,
+generated clients, parsers under `backend/internal/temporal/`). **External**
+types are activity-backed nodes whose **implementation** lives in another Go
+module, registered at process startup so discovery and execution stay in sync.
 
-```go
-registry := nodetype.NewRegistry()
-if err := temporal.RegisterBuiltins(registry, temporal.BuiltinOptions{
-    HTTPAllowedHosts: []string{"api.example.com"},
-}); err != nil {
-    log.Fatal(err)
-}
-if err := registry.Register(nodetype.Definition{
-    ID:           "billing.charge",
-    Name:         "Charge",
-    Kind:         nodetype.KindActivity,
-    ConfigSchema: map[string]any{ /* JSON Schema */ },
-    // Fixed handles, or OutputHandlesFromConfig for config-derived handles:
-    OutputHandlesFromConfig: &nodetype.HandlesFromConfig{Path: "branches"},
-    ActivityName: "billing.activity.charge",
-    Activity:     ChargeActivity, // func(ctx, nodetype.ActivityInput) (nodetype.Result, error)
-    ValidateConfig: func(nodeID string, config map[string]any) error {
-        // reject bad config; never put secrets in the error
-        return nil
-    },
-}); err != nil {
-    log.Fatal(err)
-}
+The public SDK is `github.com/madmmas/temflowral/backend/pkg/nodetype`
+(`Definition`, `Registry`, `ActivityInput`, `Result`, handle helpers). Custom
+activity packages should depend only on that path.
 
-runtime, err := temporal.Start(config, temporal.WithRegistry(registry))
-apiServer := server.NewAPI(store, runtime, registry)
+Go’s `internal/` rule still applies: an outside module **cannot** import
+`backend/internal/...`. Wiring (`RegisterBuiltins`, `temporal.Start`,
+`server.NewAPI`) therefore stays in a binary that is part of this module — a
+fork of temflowral, or a small `backend/cmd/...` entrypoint you maintain in a
+private fork / vendor tree. That binary imports your external activity module
+and registers it before `Start`.
+
+```text
+┌─────────────────────────────┐     ┌──────────────────────────────────────┐
+│ your module (e.g. acme/bill)│     │ temflowral backend module (fork/cmd) │
+│ pkg/nodetype only           │────▶│ RegisterBuiltins + Register(def)     │
+│ Definition + Activity func  │     │ Start(WithRegistry) + NewAPI(same)   │
+└─────────────────────────────┘     └──────────────────────────────────────┘
 ```
 
-Multi-output activity nodes select a branch by setting
-`result.Value["branch"]` to a handle ID. The planner validates
-`Edge.sourceHandle` against fixed or config-derived handles. Workflow-native
-kinds (`KindWorkflow`) remain reserved for built-in orchestration (start,
-delay, condition, wait, childWorkflow).
+#### What external registration supports
 
-A fuller external-package walkthrough is tracked as issue #67.
+| Supported | Not supported (v0.x) |
+| --- | --- |
+| `KindActivity` nodes with a Temporal activity | `KindWorkflow` (start, delay, condition, wait, childWorkflow stay built-in) |
+| JSON Schema `ConfigSchema` on `GET /node-types` | Editing `api/openapi.yaml` for every custom type (optional; see below) |
+| Fixed `OutputHandles` or `OutputHandlesFromConfig` | Dynamic workflow-native branching inside GraphWorkflow |
+| Optional `ValidateConfig` at create + plan time | Hot-reload / plugin loading without process restart |
+| Activity code in an external Go module | Calling `temporal.Start` from a module outside this repo |
+
+Share **one** `*nodetype.Registry` between Temporal worker startup and
+`server.NewAPI` so `GET /node-types` matches what `ValidateGraph` / GraphWorkflow
+can execute.
+
+#### Step 1 — Activity module (external)
+
+```go
+package billing
+
+import (
+	"context"
+
+	"github.com/madmmas/temflowral/backend/pkg/nodetype"
+)
+
+func ChargeDefinition() nodetype.Definition {
+	return nodetype.Definition{
+		ID:          "billing.charge",
+		Name:        "Charge",
+		Description: "Charge a customer via the billing service",
+		Category:    "billing",
+		Kind:        nodetype.KindActivity,
+		ConfigSchema: map[string]any{
+			"type":                 "object",
+			"required":             []string{"customerId", "amountCents"},
+			"additionalProperties": false,
+			"properties": map[string]any{
+				"customerId":  map[string]any{"type": "string", "minLength": 1},
+				"amountCents": map[string]any{"type": "integer", "minimum": 1},
+			},
+		},
+		// Optional multi-output: OutputHandles or OutputHandlesFromConfig.
+		ActivityName: "billing.activity.charge",
+		Activity:     Charge,
+		ValidateConfig: func(nodeID string, config map[string]any) error {
+			// Reject bad config; never put secrets or PII in the error string.
+			return nil
+		},
+	}
+}
+
+func Charge(ctx context.Context, input nodetype.ActivityInput) (nodetype.Result, error) {
+	// Read input.Node.Config; use input.Inputs for predecessor outputs.
+	return nodetype.Result{
+		NodeID: input.Node.ID,
+		Value:  map[string]any{"status": "ok"},
+	}, nil
+}
+```
+
+Checklist for the definition:
+
+1. **Stable `ID`** — this is `Node.type` in graphs; prefer a dotted namespace
+   (`billing.charge`) so it cannot collide with built-ins (`http`, `wait`, …).
+2. **`Kind: KindActivity`** — required for external packages.
+3. **`ConfigSchema`** — JSON Schema object served by `GET /node-types` (palette /
+   forms). Keep it aligned with `ValidateConfig`.
+4. **`ActivityName` + `Activity`** — Temporal activity type name and
+   implementation. Signature should match
+   `func(context.Context, nodetype.ActivityInput) (nodetype.Result, error)`.
+5. **`ValidateConfig` (recommended)** — runs on `POST /graphs` and again during
+   `ValidateGraph` / `BuildExecutionPlan` before a run starts.
+6. **Output handles (optional)** — either fixed `OutputHandles`, or
+   `OutputHandlesFromConfig` with a dot path into config (e.g. `"branches"`).
+   Do not set both. Multi-output activities select a branch by setting
+   `result.Value[nodetype.BranchKey]` (`"branch"`) to a handle ID; the planner
+   requires matching `Edge.sourceHandle` values.
+
+#### Step 2 — Process entrypoint (this module or a fork)
+
+The stock `backend/cmd/server` only registers built-ins. Copy or extend it so
+startup builds the shared registry:
+
+```go
+import (
+	"log"
+
+	"github.com/acme/billing" // your external module
+
+	"github.com/madmmas/temflowral/backend/internal/server"
+	"github.com/madmmas/temflowral/backend/internal/store"
+	"github.com/madmmas/temflowral/backend/internal/temporal"
+	"github.com/madmmas/temflowral/backend/pkg/nodetype"
+)
+
+func main() {
+	registry := nodetype.NewRegistry()
+	if err := temporal.RegisterBuiltins(registry, temporal.BuiltinOptions{
+		HTTPAllowedHosts: []string{"api.example.com"}, // or from env
+	}); err != nil {
+		log.Fatal(err)
+	}
+	if err := registry.Register(billing.ChargeDefinition()); err != nil {
+		log.Fatal(err)
+	}
+
+	cfg := temporal.ConfigFromEnv()
+	runtime, err := temporal.Start(cfg, temporal.WithRegistry(registry))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer runtime.Close()
+
+	graphStore, err := store.OpenFromEnv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer graphStore.Close()
+
+	// Same registry instance as the worker — required for discovery + planning.
+	apiServer := server.NewAPI(graphStore, runtime, registry)
+	_ = server.NewHandler(/* openAPISpec */, apiServer)
+	// ... ListenAndServe as in backend/cmd/server ...
+}
+```
+
+`temporal.Start(..., temporal.WithRegistry(registry))` registers every
+`KindActivity` on the worker from that registry. Do not call
+`worker.RegisterActivity` yourself for the same types.
+
+In-repo reference for multi-output external-style registration:
+`backend/internal/temporal/registry_ext_test.go`.
+
+#### OpenAPI and Prism
+
+External types usually rely on the generic object fallback already present in
+`Node.config.anyOf` — you do **not** have to add a named schema to
+`api/openapi.yaml` for the live server to accept them. Runtime authority is the
+registry + `ValidateConfig`.
+
+Add a named OpenAPI schema only when you want:
+
+- typed codegen for that config inside this monorepo, or
+- richer Prism mock examples / contract fixtures.
+
+If you skip OpenAPI, the reference canvas still lists the type via
+`GET /node-types`, but config forms remain blank until your UI writes a valid
+`config` object (see §7 and ADR-001).
+
+#### Specialized workers (`Node.taskQueue`)
+
+When the activity must run on a different Temporal task queue (region,
+hardware, licenses), set `Node.taskQueue` on graph nodes of that type and run a
+worker that polls that queue with the **same** activity registration. The API
+process that starts `GraphWorkflow` must still know the type in its registry so
+planning and discovery succeed.
+
+#### Auth and trust boundary
+
+If `API_AUTH_TOKEN` is set, callers need `Authorization: Bearer …` (see
+`SECURITY.md`). temflowral still does not enforce tenant isolation — authorize
+graph/run access before forwarding to the API.
+
+#### Verify an external type
+
+1. Start your custom entrypoint (built-ins + your registration).
+2. `GET /node-types` includes your `id` / `configSchema` / output handles.
+3. `POST /graphs` with `type: "<your-id>"` and valid config → 201; bad config or
+   unknown type → 400.
+4. `POST /graphs/{id}/run` → 202; poll `GET /runs/{id}` for node outputs.
+5. For multi-output types, confirm only the selected `sourceHandle` path runs.
+
+Security expectations for integration activities match §9 (deny-by-default
+egress, bound payloads, redact secrets from errors, think through retries /
+`activityOptions`).
 
 ## 6. Add execution behavior
 

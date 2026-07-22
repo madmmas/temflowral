@@ -100,7 +100,8 @@ Node types are the main extensibility hook. Built-in types follow the
 contract-first recipe in
 [`docs/adding-a-node-type.md`](docs/adding-a-node-type.md). Custom domain
 activities that must not live in this repo register at worker startup via
-`backend/pkg/nodetype` (see the external-registration section of that guide).
+`backend/pkg/nodetype` — see the **External registration** section of
+[`docs/adding-a-node-type.md`](docs/adding-a-node-type.md).
 
 ## Contributing
 
