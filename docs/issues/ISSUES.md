@@ -121,3 +121,22 @@ vs registry authority, verify steps).
 then: 58 → 59 · 60 · 61 · 63 · 64 (after 55, can parallelize once #55 lands)
 62 can start after #12 (already done); pairs well with #55
 65 · 66 anytime · 67 after #55
+
+---
+
+## Post-#67 — Reference product completion
+
+Filed backlog (#5–#27, #55–#67) is closed. Remaining work is mostly the
+reference canvas and a few API affordances. Full plan:
+
+→ [`docs/plans/reference-product-completion.md`](../plans/reference-product-completion.md)
+
+| Phase | Focus | Priority | Issue |
+| --- | --- | --- | --- |
+| 0 | CORS / local compose hygiene | done | [#89](https://github.com/madmmas/temflowral/pull/89) |
+| 1 | List + update graphs; reopen in UI | P0 | [#90](https://github.com/madmmas/temflowral/issues/90) |
+| 2 | Config panel from `configSchema` | P0 | [#91](https://github.com/madmmas/temflowral/issues/91) |
+| 3 | Named handles + signal UI | P1 | [#92](https://github.com/madmmas/temflowral/issues/92) |
+| 4 | Dirty state, idempotent Run, advanced fields | P1 | [#93](https://github.com/madmmas/temflowral/issues/93) |
+| 5 | Live e2e + demo seeds | P2 | [#94](https://github.com/madmmas/temflowral/issues/94) |
+| 6 | Deferred (ADR-001 package, multi-tenant, …) | — | — |

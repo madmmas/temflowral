@@ -10,6 +10,8 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Browser CORS allowlist via `API_CORS_ORIGINS` (defaults to local canvas
+  origins) so `localhost:3000` can call the API on `:8080`.
 - External node-type registration guide: expanded
   `docs/adding-a-node-type.md` walkthrough for registering `KindActivity` types
   from outside this repo via `pkg/nodetype` + `temporal.WithRegistry`.
