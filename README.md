@@ -49,12 +49,26 @@ a minute. Then open:
 - Backend API + interactive docs: <http://localhost:8080> / <http://localhost:8080/docs>
 - Temporal Web UI: <http://localhost:8233>
 
+Load two sample graphs (Start→No-op and Start→Delay→No-op) with fixed IDs:
+
+```sh
+make seed-demo
+```
+
+Then open one from the canvas **Open saved graph** picker, or go directly to:
+
+- <http://localhost:3000/?graph=11111111-1111-4111-8111-111111111101> (Start → No-op)
+- <http://localhost:3000/?graph=11111111-1111-4111-8111-111111111102> (Start → Delay → No-op)
+
+Click **Run** and wait for `Run completed` in the status bar.
+
 Stop with `Ctrl+C`, then `make temporal-down` to remove the containers. The
-Postgres volume persists across restarts; `docker compose down -v` wipes it.
+Postgres volume persists across restarts; `docker compose down -v` wipes it
+(re-run `make seed-demo` after a wipe).
 
 Prefer running the backend or frontend outside Docker? See
-[`CONTRIBUTING.md`](CONTRIBUTING.md) for the mock-API, backend, and frontend
-development flows.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the mock-API, backend, frontend, e2e,
+and seed flows.
 
 ## How it works
 

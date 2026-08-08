@@ -1,8 +1,13 @@
-.PHONY: generate test test-contract lint lint-backend lint-frontend run build clean hooks temporal-dev temporal-down temporal-smoke
+.PHONY: generate test test-contract test-contract-live lint lint-backend lint-frontend run build clean hooks temporal-dev temporal-down temporal-smoke seed-demo e2e e2e-live
 
 # Temporal service name in docker-compose.yml.
 TEMPORAL_SERVICE ?= temporal
 TEMPORAL_TASK_QUEUE ?= temflowral
+
+# Local compose Postgres application DB (host-published :5432).
+DATABASE_URL ?= postgres://temporal:temporal@127.0.0.1:5432/temflowral?sslmode=disable
+API_BASE_URL ?= http://127.0.0.1:8080
+PLAYWRIGHT_BASE_URL ?= http://127.0.0.1:3000
 
 # Point this clone at versioned hooks under .githooks/ (run once after clone)
 hooks:
@@ -68,11 +73,29 @@ run-backend:
 e2e:
 	cd frontend && npm run e2e
 
+# Live-backend UI e2e against an already-running compose stack
+# (`docker compose up`). Playwright does not start Prism/Next.
+e2e-live:
+	cd frontend && \
+		API_BASE_URL=$(API_BASE_URL) \
+		PLAYWRIGHT_BASE_URL=$(PLAYWRIGHT_BASE_URL) \
+		npm run e2e -- --grep "live backend"
+
+# Upsert fixed-UUID demo graphs into Postgres (idempotent).
+# Requires compose Postgres up and the backend to have created the schema
+# at least once (`docker compose up` / `make run`).
+seed-demo:
+	cd backend && DATABASE_URL='$(DATABASE_URL)' go run ./cmd/seed-demo
+
 # Run contract conformance (validate responses vs api/openapi.yaml).
 # Defaults to the Prism mock; set API_BASE_URL=http://localhost:8080 for the
 # live backend.
 test-contract:
 	cd frontend && npm run test:contract
+
+# Optional: contract suite against a running API (release / local verify).
+test-contract-live:
+	cd frontend && API_BASE_URL=$(API_BASE_URL) npm run test:contract
 
 # Clean build artifacts
 clean:
