@@ -174,6 +174,9 @@ needed:
 - `API_AUTH_TOKEN` (optional; when set, OpenAPI routes require
   `Authorization: Bearer <token>` — see `SECURITY.md`. Leave unset for local
   open mode / Prism)
+- `API_CORS_ORIGINS` (optional; comma-separated browser `Origin` allowlist.
+  Defaults to `http://localhost:3000,http://127.0.0.1:3000` when unset so the
+  reference canvas can call the API. Set to empty to disable CORS headers.)
 
 For example, with Temporal + Postgres already up via `make temporal-dev`
 (Postgres is published on `localhost:5432`):
