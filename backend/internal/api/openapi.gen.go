@@ -485,6 +485,9 @@ type ServerInterface interface {
 	// CreateGraph Create a graph
 	// (POST /graphs)
 	CreateGraph(w http.ResponseWriter, r *http.Request)
+	// DeleteGraph Delete a saved graph
+	// (DELETE /graphs/{graphId})
+	DeleteGraph(w http.ResponseWriter, r *http.Request, graphId GraphId)
 	// GetGraph Fetch a graph by ID
 	// (GET /graphs/{graphId})
 	GetGraph(w http.ResponseWriter, r *http.Request, graphId GraphId)
@@ -533,6 +536,32 @@ func (siw *ServerInterfaceWrapper) CreateGraph(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateGraph(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteGraph operation middleware
+func (siw *ServerInterfaceWrapper) DeleteGraph(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "graphId" -------------
+	var graphId GraphId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "graphId", r.PathValue("graphId"), &graphId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "graphId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteGraph(w, r, graphId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -808,6 +837,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/graphs", wrapper.ListGraphs)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/graphs", wrapper.CreateGraph)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/graphs/{graphId}", wrapper.DeleteGraph)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/graphs/{graphId}", wrapper.GetGraph)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/graphs/{graphId}", wrapper.UpdateGraph)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/graphs/{graphId}/run", wrapper.StartGraphRun)
@@ -928,6 +958,64 @@ func (response CreateGraph401JSONResponse) VisitCreateGraphResponse(w http.Respo
 type CreateGraph500JSONResponse struct{ InternalErrorJSONResponse }
 
 func (response CreateGraph500JSONResponse) VisitCreateGraphResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteGraphRequestObject struct {
+	GraphId GraphId `json:"graphId"`
+}
+
+type DeleteGraphResponseObject interface {
+	VisitDeleteGraphResponse(w http.ResponseWriter) error
+}
+
+type DeleteGraph204Response struct {
+}
+
+func (response DeleteGraph204Response) VisitDeleteGraphResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteGraph401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteGraph401JSONResponse) VisitDeleteGraphResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteGraph404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteGraph404JSONResponse) VisitDeleteGraphResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteGraph500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response DeleteGraph500JSONResponse) VisitDeleteGraphResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1403,6 +1491,9 @@ type StrictServerInterface interface {
 	// CreateGraph Create a graph
 	// (POST /graphs)
 	CreateGraph(ctx context.Context, request CreateGraphRequestObject) (CreateGraphResponseObject, error)
+	// DeleteGraph Delete a saved graph
+	// (DELETE /graphs/{graphId})
+	DeleteGraph(ctx context.Context, request DeleteGraphRequestObject) (DeleteGraphResponseObject, error)
 	// GetGraph Fetch a graph by ID
 	// (GET /graphs/{graphId})
 	GetGraph(ctx context.Context, request GetGraphRequestObject) (GetGraphResponseObject, error)
@@ -1510,6 +1601,32 @@ func (sh *strictHandler) CreateGraph(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateGraphResponseObject); ok {
 		if err := validResponse.VisitCreateGraphResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteGraph operation middleware
+func (sh *strictHandler) DeleteGraph(w http.ResponseWriter, r *http.Request, graphId GraphId) {
+	var request DeleteGraphRequestObject
+
+	request.GraphId = graphId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteGraph(ctx, request.(DeleteGraphRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteGraph")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteGraphResponseObject); ok {
+		if err := validResponse.VisitDeleteGraphResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

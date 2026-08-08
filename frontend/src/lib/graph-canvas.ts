@@ -1,6 +1,8 @@
 import type { components } from "@/api";
 import type { Edge, Node } from "@xyflow/react";
 
+export type ActivityOptions = components["schemas"]["ActivityOptions"];
+
 /**
  * Data carried by canvas nodes. `nodeType` is the backend node-type id from
  * `GET /node-types`; `label`/`category` drive rendering in the custom node.
@@ -10,6 +12,8 @@ export type CanvasNodeData = {
   nodeType: string;
   category?: string;
   config?: Record<string, unknown>;
+  activityOptions?: ActivityOptions;
+  taskQueue?: string;
 };
 
 export type CanvasNode = Node<CanvasNodeData>;
@@ -17,6 +21,26 @@ export type CanvasEdge = Edge;
 
 /** React Flow node.type used for every palette-created node (custom renderer). */
 export const WORKFLOW_NODE_TYPE = "workflow";
+
+/** Placeholder hint for templated string config fields (#93). */
+export const CONFIG_TEMPLATE_HINT = "{{ nodes.<id>.output.<path> }}";
+
+/**
+ * Built-in workflow-native types that reject activityOptions / taskQueue.
+ * Activity-backed types (noop, http, and custom KindActivity) show the advanced
+ * panel.
+ */
+const WORKFLOW_NATIVE_TYPES = new Set([
+  "start",
+  "delay",
+  "condition",
+  "wait",
+  "childWorkflow",
+]);
+
+export function supportsActivityOptions(nodeTypeId: string): boolean {
+  return !WORKFLOW_NATIVE_TYPES.has(nodeTypeId);
+}
 
 let nodeSequence = 0;
 
@@ -36,6 +60,8 @@ export type NewNodeInput = {
   label?: string;
   category?: string;
   config?: Record<string, unknown>;
+  activityOptions?: ActivityOptions;
+  taskQueue?: string;
 };
 
 /**
@@ -58,6 +84,8 @@ export function createNode(
       nodeType: input.nodeType,
       category: input.category,
       config: input.config ?? {},
+      activityOptions: input.activityOptions,
+      taskQueue: input.taskQueue,
     },
   };
 }
@@ -84,6 +112,8 @@ export function serializeGraph(
         y: node.position.y,
       },
       config: node.data.config ?? {},
+      activityOptions: node.data.activityOptions,
+      taskQueue: node.data.taskQueue?.trim() || undefined,
     })),
     edges: edges.map((edge) => ({
       id: edge.id,
@@ -93,6 +123,18 @@ export function serializeGraph(
       targetHandle: edge.targetHandle ?? undefined,
     })),
   };
+}
+
+/**
+ * Stable fingerprint of authoring state for dirty detection (#93).
+ * Ignores React Flow ephemeral fields (selected, dragging, measured, …).
+ */
+export function graphFingerprint(
+  name: string,
+  nodes: readonly CanvasNode[],
+  edges: readonly CanvasEdge[],
+): string {
+  return JSON.stringify(serializeGraph(name, nodes, edges));
 }
 
 /**
@@ -112,6 +154,8 @@ export function deserializeGraph(graph: Graph): {
       label: node.label ?? node.type,
       nodeType: node.type,
       config: (node.config as Record<string, unknown> | undefined) ?? {},
+      activityOptions: node.activityOptions,
+      taskQueue: node.taskQueue,
     },
   }));
   syncNodeSequenceFromIds(nodes.map((node) => node.id));

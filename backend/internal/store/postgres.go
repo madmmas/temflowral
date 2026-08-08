@@ -216,6 +216,29 @@ func (store *PostgresStore) UpdateGraph(ctx context.Context, graph api.Graph) (b
 	return true, nil
 }
 
+func (store *PostgresStore) DeleteGraph(ctx context.Context, id openapi_types.UUID) (bool, error) {
+	tx, err := store.pool.Begin(ctx)
+	if err != nil {
+		return false, fmt.Errorf("begin delete graph %s: %w", id, err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `DELETE FROM runs WHERE graph_id = $1`, id); err != nil {
+		return false, fmt.Errorf("delete runs for graph %s: %w", id, err)
+	}
+	tag, err := tx.Exec(ctx, `DELETE FROM graphs WHERE id = $1`, id)
+	if err != nil {
+		return false, fmt.Errorf("delete graph %s: %w", id, err)
+	}
+	if tag.RowsAffected() == 0 {
+		return false, nil
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, fmt.Errorf("commit delete graph %s: %w", id, err)
+	}
+	return true, nil
+}
+
 func (store *PostgresStore) PutRun(ctx context.Context, record RunRecord) error {
 	return store.upsertRun(ctx, record, false)
 }

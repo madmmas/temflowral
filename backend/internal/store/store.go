@@ -29,6 +29,8 @@ type Store interface {
 	ListGraphs(ctx context.Context) ([]api.GraphSummary, error)
 	// UpdateGraph replaces an existing graph. ok is false when the id is missing.
 	UpdateGraph(ctx context.Context, graph api.Graph) (bool, error)
+	// DeleteGraph removes a graph and its run records. ok is false when missing.
+	DeleteGraph(ctx context.Context, id openapi_types.UUID) (bool, error)
 	PutRun(ctx context.Context, record RunRecord) error
 	GetRun(ctx context.Context, id openapi_types.UUID) (RunRecord, bool, error)
 	GetRunByIdempotencyKey(

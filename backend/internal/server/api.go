@@ -162,6 +162,20 @@ func (apiServer *API) UpdateGraph(
 	return api.UpdateGraph200JSONResponse(graph), nil
 }
 
+func (apiServer *API) DeleteGraph(
+	ctx context.Context,
+	request api.DeleteGraphRequestObject,
+) (api.DeleteGraphResponseObject, error) {
+	ok, err := apiServer.store.DeleteGraph(ctx, request.GraphId)
+	if err != nil {
+		return api.DeleteGraph500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
+	if !ok {
+		return api.DeleteGraph404JSONResponse{NotFoundJSONResponse: notFound("graph not found")}, nil
+	}
+	return api.DeleteGraph204Response{}, nil
+}
+
 func (apiServer *API) validateGraphNodes(nodes []api.Node) error {
 	for _, node := range nodes {
 		if node.Type == "" {

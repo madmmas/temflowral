@@ -4,6 +4,7 @@ import {
   apiErrorMessage,
   createNode,
   deserializeGraph,
+  graphFingerprint,
   isTerminalRunStatus,
   nextNodeId,
   resetNodeSequence,
@@ -200,6 +201,60 @@ describe("graph-canvas helpers", () => {
       "true",
       "false",
     ]);
+  });
+
+  it("serializes activityOptions and taskQueue", () => {
+    const noop = createNode(
+      { x: 0, y: 0 },
+      {
+        nodeType: "noop",
+        label: "No-op",
+        activityOptions: {
+          startToCloseTimeoutSeconds: 60,
+          retryPolicy: { maximumAttempts: 2 },
+        },
+        taskQueue: "worker.gpu",
+      },
+    );
+    expect(serializeGraph("Opts", [noop], []).nodes?.[0]).toMatchObject({
+      activityOptions: {
+        startToCloseTimeoutSeconds: 60,
+        retryPolicy: { maximumAttempts: 2 },
+      },
+      taskQueue: "worker.gpu",
+    });
+  });
+
+  it("deserializes activityOptions and taskQueue", () => {
+    const loaded = deserializeGraph({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      name: "Opts",
+      nodes: [
+        {
+          id: "noop-1",
+          type: "noop",
+          position: { x: 0, y: 0 },
+          config: {},
+          activityOptions: { startToCloseTimeoutSeconds: 30 },
+          taskQueue: "special",
+        },
+      ],
+      edges: [],
+      createdAt: "2026-08-08T00:00:00Z",
+      updatedAt: "2026-08-08T00:00:00Z",
+    });
+    expect(loaded.nodes[0].data.activityOptions).toEqual({
+      startToCloseTimeoutSeconds: 30,
+    });
+    expect(loaded.nodes[0].data.taskQueue).toBe("special");
+  });
+
+  it("fingerprints authoring state for dirty detection", () => {
+    const node = createNode({ x: 1, y: 2 }, { nodeType: "start", label: "S" });
+    const a = graphFingerprint("A", [node], []);
+    const b = graphFingerprint("B", [node], []);
+    expect(a).not.toBe(b);
+    expect(graphFingerprint("A", [node], [])).toBe(a);
   });
 
   it("omits a blank graph name", () => {
