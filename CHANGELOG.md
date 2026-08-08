@@ -10,6 +10,8 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Graph list and update APIs (`GET /graphs`, `PUT /graphs/{id}`) plus canvas
+  reopen via `?graph=` / saved-graph picker (#90).
 - Browser CORS allowlist via `API_CORS_ORIGINS` (defaults to local canvas
   origins) so `localhost:3000` can call the API on `:8080`.
 - External node-type registration guide: expanded

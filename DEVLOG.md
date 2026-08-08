@@ -5,6 +5,26 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-08 — List/update graphs and canvas reopen (#90)
+
+**Did:**
+- OpenAPI `GET /graphs` + `PUT /graphs/{id}` (`GraphList` / `GraphSummary` /
+  `UpdateGraphRequest`); regenerated Go + TS clients.
+- Store `ListGraphs` / `UpdateGraph` (memory + Postgres); API handlers + tests.
+- Canvas: Save uses PUT when an id is known; open via `?graph=` and saved-graph
+  picker; New clears the canvas; deserialize helpers + contract tests.
+
+**Decided / learned:**
+- Update preserves `createdAt` and rejects unknown ids with 404 (no upsert-create).
+
+**Verified:**
+- Backend server/store tests; frontend unit tests; contract suite (local).
+
+**Next:**
+- #91 config panel from `configSchema`.
+
+---
+
 ## 2026-08-08 — Reference product completion plan
 
 **Did:**

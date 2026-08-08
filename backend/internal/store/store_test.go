@@ -64,6 +64,30 @@ func TestMemoryStoreRoundTrip(t *testing.T) {
 		t.Fatalf("GetGraph() = %#v", got)
 	}
 
+	listed, err := memory.ListGraphs(ctx)
+	if err != nil {
+		t.Fatalf("ListGraphs() error = %v", err)
+	}
+	if len(listed) != 1 || listed[0].Id != graphID {
+		t.Fatalf("ListGraphs() = %#v", listed)
+	}
+
+	updatedName := "demo-2"
+	graph.Name = &updatedName
+	graph.UpdatedAt = graph.UpdatedAt.Add(time.Minute)
+	ok, err = memory.UpdateGraph(ctx, graph)
+	if err != nil || !ok {
+		t.Fatalf("UpdateGraph() ok=%v err=%v", ok, err)
+	}
+	got, ok, err = memory.GetGraph(ctx, graphID)
+	if err != nil || !ok || got.Name == nil || *got.Name != updatedName {
+		t.Fatalf("GetGraph after update = %#v ok=%v err=%v", got, ok, err)
+	}
+	missingOK, err := memory.UpdateGraph(ctx, api.Graph{Id: uuid.New()})
+	if err != nil || missingOK {
+		t.Fatalf("UpdateGraph missing ok=%v err=%v", missingOK, err)
+	}
+
 	runID := uuid.New()
 	record := RunRecord{
 		Run: api.Run{

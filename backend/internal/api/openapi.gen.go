@@ -181,6 +181,19 @@ type Graph struct {
 	UpdatedAt time.Time          `json:"updatedAt"`
 }
 
+// GraphList defines model for GraphList.
+type GraphList struct {
+	Graphs []GraphSummary `json:"graphs"`
+}
+
+// GraphSummary defines model for GraphSummary.
+type GraphSummary struct {
+	CreatedAt time.Time          `json:"createdAt"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      *string            `json:"name,omitempty"`
+	UpdatedAt time.Time          `json:"updatedAt"`
+}
+
 // HttpNodeConfig defines model for HttpNodeConfig.
 type HttpNodeConfig struct {
 	// Body Optional request body, limited to 1 MiB. May contain
@@ -400,6 +413,13 @@ type StartRunRequest struct {
 	Input *map[string]interface{} `json:"input,omitempty"`
 }
 
+// UpdateGraphRequest defines model for UpdateGraphRequest.
+type UpdateGraphRequest struct {
+	Edges []Edge  `json:"edges"`
+	Name  *string `json:"name,omitempty"`
+	Nodes []Node  `json:"nodes"`
+}
+
 // WaitNodeConfig defines model for WaitNodeConfig.
 type WaitNodeConfig struct {
 	// Signal Temporal signal name this node waits on. Deliver the same name via
@@ -433,6 +453,9 @@ type Unauthorized = Error
 // CreateGraphJSONRequestBody defines body for CreateGraph for application/json ContentType.
 type CreateGraphJSONRequestBody = CreateGraphRequest
 
+// UpdateGraphJSONRequestBody defines body for UpdateGraph for application/json ContentType.
+type UpdateGraphJSONRequestBody = UpdateGraphRequest
+
 // StartGraphRunJSONRequestBody defines body for StartGraphRun for application/json ContentType.
 type StartGraphRunJSONRequestBody = StartRunRequest
 
@@ -441,12 +464,18 @@ type SignalRunJSONRequestBody = SignalRunRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ListGraphs List saved graphs
+	// (GET /graphs)
+	ListGraphs(w http.ResponseWriter, r *http.Request)
 	// CreateGraph Create a graph
 	// (POST /graphs)
 	CreateGraph(w http.ResponseWriter, r *http.Request)
 	// GetGraph Fetch a graph by ID
 	// (GET /graphs/{graphId})
 	GetGraph(w http.ResponseWriter, r *http.Request, graphId GraphId)
+	// UpdateGraph Replace a saved graph
+	// (PUT /graphs/{graphId})
+	UpdateGraph(w http.ResponseWriter, r *http.Request, graphId GraphId)
 	// StartGraphRun Start a workflow run from a graph
 	// (POST /graphs/{graphId}/run)
 	StartGraphRun(w http.ResponseWriter, r *http.Request, graphId GraphId)
@@ -469,6 +498,20 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListGraphs operation middleware
+func (siw *ServerInterfaceWrapper) ListGraphs(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListGraphs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // CreateGraph operation middleware
 func (siw *ServerInterfaceWrapper) CreateGraph(w http.ResponseWriter, r *http.Request) {
@@ -501,6 +544,32 @@ func (siw *ServerInterfaceWrapper) GetGraph(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetGraph(w, r, graphId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateGraph operation middleware
+func (siw *ServerInterfaceWrapper) UpdateGraph(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "graphId" -------------
+	var graphId GraphId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "graphId", r.PathValue("graphId"), &graphId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "graphId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateGraph(w, r, graphId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -722,8 +791,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/graphs", wrapper.ListGraphs)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/graphs", wrapper.CreateGraph)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/graphs/{graphId}", wrapper.GetGraph)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/graphs/{graphId}", wrapper.UpdateGraph)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/graphs/{graphId}/run", wrapper.StartGraphRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/runs/{runId}", wrapper.GetRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/runs/{runId}/signal", wrapper.SignalRun)
@@ -739,6 +810,55 @@ type InternalErrorJSONResponse Error
 type NotFoundJSONResponse Error
 
 type UnauthorizedJSONResponse Error
+
+type ListGraphsRequestObject struct {
+}
+
+type ListGraphsResponseObject interface {
+	VisitListGraphsResponse(w http.ResponseWriter) error
+}
+
+type ListGraphs200JSONResponse GraphList
+
+func (response ListGraphs200JSONResponse) VisitListGraphsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListGraphs401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListGraphs401JSONResponse) VisitListGraphsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListGraphs500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response ListGraphs500JSONResponse) VisitListGraphsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type CreateGraphRequestObject struct {
 	Body *CreateGraphJSONRequestBody
@@ -857,6 +977,85 @@ func (response GetGraph404JSONResponse) VisitGetGraphResponse(w http.ResponseWri
 type GetGraph500JSONResponse struct{ InternalErrorJSONResponse }
 
 func (response GetGraph500JSONResponse) VisitGetGraphResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateGraphRequestObject struct {
+	GraphId GraphId `json:"graphId"`
+	Body    *UpdateGraphJSONRequestBody
+}
+
+type UpdateGraphResponseObject interface {
+	VisitUpdateGraphResponse(w http.ResponseWriter) error
+}
+
+type UpdateGraph200JSONResponse Graph
+
+func (response UpdateGraph200JSONResponse) VisitUpdateGraphResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateGraph400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateGraph400JSONResponse) VisitUpdateGraphResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateGraph401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateGraph401JSONResponse) VisitUpdateGraphResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateGraph404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateGraph404JSONResponse) VisitUpdateGraphResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateGraph500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response UpdateGraph500JSONResponse) VisitUpdateGraphResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1183,12 +1382,18 @@ func (response SignalRun500JSONResponse) VisitSignalRunResponse(w http.ResponseW
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// ListGraphs List saved graphs
+	// (GET /graphs)
+	ListGraphs(ctx context.Context, request ListGraphsRequestObject) (ListGraphsResponseObject, error)
 	// CreateGraph Create a graph
 	// (POST /graphs)
 	CreateGraph(ctx context.Context, request CreateGraphRequestObject) (CreateGraphResponseObject, error)
 	// GetGraph Fetch a graph by ID
 	// (GET /graphs/{graphId})
 	GetGraph(ctx context.Context, request GetGraphRequestObject) (GetGraphResponseObject, error)
+	// UpdateGraph Replace a saved graph
+	// (PUT /graphs/{graphId})
+	UpdateGraph(ctx context.Context, request UpdateGraphRequestObject) (UpdateGraphResponseObject, error)
 	// StartGraphRun Start a workflow run from a graph
 	// (POST /graphs/{graphId}/run)
 	StartGraphRun(ctx context.Context, request StartGraphRunRequestObject) (StartGraphRunResponseObject, error)
@@ -1242,6 +1447,30 @@ type strictHandler struct {
 	options     StrictHTTPServerOptions
 }
 
+// ListGraphs operation middleware
+func (sh *strictHandler) ListGraphs(w http.ResponseWriter, r *http.Request) {
+	var request ListGraphsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListGraphs(ctx, request.(ListGraphsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListGraphs")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListGraphsResponseObject); ok {
+		if err := validResponse.VisitListGraphsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // CreateGraph operation middleware
 func (sh *strictHandler) CreateGraph(w http.ResponseWriter, r *http.Request) {
 	var request CreateGraphRequestObject
@@ -1292,6 +1521,39 @@ func (sh *strictHandler) GetGraph(w http.ResponseWriter, r *http.Request, graphI
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetGraphResponseObject); ok {
 		if err := validResponse.VisitGetGraphResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateGraph operation middleware
+func (sh *strictHandler) UpdateGraph(w http.ResponseWriter, r *http.Request, graphId GraphId) {
+	var request UpdateGraphRequestObject
+
+	request.GraphId = graphId
+
+	var body UpdateGraphJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateGraph(ctx, request.(UpdateGraphRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateGraph")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateGraphResponseObject); ok {
+		if err := validResponse.VisitUpdateGraphResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

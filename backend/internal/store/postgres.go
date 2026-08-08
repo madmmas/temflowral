@@ -166,6 +166,56 @@ func (store *PostgresStore) GetGraph(ctx context.Context, id openapi_types.UUID)
 	return graph, true, nil
 }
 
+func (store *PostgresStore) ListGraphs(ctx context.Context) ([]api.GraphSummary, error) {
+	rows, err := store.pool.Query(ctx, `
+		SELECT id, name, created_at, updated_at
+		FROM graphs
+		ORDER BY updated_at DESC, id DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list graphs: %w", err)
+	}
+	defer rows.Close()
+
+	summaries := make([]api.GraphSummary, 0)
+	for rows.Next() {
+		var summary api.GraphSummary
+		var name *string
+		if err := rows.Scan(&summary.Id, &name, &summary.CreatedAt, &summary.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan graph summary: %w", err)
+		}
+		summary.Name = name
+		summaries = append(summaries, summary)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list graphs rows: %w", err)
+	}
+	return summaries, nil
+}
+
+func (store *PostgresStore) UpdateGraph(ctx context.Context, graph api.Graph) (bool, error) {
+	nodes, err := json.Marshal(graph.Nodes)
+	if err != nil {
+		return false, fmt.Errorf("encode graph nodes: %w", err)
+	}
+	edges, err := json.Marshal(graph.Edges)
+	if err != nil {
+		return false, fmt.Errorf("encode graph edges: %w", err)
+	}
+	tag, err := store.pool.Exec(ctx, `
+		UPDATE graphs
+		SET name = $2, nodes = $3, edges = $4, updated_at = $5
+		WHERE id = $1
+	`, graph.Id, graph.Name, nodes, edges, graph.UpdatedAt.UTC())
+	if err != nil {
+		return false, fmt.Errorf("update graph %s: %w", graph.Id, err)
+	}
+	if tag.RowsAffected() == 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
 func (store *PostgresStore) PutRun(ctx context.Context, record RunRecord) error {
 	return store.upsertRun(ctx, record, false)
 }

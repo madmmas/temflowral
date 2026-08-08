@@ -63,13 +63,16 @@ export function createNode(
 }
 
 export type CreateGraphRequest = components["schemas"]["CreateGraphRequest"];
+export type UpdateGraphRequest = components["schemas"]["UpdateGraphRequest"];
+export type Graph = components["schemas"]["Graph"];
+export type GraphSummary = components["schemas"]["GraphSummary"];
 
-/** Convert React Flow state to the OpenAPI create-graph request shape. */
+/** Convert React Flow state to the OpenAPI create/update graph request shape. */
 export function serializeGraph(
   name: string,
   nodes: readonly CanvasNode[],
   edges: readonly CanvasEdge[],
-): CreateGraphRequest {
+): CreateGraphRequest & UpdateGraphRequest {
   return {
     name: name.trim() || undefined,
     nodes: nodes.map((node) => ({
@@ -90,6 +93,54 @@ export function serializeGraph(
       targetHandle: edge.targetHandle ?? undefined,
     })),
   };
+}
+
+/**
+ * Convert a persisted Graph into React Flow nodes/edges and a display name.
+ * Advances the local node id sequence past any `node-N` ids already present.
+ */
+export function deserializeGraph(graph: Graph): {
+  name: string;
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+} {
+  const nodes: CanvasNode[] = graph.nodes.map((node) => ({
+    id: node.id,
+    type: WORKFLOW_NODE_TYPE,
+    position: { x: node.position.x, y: node.position.y },
+    data: {
+      label: node.label ?? node.type,
+      nodeType: node.type,
+      config: (node.config as Record<string, unknown> | undefined) ?? {},
+    },
+  }));
+  syncNodeSequenceFromIds(nodes.map((node) => node.id));
+
+  return {
+    name: graph.name?.trim() || "Untitled workflow",
+    nodes,
+    edges: graph.edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle ?? undefined,
+      targetHandle: edge.targetHandle ?? undefined,
+    })),
+  };
+}
+
+/** Keep `nextNodeId()` from colliding with loaded `node-N` ids. */
+export function syncNodeSequenceFromIds(ids: readonly string[]): void {
+  let max = nodeSequence;
+  for (const id of ids) {
+    const match = /^node-(\d+)$/.exec(id);
+    if (!match) continue;
+    const value = Number(match[1]);
+    if (Number.isFinite(value) && value > max) {
+      max = value;
+    }
+  }
+  nodeSequence = max;
 }
 
 export type RunStatus = components["schemas"]["RunStatus"];
