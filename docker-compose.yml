@@ -84,6 +84,9 @@ services:
       # Optional service-to-service Bearer auth. Leave unset for open local demo
       # (default). Set API_AUTH_TOKEN when exposing the API beyond localhost.
       API_AUTH_TOKEN: ${API_AUTH_TOKEN:-}
+      # Browser Origin allowlist for the reference canvas. Defaults in-process to
+      # localhost/127.0.0.1:3000 when unset; override for non-local frontends.
+      API_CORS_ORIGINS: ${API_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
     ports:
       - "8080:8080"
 
