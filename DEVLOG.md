@@ -5,6 +5,28 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-08 — Fix API CORS for local canvas
+
+**Did:**
+- Added `withCORS` middleware wrapping the HTTP handler (including OPTIONS
+  preflight outside Bearer auth) so the compose frontend at `:3000` can call
+  `GET /node-types` on `:8080`.
+- `API_CORS_ORIGINS` allowlist; defaults to `localhost` / `127.0.0.1:3000`
+  when unset. Documented in SECURITY / CONTRIBUTING / compose / CHANGELOG.
+
+**Decided / learned:**
+- Missing `Access-Control-Allow-Origin` caused the palette's
+  "Failed to load node types" even though curl to the backend succeeded.
+
+**Verified:**
+- `go test` for `internal/server` CORS cases; rebuild backend container and
+  browser fetch from `localhost:3000`.
+
+**Next:**
+- Resume backlog from ISSUES / product feedback.
+
+---
+
 ## 2026-07-22 — External node-type registration docs (#67)
 
 **Did:**

@@ -63,6 +63,20 @@ When `API_AUTH_TOKEN` is unset, the API runs in **open mode** (local
 development, Prism mocks, and compose defaults). Do not expose an open-mode
 server on an untrusted network.
 
+### Browser CORS
+
+The reference canvas on port 3000 calls the API on port 8080 (cross-origin).
+The backend reflects an allowlisted `Origin` and answers `OPTIONS` preflight
+outside the Bearer gate:
+
+```sh
+API_CORS_ORIGINS='http://localhost:3000,http://127.0.0.1:3000'
+```
+
+When unset, those local origins are the default. Set `API_CORS_ORIGINS` to your
+deployed frontend origin(s) in shared environments, or to empty to emit no CORS
+headers (non-browser clients are unaffected).
+
 ### mTLS
 
 Mutual TLS is supported as a **deployment** option: terminate client
