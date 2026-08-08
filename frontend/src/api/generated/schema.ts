@@ -98,7 +98,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Poll run status and result */
+        /**
+         * Poll run status and result
+         * @description Returns the latest run status from Temporal. When `status` is `running`
+         *     and GraphWorkflow is blocked on a wait node, `currentWait` includes the
+         *     wait node's id and signal name for `POST /runs/{runId}/signal`.
+         *
+         */
         get: operations["getRun"];
         put?: never;
         post?: never;
@@ -653,6 +659,26 @@ export interface components {
             };
             /** @description Error message when status is failed or cancelled */
             error?: string;
+            /** @description Present when status is running and GraphWorkflow is blocked on a
+             *     wait node. Use the `signal` value with POST /runs/{id}/signal.
+             *     Omitted when the run is not waiting.
+             *      */
+            currentWait?: components["schemas"]["CurrentWait"];
+        };
+        /**
+         * @description Active wait-node block reported by the Temporal `temflowral.currentWait`
+         *     query. Empty/absent when the workflow is not currently waiting.
+         *
+         * @example {
+         *       "nodeId": "wait-1",
+         *       "signal": "approval.granted"
+         *     }
+         */
+        CurrentWait: {
+            /** @description Graph node id of the wait node */
+            nodeId: string;
+            /** @description Signal name the wait node is blocked on */
+            signal: string;
         };
         /** @example {
          *       "idempotencyKey": "webhook-delivery-abc123",

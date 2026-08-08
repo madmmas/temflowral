@@ -326,6 +326,7 @@ func (apiServer *API) GetRun(
 	}
 
 	record.Run.Status = mapTemporalStatus(status.Status)
+	record.Run.CurrentWait = nil
 	switch record.Run.Status {
 	case api.Completed:
 		completedAt := nowUTC()
@@ -343,6 +344,23 @@ func (apiServer *API) GetRun(
 			record.Run.Error = &errMessage
 		}
 		record.Run.Result = nil
+	case api.Running:
+		record.Run.CompletedAt = nil
+		record.Run.Error = nil
+		record.Run.Result = nil
+		currentWait, waitErr := apiServer.runner.QueryCurrentWait(ctx, temporal.WorkflowExecution{
+			ID:    record.TemporalWorkflowID,
+			RunID: record.TemporalRunID,
+		})
+		if waitErr != nil {
+			return api.GetRun500JSONResponse{InternalErrorJSONResponse: internalError(waitErr.Error())}, nil
+		}
+		if currentWait.Signal != "" {
+			record.Run.CurrentWait = &api.CurrentWait{
+				NodeId: currentWait.NodeID,
+				Signal: currentWait.Signal,
+			}
+		}
 	default:
 		record.Run.CompletedAt = nil
 		record.Run.Error = nil

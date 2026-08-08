@@ -576,6 +576,161 @@ func TestStartAndGetGraphRun(t *testing.T) {
 	}
 }
 
+func TestGetRunIncludesCurrentWaitWhenBlocked(t *testing.T) {
+	t.Parallel()
+
+	runner := &stubRunner{
+		startFn: func(_ context.Context, workflowID string, _ temporal.GraphWorkflowInput) (temporal.WorkflowExecution, error) {
+			return temporal.WorkflowExecution{ID: workflowID, RunID: "run-wait"}, nil
+		},
+		describeFn: func(_ context.Context, _ temporal.WorkflowExecution) (temporal.WorkflowStatus, error) {
+			return temporal.WorkflowStatus{Status: enums.WORKFLOW_EXECUTION_STATUS_RUNNING}, nil
+		},
+		queryFn: func(_ context.Context, _ temporal.WorkflowExecution) (temporal.CurrentWait, error) {
+			return temporal.CurrentWait{NodeID: "wait-1", Signal: "approval.granted"}, nil
+		},
+	}
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), runner, nil))
+
+	createRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs",
+		strings.NewReader(`{
+			"nodes":[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"wait-1","type":"wait","position":{"x":100,"y":0},"config":{"signal":"approval.granted","timeoutSeconds":60}},
+				{"id":"noop-1","type":"noop","position":{"x":200,"y":0}}
+			],
+			"edges":[
+				{"id":"e1","source":"start-1","target":"wait-1"},
+				{"id":"e2","source":"wait-1","target":"noop-1","sourceHandle":"received"},
+				{"id":"e3","source":"wait-1","target":"noop-1","sourceHandle":"timedOut"}
+			]
+		}`),
+	)
+	createRequest.Header.Set("Content-Type", "application/json")
+	createRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(createRecorder, createRequest)
+	if createRecorder.Code != http.StatusCreated {
+		t.Fatalf("create status = %d body=%s", createRecorder.Code, createRecorder.Body.String())
+	}
+
+	var created api.Graph
+	if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	runRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs/"+created.Id.String()+"/run",
+		strings.NewReader(`{}`),
+	)
+	runRequest.Header.Set("Content-Type", "application/json")
+	runRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(runRecorder, runRequest)
+	if runRecorder.Code != http.StatusAccepted {
+		t.Fatalf("run status = %d body=%s", runRecorder.Code, runRecorder.Body.String())
+	}
+
+	var started api.Run
+	if err := json.Unmarshal(runRecorder.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode run response: %v", err)
+	}
+
+	getRequest := httptest.NewRequest(http.MethodGet, "/runs/"+started.Id.String(), nil)
+	getRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(getRecorder, getRequest)
+	if getRecorder.Code != http.StatusOK {
+		t.Fatalf("get run status = %d body=%s", getRecorder.Code, getRecorder.Body.String())
+	}
+
+	var got api.Run
+	if err := json.Unmarshal(getRecorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode get run: %v", err)
+	}
+	if got.Status != api.Running {
+		t.Fatalf("status = %q, want running", got.Status)
+	}
+	if got.CurrentWait == nil {
+		t.Fatal("currentWait is nil, want wait block info")
+	}
+	if got.CurrentWait.NodeId != "wait-1" || got.CurrentWait.Signal != "approval.granted" {
+		t.Fatalf("currentWait = %#v, want wait-1 / approval.granted", got.CurrentWait)
+	}
+}
+
+func TestGetRunOmitsCurrentWaitWhenNotBlocked(t *testing.T) {
+	t.Parallel()
+
+	runner := &stubRunner{
+		startFn: func(_ context.Context, workflowID string, _ temporal.GraphWorkflowInput) (temporal.WorkflowExecution, error) {
+			return temporal.WorkflowExecution{ID: workflowID, RunID: "run-busy"}, nil
+		},
+		describeFn: func(_ context.Context, _ temporal.WorkflowExecution) (temporal.WorkflowStatus, error) {
+			return temporal.WorkflowStatus{Status: enums.WORKFLOW_EXECUTION_STATUS_RUNNING}, nil
+		},
+		queryFn: func(_ context.Context, _ temporal.WorkflowExecution) (temporal.CurrentWait, error) {
+			return temporal.CurrentWait{}, nil
+		},
+	}
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), runner, nil))
+
+	createRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs",
+		strings.NewReader(`{
+			"nodes":[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"noop-1","type":"noop","position":{"x":100,"y":0}}
+			],
+			"edges":[{"id":"e1","source":"start-1","target":"noop-1"}]
+		}`),
+	)
+	createRequest.Header.Set("Content-Type", "application/json")
+	createRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(createRecorder, createRequest)
+	if createRecorder.Code != http.StatusCreated {
+		t.Fatalf("create status = %d body=%s", createRecorder.Code, createRecorder.Body.String())
+	}
+
+	var created api.Graph
+	if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+
+	runRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs/"+created.Id.String()+"/run",
+		strings.NewReader(`{}`),
+	)
+	runRequest.Header.Set("Content-Type", "application/json")
+	runRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(runRecorder, runRequest)
+	if runRecorder.Code != http.StatusAccepted {
+		t.Fatalf("run status = %d body=%s", runRecorder.Code, runRecorder.Body.String())
+	}
+
+	var started api.Run
+	if err := json.Unmarshal(runRecorder.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode run: %v", err)
+	}
+
+	getRequest := httptest.NewRequest(http.MethodGet, "/runs/"+started.Id.String(), nil)
+	getRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(getRecorder, getRequest)
+	if getRecorder.Code != http.StatusOK {
+		t.Fatalf("get run status = %d body=%s", getRecorder.Code, getRecorder.Body.String())
+	}
+
+	var got api.Run
+	if err := json.Unmarshal(getRecorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode get run: %v", err)
+	}
+	if got.CurrentWait != nil {
+		t.Fatalf("currentWait = %#v, want omitted", got.CurrentWait)
+	}
+}
+
 func TestStartGraphRunIdempotencyKeyDedupes(t *testing.T) {
 	t.Parallel()
 

@@ -5,6 +5,25 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-08 — Named handles + wait-signal UI (#92)
+
+**Did:**
+- Contract: optional `Run.currentWait` (`nodeId` + `signal`) on `GET /runs/{id}`
+  when GraphWorkflow is blocked on a wait node.
+- Backend: `GetRun` queries `temflowral.currentWait` for running executions.
+- Frontend: registry-driven named source handles on `WorkflowNode`; signal panel
+  when `currentWait` is set (`POST /runs/{id}/signal`).
+- Docs: adding-a-node-type, ISSUES, CHANGELOG, plan status.
+
+**Verified:**
+- Backend API tests for currentWait include/omit; frontend unit tests for
+  output-handle resolution and sourceHandle serialize round-trip.
+
+**Next:**
+- #93 authoring polish (dirty state, idempotent Run).
+
+---
+
 ## 2026-08-08 — Node config panel from configSchema (#91)
 
 **Did:**

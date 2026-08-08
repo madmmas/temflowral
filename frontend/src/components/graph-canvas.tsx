@@ -28,6 +28,7 @@ import { createApiClient, type components } from "@/api";
 import { NODE_TYPE_DRAG_KEY, NodePalette } from "@/components/node-palette";
 import { NodeConfigPanel } from "@/components/node-config-panel";
 import { WorkflowNode } from "@/components/nodes/workflow-node";
+import { RunSignalPanel } from "@/components/run-signal-panel";
 import {
   apiErrorMessage,
   createNode,
@@ -38,6 +39,7 @@ import {
   type CanvasNode,
 } from "@/lib/graph-canvas";
 import { useGraphList } from "@/lib/graph-list";
+import { NodeTypeRegistryProvider } from "@/lib/node-type-registry";
 import { useNodeTypes, type NodeType } from "@/lib/node-types";
 
 const initialNodes: CanvasNode[] = [];
@@ -307,6 +309,34 @@ function GraphCanvasInner() {
     }
   }, [saveGraph]);
 
+  const sendRunSignal = useCallback(
+    async (signal: string, payload: unknown | undefined) => {
+      if (!runId) {
+        throw new Error("No active run");
+      }
+      const body: components["schemas"]["SignalRunRequest"] =
+        payload === undefined ? { signal } : { signal, payload };
+      const { data, error } = await createApiClient().POST(
+        "/runs/{runId}/signal",
+        {
+          params: { path: { runId } },
+          body,
+        },
+      );
+      if (error || !data) {
+        throw new Error(apiErrorMessage(error, "Failed to send signal"));
+      }
+      // Resume polling with a fresh GET so currentWait clears promptly.
+      const refreshed = await createApiClient().GET("/runs/{runId}", {
+        params: { path: { runId } },
+      });
+      if (refreshed.data) {
+        setRun(refreshed.data);
+      }
+    },
+    [runId],
+  );
+
   const onOpenGraphChange = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
       const graphId = event.target.value;
@@ -354,6 +384,7 @@ function GraphCanvasInner() {
   const busy = action !== "idle";
 
   return (
+    <NodeTypeRegistryProvider nodeTypes={registryNodeTypes}>
     <div data-testid="graph-editor" className="flex h-full w-full">
       <NodePalette
         onAddNodeType={onAddNodeType}
@@ -466,6 +497,14 @@ function GraphCanvasInner() {
                 Run {run.status}
               </span>
             )}
+            {run?.currentWait && runId && (
+              <RunSignalPanel
+                runId={runId}
+                currentWait={run.currentWait}
+                busy={busy}
+                onSend={sendRunSignal}
+              />
+            )}
             {run?.result && (
               <pre
                 data-testid="run-result"
@@ -500,6 +539,7 @@ function GraphCanvasInner() {
         />
       )}
     </div>
+    </NodeTypeRegistryProvider>
   );
 }
 

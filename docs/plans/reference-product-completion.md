@@ -1,6 +1,6 @@
 # Plan: reference product completion
 
-**Status:** proposed  
+**Status:** Phase 3 done (#92); next Phase 4 (#93)  
 **Date:** 2026-08-08  
 **Context:** Post-backlog (#55–#67 closed). Engine/contract are largely done; remaining gaps are the reference canvas, a few API affordances, and live verification. See also the project-status canvas notes from the same session.
 
