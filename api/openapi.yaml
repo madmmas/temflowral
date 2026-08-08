@@ -27,8 +27,8 @@ servers:
 tags:
   - name: graphs
     description: |
-      Workflow graph CRUD. Graph metadata is persisted in the configured durable
-      store (Postgres via DATABASE_URL).
+      Workflow graph CRUD. Create, list, fetch, and update graphs persisted in
+      the configured durable store (Postgres via DATABASE_URL).
   - name: runs
     description: |
       Workflow execution. Run records (including Temporal workflow IDs) are
@@ -39,6 +39,30 @@ tags:
 
 paths:
   /graphs:
+    get:
+      operationId: listGraphs
+      tags: [graphs]
+      summary: List saved graphs
+      description: |
+        Returns graph summaries (id, name, timestamps) ordered by most recently
+        updated first. Full node/edge payloads are available via GET /graphs/{id}.
+      responses:
+        '200':
+          description: Graph list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GraphList'
+              example:
+                graphs:
+                  - id: 550e8400-e29b-41d4-a716-446655440000
+                    name: Hello workflow
+                    createdAt: '2026-07-16T08:00:00Z'
+                    updatedAt: '2026-07-16T09:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
       operationId: createGraph
       tags: [graphs]
@@ -101,6 +125,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Graph'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: updateGraph
+      tags: [graphs]
+      summary: Replace a saved graph
+      description: |
+        Replace name, nodes, and edges for an existing graph. `createdAt` is
+        preserved; `updatedAt` is set to the server time. Unknown node types and
+        invalid per-type config are rejected with 400. Returns 404 when the
+        graph id does not exist (does not create).
+      parameters:
+        - $ref: '#/components/parameters/GraphId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGraphRequest'
+            example:
+              name: Hello workflow (edited)
+              nodes:
+                - id: start-1
+                  type: start
+                  label: Start
+                  position: { x: 0, y: 0 }
+                  config: {}
+                - id: noop-1
+                  type: noop
+                  label: No-op
+                  position: { x: 200, y: 0 }
+                  config: {}
+              edges:
+                - id: e-start-noop
+                  source: start-1
+                  target: noop-1
+      responses:
+        '200':
+          description: Graph updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Graph'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -593,7 +666,58 @@ components:
         createdAt: '2026-07-16T08:00:00Z'
         updatedAt: '2026-07-16T08:00:00Z'
 
+    GraphSummary:
+      type: object
+      required: [id, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        name: Hello workflow
+        createdAt: '2026-07-16T08:00:00Z'
+        updatedAt: '2026-07-16T09:00:00Z'
+
+    GraphList:
+      type: object
+      required: [graphs]
+      properties:
+        graphs:
+          type: array
+          items:
+            $ref: '#/components/schemas/GraphSummary'
+      example:
+        graphs:
+          - id: 550e8400-e29b-41d4-a716-446655440000
+            name: Hello workflow
+            createdAt: '2026-07-16T08:00:00Z'
+            updatedAt: '2026-07-16T09:00:00Z'
+
     CreateGraphRequest:
+      type: object
+      required: [nodes, edges]
+      properties:
+        name:
+          type: string
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Node'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/Edge'
+
+    UpdateGraphRequest:
       type: object
       required: [nodes, edges]
       properties:

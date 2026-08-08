@@ -11,7 +11,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List saved graphs
+         * @description Returns graph summaries (id, name, timestamps) ordered by most recently
+         *     updated first. Full node/edge payloads are available via GET /graphs/{id}.
+         *
+         */
+        get: operations["listGraphs"];
         put?: never;
         /**
          * Create a graph
@@ -37,7 +43,15 @@ export interface paths {
         };
         /** Fetch a graph by ID */
         get: operations["getGraph"];
-        put?: never;
+        /**
+         * Replace a saved graph
+         * @description Replace name, nodes, and edges for an existing graph. `createdAt` is
+         *     preserved; `updatedAt` is set to the server time. Unknown node types and
+         *     invalid per-type config are rejected with 400. Returns 404 when the
+         *     graph id does not exist (does not create).
+         *
+         */
+        put: operations["updateGraph"];
         post?: never;
         delete?: never;
         options?: never;
@@ -371,7 +385,40 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        /** @example {
+         *       "id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "name": "Hello workflow",
+         *       "createdAt": "2026-07-16T08:00:00Z",
+         *       "updatedAt": "2026-07-16T09:00:00Z"
+         *     } */
+        GraphSummary: {
+            /** Format: uuid */
+            id: string;
+            name?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @example {
+         *       "graphs": [
+         *         {
+         *           "id": "550e8400-e29b-41d4-a716-446655440000",
+         *           "name": "Hello workflow",
+         *           "createdAt": "2026-07-16T08:00:00Z",
+         *           "updatedAt": "2026-07-16T09:00:00Z"
+         *         }
+         *       ]
+         *     } */
+        GraphList: {
+            graphs: components["schemas"]["GraphSummary"][];
+        };
         CreateGraphRequest: {
+            name?: string;
+            nodes: components["schemas"]["Node"][];
+            edges: components["schemas"]["Edge"][];
+        };
+        UpdateGraphRequest: {
             name?: string;
             nodes: components["schemas"]["Node"][];
             edges: components["schemas"]["Edge"][];
@@ -992,6 +1039,38 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listGraphs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Graph list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /** @example {
+                     *       "graphs": [
+                     *         {
+                     *           "id": "550e8400-e29b-41d4-a716-446655440000",
+                     *           "name": "Hello workflow",
+                     *           "createdAt": "2026-07-16T08:00:00Z",
+                     *           "updatedAt": "2026-07-16T09:00:00Z"
+                     *         }
+                     *       ]
+                     *     } */
+                    "application/json": components["schemas"]["GraphList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     createGraph: {
         parameters: {
             query?: never;
@@ -1078,6 +1157,72 @@ export interface operations {
                     "application/json": components["schemas"]["Graph"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    updateGraph: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Graph identifier
+                 * @example 550e8400-e29b-41d4-a716-446655440000
+                 */
+                graphId: components["parameters"]["GraphId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @example {
+                 *       "name": "Hello workflow (edited)",
+                 *       "nodes": [
+                 *         {
+                 *           "id": "start-1",
+                 *           "type": "start",
+                 *           "label": "Start",
+                 *           "position": {
+                 *             "x": 0,
+                 *             "y": 0
+                 *           },
+                 *           "config": {}
+                 *         },
+                 *         {
+                 *           "id": "noop-1",
+                 *           "type": "noop",
+                 *           "label": "No-op",
+                 *           "position": {
+                 *             "x": 200,
+                 *             "y": 0
+                 *           },
+                 *           "config": {}
+                 *         }
+                 *       ],
+                 *       "edges": [
+                 *         {
+                 *           "id": "e-start-noop",
+                 *           "source": "start-1",
+                 *           "target": "noop-1"
+                 *         }
+                 *       ]
+                 *     } */
+                "application/json": components["schemas"]["UpdateGraphRequest"];
+            };
+        };
+        responses: {
+            /** @description Graph updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Graph"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];

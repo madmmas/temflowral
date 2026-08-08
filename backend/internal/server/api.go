@@ -63,6 +63,10 @@ func (apiServer *API) CreateGraph(
 		return api.CreateGraph400JSONResponse{BadRequestJSONResponse: badRequest("request body is required")}, nil
 	}
 
+	if err := apiServer.validateGraphNodes(request.Body.Nodes); err != nil {
+		return api.CreateGraph400JSONResponse{BadRequestJSONResponse: badRequest(err.Error())}, nil
+	}
+
 	now := nowUTC()
 	graph := api.Graph{
 		Id:        newGraphID(),
@@ -78,35 +82,25 @@ func (apiServer *API) CreateGraph(
 	if graph.Edges == nil {
 		graph.Edges = []api.Edge{}
 	}
-	for _, node := range graph.Nodes {
-		if node.Type == "" {
-			return api.CreateGraph400JSONResponse{
-				BadRequestJSONResponse: badRequest(fmt.Sprintf("node %q has empty type", node.Id)),
-			}, nil
-		}
-		if _, ok := apiServer.registry.Get(node.Type); !ok {
-			return api.CreateGraph400JSONResponse{
-				BadRequestJSONResponse: badRequest(
-					fmt.Sprintf("unsupported node type %q on node %q", node.Type, node.Id),
-				),
-			}, nil
-		}
-		if err := temporal.ValidateNodeConfig(node); err != nil {
-			return api.CreateGraph400JSONResponse{
-				BadRequestJSONResponse: badRequest(err.Error()),
-			}, nil
-		}
-		if err := temporal.ValidateActivityOptions(node); err != nil {
-			return api.CreateGraph400JSONResponse{
-				BadRequestJSONResponse: badRequest(err.Error()),
-			}, nil
-		}
-	}
 
 	if err := apiServer.store.PutGraph(ctx, graph); err != nil {
 		return api.CreateGraph500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
 	}
 	return api.CreateGraph201JSONResponse(graph), nil
+}
+
+func (apiServer *API) ListGraphs(
+	ctx context.Context,
+	_ api.ListGraphsRequestObject,
+) (api.ListGraphsResponseObject, error) {
+	summaries, err := apiServer.store.ListGraphs(ctx)
+	if err != nil {
+		return api.ListGraphs500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
+	if summaries == nil {
+		summaries = []api.GraphSummary{}
+	}
+	return api.ListGraphs200JSONResponse{Graphs: summaries}, nil
 }
 
 func (apiServer *API) GetGraph(
@@ -121,6 +115,69 @@ func (apiServer *API) GetGraph(
 		return api.GetGraph404JSONResponse{NotFoundJSONResponse: notFound("graph not found")}, nil
 	}
 	return api.GetGraph200JSONResponse(graph), nil
+}
+
+func (apiServer *API) UpdateGraph(
+	ctx context.Context,
+	request api.UpdateGraphRequestObject,
+) (api.UpdateGraphResponseObject, error) {
+	if request.Body == nil {
+		return api.UpdateGraph400JSONResponse{BadRequestJSONResponse: badRequest("request body is required")}, nil
+	}
+
+	existing, ok, err := apiServer.store.GetGraph(ctx, request.GraphId)
+	if err != nil {
+		return api.UpdateGraph500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
+	if !ok {
+		return api.UpdateGraph404JSONResponse{NotFoundJSONResponse: notFound("graph not found")}, nil
+	}
+
+	if err := apiServer.validateGraphNodes(request.Body.Nodes); err != nil {
+		return api.UpdateGraph400JSONResponse{BadRequestJSONResponse: badRequest(err.Error())}, nil
+	}
+
+	graph := api.Graph{
+		Id:        existing.Id,
+		Name:      request.Body.Name,
+		Nodes:     request.Body.Nodes,
+		Edges:     request.Body.Edges,
+		CreatedAt: existing.CreatedAt,
+		UpdatedAt: nowUTC(),
+	}
+	if graph.Nodes == nil {
+		graph.Nodes = []api.Node{}
+	}
+	if graph.Edges == nil {
+		graph.Edges = []api.Edge{}
+	}
+
+	updated, err := apiServer.store.UpdateGraph(ctx, graph)
+	if err != nil {
+		return api.UpdateGraph500JSONResponse{InternalErrorJSONResponse: internalError(err.Error())}, nil
+	}
+	if !updated {
+		return api.UpdateGraph404JSONResponse{NotFoundJSONResponse: notFound("graph not found")}, nil
+	}
+	return api.UpdateGraph200JSONResponse(graph), nil
+}
+
+func (apiServer *API) validateGraphNodes(nodes []api.Node) error {
+	for _, node := range nodes {
+		if node.Type == "" {
+			return fmt.Errorf("node %q has empty type", node.Id)
+		}
+		if _, ok := apiServer.registry.Get(node.Type); !ok {
+			return fmt.Errorf("unsupported node type %q on node %q", node.Type, node.Id)
+		}
+		if err := temporal.ValidateNodeConfig(node); err != nil {
+			return err
+		}
+		if err := temporal.ValidateActivityOptions(node); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (apiServer *API) StartGraphRun(

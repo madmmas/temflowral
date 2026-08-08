@@ -101,7 +101,110 @@ func TestCreateAndGetGraph(t *testing.T) {
 	getRecorder := httptest.NewRecorder()
 	handler.ServeHTTP(getRecorder, getRequest)
 	if getRecorder.Code != http.StatusOK {
-		t.Fatalf("get status = %d, want %d", getRecorder.Code, http.StatusOK)
+		t.Fatalf("get status = %d, want %d body=%s", getRecorder.Code, http.StatusOK, getRecorder.Body.String())
+	}
+}
+
+func TestListAndUpdateGraph(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler([]byte("openapi: 3.1.0\n"), NewAPI(store.NewMemoryStore(), &stubRunner{}, nil))
+
+	listEmpty := httptest.NewRecorder()
+	handler.ServeHTTP(listEmpty, httptest.NewRequest(http.MethodGet, "/graphs", nil))
+	if listEmpty.Code != http.StatusOK {
+		t.Fatalf("list empty status = %d body=%s", listEmpty.Code, listEmpty.Body.String())
+	}
+	var emptyList api.GraphList
+	if err := json.Unmarshal(listEmpty.Body.Bytes(), &emptyList); err != nil {
+		t.Fatalf("decode empty list: %v", err)
+	}
+	if len(emptyList.Graphs) != 0 {
+		t.Fatalf("empty list len = %d, want 0", len(emptyList.Graphs))
+	}
+
+	createRecorder := httptest.NewRecorder()
+	createRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/graphs",
+		strings.NewReader(`{
+			"name":"demo",
+			"nodes":[{"id":"start-1","type":"start","position":{"x":0,"y":0}}],
+			"edges":[]
+		}`),
+	)
+	createRequest.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(createRecorder, createRequest)
+	if createRecorder.Code != http.StatusCreated {
+		t.Fatalf("create status = %d body=%s", createRecorder.Code, createRecorder.Body.String())
+	}
+	var created api.Graph
+	if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+
+	listRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(listRecorder, httptest.NewRequest(http.MethodGet, "/graphs", nil))
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("list status = %d body=%s", listRecorder.Code, listRecorder.Body.String())
+	}
+	var listed api.GraphList
+	if err := json.Unmarshal(listRecorder.Body.Bytes(), &listed); err != nil {
+		t.Fatalf("decode list: %v", err)
+	}
+	if len(listed.Graphs) != 1 || listed.Graphs[0].Id != created.Id {
+		t.Fatalf("list = %#v, want id %s", listed.Graphs, created.Id)
+	}
+
+	updateRecorder := httptest.NewRecorder()
+	updateRequest := httptest.NewRequest(
+		http.MethodPut,
+		"/graphs/"+created.Id.String(),
+		strings.NewReader(`{
+			"name":"demo-updated",
+			"nodes":[
+				{"id":"start-1","type":"start","position":{"x":0,"y":0}},
+				{"id":"noop-1","type":"noop","position":{"x":100,"y":0}}
+			],
+			"edges":[{"id":"e1","source":"start-1","target":"noop-1"}]
+		}`),
+	)
+	updateRequest.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(updateRecorder, updateRequest)
+	if updateRecorder.Code != http.StatusOK {
+		t.Fatalf("update status = %d body=%s", updateRecorder.Code, updateRecorder.Body.String())
+	}
+	var updated api.Graph
+	if err := json.Unmarshal(updateRecorder.Body.Bytes(), &updated); err != nil {
+		t.Fatalf("decode update: %v", err)
+	}
+	if updated.Id != created.Id {
+		t.Fatalf("update id = %s, want %s", updated.Id, created.Id)
+	}
+	if updated.Name == nil || *updated.Name != "demo-updated" {
+		t.Fatalf("update name = %v, want demo-updated", updated.Name)
+	}
+	if len(updated.Nodes) != 2 || len(updated.Edges) != 1 {
+		t.Fatalf("update nodes=%d edges=%d", len(updated.Nodes), len(updated.Edges))
+	}
+	if !updated.CreatedAt.Equal(created.CreatedAt) {
+		t.Fatalf("createdAt changed: %v -> %v", created.CreatedAt, updated.CreatedAt)
+	}
+	if !updated.UpdatedAt.After(created.UpdatedAt) && !updated.UpdatedAt.Equal(created.UpdatedAt) {
+		// allow equal if clock resolution is coarse in tests; must not go backwards
+		t.Fatalf("updatedAt = %v, created UpdatedAt = %v", updated.UpdatedAt, created.UpdatedAt)
+	}
+
+	missingRecorder := httptest.NewRecorder()
+	missingRequest := httptest.NewRequest(
+		http.MethodPut,
+		"/graphs/00000000-0000-4000-8000-000000000099",
+		strings.NewReader(`{"nodes":[],"edges":[]}`),
+	)
+	missingRequest.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(missingRecorder, missingRequest)
+	if missingRecorder.Code != http.StatusNotFound {
+		t.Fatalf("missing update status = %d, want 404 body=%s", missingRecorder.Code, missingRecorder.Body.String())
 	}
 }
 

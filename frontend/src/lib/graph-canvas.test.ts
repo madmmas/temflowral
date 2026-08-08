@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   apiErrorMessage,
   createNode,
+  deserializeGraph,
   isTerminalRunStatus,
   nextNodeId,
   resetNodeSequence,
   serializeGraph,
+  syncNodeSequenceFromIds,
   WORKFLOW_NODE_TYPE,
 } from "./graph-canvas";
 
@@ -91,6 +93,54 @@ describe("graph-canvas helpers", () => {
         },
       ],
     });
+  });
+
+  it("deserializes a persisted graph back onto the canvas", () => {
+    const loaded = deserializeGraph({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      name: "Saved workflow",
+      nodes: [
+        {
+          id: "start-1",
+          type: "start",
+          label: "Start",
+          position: { x: 1, y: 2 },
+          config: {},
+        },
+        {
+          id: "node-7",
+          type: "noop",
+          position: { x: 3, y: 4 },
+          config: { value: 1 },
+        },
+      ],
+      edges: [{ id: "e1", source: "start-1", target: "node-7" }],
+      createdAt: "2026-08-08T00:00:00Z",
+      updatedAt: "2026-08-08T01:00:00Z",
+    });
+
+    expect(loaded.name).toBe("Saved workflow");
+    expect(loaded.nodes).toHaveLength(2);
+    expect(loaded.nodes[0]).toMatchObject({
+      id: "start-1",
+      type: WORKFLOW_NODE_TYPE,
+      data: { label: "Start", nodeType: "start", config: {} },
+    });
+    expect(loaded.edges).toEqual([
+      {
+        id: "e1",
+        source: "start-1",
+        target: "node-7",
+        sourceHandle: undefined,
+        targetHandle: undefined,
+      },
+    ]);
+    expect(nextNodeId()).toBe("node-8");
+  });
+
+  it("syncs the node sequence from loaded ids", () => {
+    syncNodeSequenceFromIds(["start-1", "node-4", "noop-2"]);
+    expect(nextNodeId()).toBe("node-5");
   });
 
   it("omits a blank graph name", () => {

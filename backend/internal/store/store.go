@@ -26,6 +26,9 @@ type RunRecord struct {
 type Store interface {
 	PutGraph(ctx context.Context, graph api.Graph) error
 	GetGraph(ctx context.Context, id openapi_types.UUID) (api.Graph, bool, error)
+	ListGraphs(ctx context.Context) ([]api.GraphSummary, error)
+	// UpdateGraph replaces an existing graph. ok is false when the id is missing.
+	UpdateGraph(ctx context.Context, graph api.Graph) (bool, error)
 	PutRun(ctx context.Context, record RunRecord) error
 	GetRun(ctx context.Context, id openapi_types.UUID) (RunRecord, bool, error)
 	GetRunByIdempotencyKey(

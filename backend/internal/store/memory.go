@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -41,6 +42,37 @@ func (store *MemoryStore) GetGraph(_ context.Context, id openapi_types.UUID) (ap
 	defer store.mu.RUnlock()
 	graph, ok := store.graphs[id]
 	return graph, ok, nil
+}
+
+func (store *MemoryStore) ListGraphs(_ context.Context) ([]api.GraphSummary, error) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	summaries := make([]api.GraphSummary, 0, len(store.graphs))
+	for _, graph := range store.graphs {
+		summaries = append(summaries, api.GraphSummary{
+			Id:        graph.Id,
+			Name:      graph.Name,
+			CreatedAt: graph.CreatedAt,
+			UpdatedAt: graph.UpdatedAt,
+		})
+	}
+	sort.Slice(summaries, func(i, j int) bool {
+		if summaries[i].UpdatedAt.Equal(summaries[j].UpdatedAt) {
+			return summaries[i].Id.String() > summaries[j].Id.String()
+		}
+		return summaries[i].UpdatedAt.After(summaries[j].UpdatedAt)
+	})
+	return summaries, nil
+}
+
+func (store *MemoryStore) UpdateGraph(_ context.Context, graph api.Graph) (bool, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if _, ok := store.graphs[graph.Id]; !ok {
+		return false, nil
+	}
+	store.graphs[graph.Id] = graph
+	return true, nil
 }
 
 func (store *MemoryStore) PutRun(_ context.Context, record RunRecord) error {

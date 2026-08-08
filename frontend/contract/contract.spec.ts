@@ -70,6 +70,32 @@ test.describe("contract conformance", () => {
     assertMatchesSchema("Graph", await response.json());
   });
 
+  test("GET /graphs returns a valid GraphList", async ({ request }) => {
+    await createGraph(request);
+    const response = await request.get("/graphs");
+    expect(response.status(), await response.text()).toBe(200);
+    assertMatchesSchema("GraphList", await response.json());
+  });
+
+  test("PUT /graphs/{id} returns a valid Graph", async ({ request }) => {
+    const { id } = await createGraph(request);
+    const response = await request.put(`/graphs/${id}`, {
+      data: {
+        name: "Updated conformance workflow",
+        nodes: sampleGraph.nodes,
+        edges: sampleGraph.edges,
+      },
+    });
+    expect(response.status(), await response.text()).toBe(200);
+    const body = await response.json();
+    assertMatchesSchema("Graph", body);
+    // Prism may return the OpenAPI example; live API preserves the path id.
+    if (process.env.API_BASE_URL) {
+      expect(body.id).toBe(id);
+      expect(body.name).toBe("Updated conformance workflow");
+    }
+  });
+
   test("POST /graphs/{id}/run returns a valid Run", async ({ request }) => {
     const { id } = await createGraph(request);
     const response = await request.post(`/graphs/${id}/run`, {
