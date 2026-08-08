@@ -5,6 +5,27 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-08 — Reference product completion plan
+
+**Did:**
+- Wrote `docs/plans/reference-product-completion.md` covering remaining gaps
+  after #55–#67: reopen/update graphs, config forms, handles/signal UI, polish,
+  live e2e + seeds; linked from `docs/issues/ISSUES.md`.
+- Filed GitHub issues [#90](https://github.com/madmmas/temflowral/issues/90)–[#94](https://github.com/madmmas/temflowral/issues/94)
+  for Phases 1–5; Phase 0 CORS merged as [#89](https://github.com/madmmas/temflowral/pull/89).
+
+**Decided / learned:**
+- Engine/contract backlog is closed; next work is reference-product UX, still
+  contract-first and ADR-001 (canvas stays reference-only).
+
+**Verified:**
+- Plan + issue filing (no implementation yet).
+
+**Next:**
+- Implement Phase 1 (#90) when ready.
+
+---
+
 ## 2026-08-08 — Fix API CORS for local canvas
 
 **Did:**
