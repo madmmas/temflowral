@@ -5,6 +5,23 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-08 — Live e2e + demo seeds (#94)
+
+**Did:**
+- `make seed-demo` (`backend/cmd/seed-demo` + `internal/seed`) upserts fixed-UUID
+  Start→No-op and Start→Delay→No-op graphs; README quickstart links `?graph=`.
+- Enable Prism-backed Playwright e2e in CI; add `e2e/live-run.spec.ts` +
+  `make e2e-live` / `make test-contract-live` for compose verification.
+- Happy-path e2e adds Start+No-op from the palette (Prism).
+
+**Verified:**
+- Backend seed package unit test; frontend unit tests; go test ./...
+
+**Next:**
+- Reference product plan Phases 1–5 complete; deferred items stay in Phase 6.
+
+---
+
 ## 2026-08-08 — Canvas authoring polish (#93)
 
 **Did:**

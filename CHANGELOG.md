@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Demo graph seeds (`make seed-demo`), Prism-backed Playwright e2e in CI, and
+  opt-in live Temporal UI e2e (`make e2e-live`) / contract live
+  (`make test-contract-live`) (#94).
 - Canvas authoring polish (#93): dirty-state Save, `beforeunload` / discard
   confirms, per-Run `idempotencyKey`, `DELETE /graphs/{id}`, collapsed
   activityOptions/taskQueue panel, and template placeholders on string config

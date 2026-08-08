@@ -545,7 +545,11 @@ function GraphCanvasInner() {
             disabled={busy || nodes.length === 0 || !dirty}
             className="rounded-md border border-black/10 bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-neutral-900 dark:hover:bg-white/10"
           >
-            {action === "saving" ? "Saving…" : dirty ? "Save" : "Saved"}
+            {action === "saving"
+              ? "Saving…"
+              : !dirty && savedGraphId
+                ? "Saved"
+                : "Save"}
           </button>
           <button
             type="button"

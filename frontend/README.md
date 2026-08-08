@@ -71,8 +71,17 @@ npm run e2e
 ```
 
 Playwright starts the pinned Prism mock on `http://127.0.0.1:4010` and Next.js
-on `http://127.0.0.1:3000`, with the frontend pointed at Prism. Override either
-server when needed:
+on `http://127.0.0.1:3000`, with the frontend pointed at Prism. CI runs this
+same Prism-backed suite.
+
+Against an already-running compose stack (Temporal-backed create→run):
+
+```bash
+# from repo root
+make e2e-live
+```
+
+Or equivalently:
 
 ```bash
 API_BASE_URL=http://127.0.0.1:8080 \
@@ -81,6 +90,5 @@ npm run e2e
 ```
 
 When an override is set, Playwright assumes that server is already running.
-Real-backend runs are opt-in; the default remains contract-backed Prism.
-The happy-path spec only supplies Prism's missing terminal polling response;
-when `API_BASE_URL` is set, all requests—including polling—use the real API.
+`e2e/live-run.spec.ts` exercises API create (Start→No-op) → reopen → Run →
+completed; `e2e/happy-path.spec.ts` is Prism-oriented (palette → Start → Run).

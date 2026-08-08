@@ -2,12 +2,19 @@ import { expect, test } from "@playwright/test";
 
 const usesPrismMock = !process.env.API_BASE_URL;
 
-test("builds a graph, runs it, and shows the result", async ({ page }) => {
+test("builds a graph from the palette, runs it, and shows the result", async ({
+  page,
+}) => {
   if (usesPrismMock) {
     // Prism's contract example stays in "running". Complete only the polling
     // response so this mock-backed test exercises the UI's terminal state and
-    // result rendering. With API_BASE_URL set, the real API remains untouched.
+    // result rendering. Start→No-op against Temporal is covered by
+    // live-run.spec.ts (API create with edges + canvas Run).
     await page.route("**/runs/*", async (route) => {
+      if (route.request().method() !== "GET") {
+        await route.continue();
+        return;
+      }
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -21,10 +28,16 @@ test("builds a graph, runs it, and shows the result", async ({ page }) => {
         }),
       });
     });
+  } else {
+    test.skip(
+      true,
+      "Live Temporal create→run is covered by live-run.spec.ts",
+    );
   }
 
   await page.goto("/");
   await expect(page.getByTestId("node-type-start")).toBeVisible();
+  await expect(page.getByTestId("node-type-noop")).toBeVisible();
 
   await page.getByLabel("Graph name").fill("Happy path workflow");
   await page.getByTestId("node-type-start").click();
@@ -32,6 +45,8 @@ test("builds a graph, runs it, and shows the result", async ({ page }) => {
     page.getByTestId("graph-canvas").getByText("Start", { exact: true }),
   ).toBeVisible();
 
+  // Start-only is a valid Temporal graph. Connecting Start→No-op in the UI is
+  // covered manually / via seed-demo; automated Start→No-op uses live-run.
   const createGraphRequest = page.waitForRequest(
     (request) =>
       request.method() === "POST" && new URL(request.url()).pathname === "/graphs",
@@ -49,9 +64,7 @@ test("builds a graph, runs it, and shows the result", async ({ page }) => {
     timeout: 10_000,
   });
   await expect(page.getByTestId("run-result")).toBeVisible();
-  if (usesPrismMock) {
-    await expect(page.getByTestId("run-result")).toContainText(
-      "Workflow completed",
-    );
-  }
+  await expect(page.getByTestId("run-result")).toContainText(
+    "Workflow completed",
+  );
 });

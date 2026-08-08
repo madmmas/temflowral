@@ -40,8 +40,9 @@ Run the full backend and frontend test suites from the repository root:
 make test
 ```
 
-Other useful targets: `make lint` (see below), `make e2e` (Playwright), and
-`make test-contract` (contract conformance against the OpenAPI spec).
+Other useful targets: `make lint` (see below), `make e2e` (Playwright against
+Prism), `make e2e-live` (Playwright against compose), `make seed-demo` (sample
+graphs), and `make test-contract` / `make test-contract-live`.
 
 ## Adding a new node type
 
@@ -245,6 +246,36 @@ curl -sS -X POST "http://127.0.0.1:8080/graphs/${GRAPH_ID}/run" \
 
 Poll until `status` is `completed`. Stop the backend and development server with
 `Ctrl+C`, then `make temporal-down`.
+
+### Demo seeds and live UI e2e
+
+After `docker compose up` (so the backend has created the Postgres schema),
+upsert the fixed-UUID demo graphs:
+
+```sh
+make seed-demo
+```
+
+Open <http://localhost:3000/?graph=11111111-1111-4111-8111-111111111101> (or use
+the canvas picker) and click **Run**.
+
+Prism-backed Playwright (CI default):
+
+```sh
+make e2e
+```
+
+Against a running compose stack (Temporal-backed create→run):
+
+```sh
+make e2e-live
+```
+
+Contract suite against the live API (release checklist / local verify):
+
+```sh
+make test-contract-live
+```
 
 Prefer a native install instead of Docker? Install the
 [Temporal CLI](https://docs.temporal.io/cli/setup-cli) and substitute
