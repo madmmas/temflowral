@@ -243,6 +243,10 @@ paths:
       operationId: getRun
       tags: [runs]
       summary: Poll run status and result
+      description: |
+        Returns the latest run status from Temporal. When `status` is `running`
+        and GraphWorkflow is blocked on a wait node, `currentWait` includes the
+        wait node's id and signal name for `POST /runs/{runId}/signal`.
       parameters:
         - $ref: '#/components/parameters/RunId'
       responses:
@@ -963,11 +967,38 @@ components:
         error:
           type: string
           description: Error message when status is failed or cancelled
+        currentWait:
+          $ref: '#/components/schemas/CurrentWait'
+          description: |
+            Present when status is running and GraphWorkflow is blocked on a
+            wait node. Use the `signal` value with POST /runs/{id}/signal.
+            Omitted when the run is not waiting.
       example:
         id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
         graphId: 550e8400-e29b-41d4-a716-446655440000
         status: running
         startedAt: '2026-07-16T08:01:00Z'
+
+    CurrentWait:
+      type: object
+      required: [nodeId, signal]
+      additionalProperties: false
+      description: |
+        Active wait-node block reported by the Temporal `temflowral.currentWait`
+        query. Empty/absent when the workflow is not currently waiting.
+      properties:
+        nodeId:
+          type: string
+          minLength: 1
+          description: Graph node id of the wait node
+        signal:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Signal name the wait node is blocked on
+      example:
+        nodeId: wait-1
+        signal: approval.granted
 
     StartRunRequest:
       type: object

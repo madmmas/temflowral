@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Named source handles on the reference canvas from registry `outputHandles`
+  (condition `true`/`false`, wait `received`/`timedOut`) and wait-signal UI
+  via `Run.currentWait` on `GET /runs/{id}` + `POST /runs/{id}/signal` (#92).
 - Schema-driven node config panel on the reference canvas (#91): edit label and
   `configSchema` fields (HTTP, delay, condition, wait, …) before Save/Run.
 - Graph list and update APIs (`GET /graphs`, `PUT /graphs/{id}`) plus canvas

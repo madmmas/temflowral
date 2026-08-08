@@ -135,8 +135,8 @@ reference canvas and a few API affordances. Full plan:
 | --- | --- | --- | --- |
 | 0 | CORS / local compose hygiene | done | [#89](https://github.com/madmmas/temflowral/pull/89) |
 | 1 | List + update graphs; reopen in UI | P0 | [#90](https://github.com/madmmas/temflowral/issues/90) (done) |
-| 2 | Config panel from `configSchema` | P0 | [#91](https://github.com/madmmas/temflowral/issues/91) (in progress) |
-| 3 | Named handles + signal UI | P1 | [#92](https://github.com/madmmas/temflowral/issues/92) |
+| 2 | Config panel from `configSchema` | P0 | [#91](https://github.com/madmmas/temflowral/issues/91) (done) |
+| 3 | Named handles + signal UI | P1 | [#92](https://github.com/madmmas/temflowral/issues/92) (done) |
 | 4 | Dirty state, idempotent Run, advanced fields | P1 | [#93](https://github.com/madmmas/temflowral/issues/93) |
 | 5 | Live e2e + demo seeds | P2 | [#94](https://github.com/madmmas/temflowral/issues/94) |
 | 6 | Deferred (ADR-001 package, multi-tenant, …) | — | — |

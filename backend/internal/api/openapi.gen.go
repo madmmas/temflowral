@@ -132,6 +132,16 @@ type CreateGraphRequest struct {
 	Nodes []Node  `json:"nodes"`
 }
 
+// CurrentWait Active wait-node block reported by the Temporal `temflowral.currentWait`
+// query. Empty/absent when the workflow is not currently waiting.
+type CurrentWait struct {
+	// NodeId Graph node id of the wait node
+	NodeId string `json:"nodeId"`
+
+	// Signal Signal name the wait node is blocked on
+	Signal string `json:"signal"`
+}
+
 // DelayNodeConfig defines model for DelayNodeConfig.
 type DelayNodeConfig struct {
 	// Seconds Delay duration in seconds (0 to 604800 = 7 days) before the workflow
@@ -360,6 +370,11 @@ type RetryPolicy struct {
 type Run struct {
 	// CompletedAt Set when status is terminal (completed, failed, cancelled)
 	CompletedAt *time.Time `json:"completedAt,omitempty"`
+
+	// CurrentWait Present when status is running and GraphWorkflow is blocked on a
+	// wait node. Use the `signal` value with POST /runs/{id}/signal.
+	// Omitted when the run is not waiting.
+	CurrentWait *CurrentWait `json:"currentWait,omitempty"`
 
 	// Error Error message when status is failed or cancelled
 	Error   *string            `json:"error,omitempty"`

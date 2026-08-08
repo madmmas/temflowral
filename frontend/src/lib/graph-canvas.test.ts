@@ -143,6 +143,65 @@ describe("graph-canvas helpers", () => {
     expect(nextNodeId()).toBe("node-5");
   });
 
+  it("round-trips named sourceHandle on edges", () => {
+    const condition = createNode(
+      { x: 0, y: 0 },
+      { nodeType: "condition", label: "Branch" },
+    );
+    const yes = createNode({ x: 100, y: 0 }, { nodeType: "noop", label: "Yes" });
+    const no = createNode({ x: 100, y: 80 }, { nodeType: "noop", label: "No" });
+
+    const serialized = serializeGraph("Branches", [condition, yes, no], [
+      {
+        id: "e-true",
+        source: condition.id,
+        target: yes.id,
+        sourceHandle: "true",
+      },
+      {
+        id: "e-false",
+        source: condition.id,
+        target: no.id,
+        sourceHandle: "false",
+      },
+    ]);
+
+    expect(serialized.edges).toEqual([
+      {
+        id: "e-true",
+        source: "node-1",
+        target: "node-2",
+        sourceHandle: "true",
+        targetHandle: undefined,
+      },
+      {
+        id: "e-false",
+        source: "node-1",
+        target: "node-3",
+        sourceHandle: "false",
+        targetHandle: undefined,
+      },
+    ]);
+
+    const loaded = deserializeGraph({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      name: "Branches",
+      nodes: serialized.nodes!.map((node) => ({
+        ...node,
+        position: node.position ?? { x: 0, y: 0 },
+        config: node.config ?? {},
+      })),
+      edges: serialized.edges!,
+      createdAt: "2026-08-08T00:00:00Z",
+      updatedAt: "2026-08-08T00:00:00Z",
+    });
+
+    expect(loaded.edges.map((edge) => edge.sourceHandle)).toEqual([
+      "true",
+      "false",
+    ]);
+  });
+
   it("omits a blank graph name", () => {
     expect(serializeGraph("  ", [], []).name).toBeUndefined();
   });
