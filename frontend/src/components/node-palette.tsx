@@ -8,14 +8,26 @@ export const NODE_TYPE_DRAG_KEY = "application/temflowral-node-type";
 type NodePaletteProps = {
   /** Add a node of this type at the viewport centre (click fallback for DnD). */
   onAddNodeType: (nodeType: NodeType) => void;
+  /** Optional registry from the parent so the canvas can reuse one fetch. */
+  nodeTypes?: NodeType[];
+  loading?: boolean;
+  error?: string | null;
 };
 
 /**
  * Sidebar palette populated from `GET /node-types`. Drag an item onto the
  * canvas, or click it to drop one at the centre.
  */
-export function NodePalette({ onAddNodeType }: NodePaletteProps) {
-  const { nodeTypes, loading, error } = useNodeTypes();
+export function NodePalette({
+  onAddNodeType,
+  nodeTypes: nodeTypesProp,
+  loading: loadingProp,
+  error: errorProp,
+}: NodePaletteProps) {
+  const fetched = useNodeTypes();
+  const nodeTypes = nodeTypesProp ?? fetched.nodeTypes;
+  const loading = loadingProp ?? (nodeTypesProp ? false : fetched.loading);
+  const error = errorProp ?? (nodeTypesProp ? null : fetched.error);
 
   return (
     <aside

@@ -159,6 +159,9 @@ describe("graph-canvas helpers", () => {
     expect(apiErrorMessage({ message: "graph is invalid" }, "fallback")).toBe(
       "graph is invalid",
     );
+    expect(
+      apiErrorMessage({ error: { message: "nested failure" } }, "fallback"),
+    ).toBe("nested failure");
     expect(apiErrorMessage(null, "fallback")).toBe("fallback");
   });
 });

@@ -19,12 +19,14 @@ import {
   useReactFlow,
   type Connection,
   type NodeTypes,
+  type OnSelectionChangeParams,
 } from "@xyflow/react";
 
 import "@xyflow/react/dist/style.css";
 
 import { createApiClient, type components } from "@/api";
 import { NODE_TYPE_DRAG_KEY, NodePalette } from "@/components/node-palette";
+import { NodeConfigPanel } from "@/components/node-config-panel";
 import { WorkflowNode } from "@/components/nodes/workflow-node";
 import {
   apiErrorMessage,
@@ -36,7 +38,7 @@ import {
   type CanvasNode,
 } from "@/lib/graph-canvas";
 import { useGraphList } from "@/lib/graph-list";
-import type { NodeType } from "@/lib/node-types";
+import { useNodeTypes, type NodeType } from "@/lib/node-types";
 
 const initialNodes: CanvasNode[] = [];
 const initialEdges: CanvasEdge[] = [];
@@ -77,7 +79,13 @@ function GraphCanvasInner() {
   const [run, setRun] = useState<Run | null>(null);
   const [action, setAction] = useState<Action>("idle");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const { screenToFlowPosition } = useReactFlow();
+  const {
+    nodeTypes: registryNodeTypes,
+    loading: nodeTypesLoading,
+    error: nodeTypesError,
+  } = useNodeTypes();
   const {
     graphs,
     loading: graphsLoading,
@@ -86,6 +94,13 @@ function GraphCanvasInner() {
   } = useGraphList();
   const runId = run?.id;
   const runStatus = run?.status;
+  const selectedNode =
+    selectedNodeId === null
+      ? undefined
+      : nodes.find((node) => node.id === selectedNodeId);
+  const selectedNodeType = selectedNode
+    ? registryNodeTypes.find((entry) => entry.id === selectedNode.data.nodeType)
+    : undefined;
 
   const applyLoadedGraph = useCallback(
     (graph: components["schemas"]["Graph"]) => {
@@ -94,6 +109,7 @@ function GraphCanvasInner() {
       setNodes(deserialized.nodes);
       setEdges(deserialized.edges);
       setSavedGraphId(graph.id);
+      setSelectedNodeId(null);
       setRun(null);
       setActionError(null);
       replaceGraphQuery(graph.id);
@@ -164,6 +180,41 @@ function GraphCanvasInner() {
       clearTimeout(timer);
     };
   }, [runId, runStatus]);
+
+  const onSelectionChange = useCallback(
+    ({ nodes: selected }: OnSelectionChangeParams) => {
+      setSelectedNodeId(selected.length === 1 ? selected[0].id : null);
+    },
+    [],
+  );
+
+  const onChangeSelectedLabel = useCallback(
+    (label: string) => {
+      if (!selectedNodeId) return;
+      setNodes((current) =>
+        current.map((node) =>
+          node.id === selectedNodeId
+            ? { ...node, data: { ...node.data, label } }
+            : node,
+        ),
+      );
+    },
+    [selectedNodeId, setNodes],
+  );
+
+  const onChangeSelectedConfig = useCallback(
+    (config: Record<string, unknown>) => {
+      if (!selectedNodeId) return;
+      setNodes((current) =>
+        current.map((node) =>
+          node.id === selectedNodeId
+            ? { ...node, data: { ...node.data, config } }
+            : node,
+        ),
+      );
+    },
+    [selectedNodeId, setNodes],
+  );
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -274,6 +325,7 @@ function GraphCanvasInner() {
     setNodes([]);
     setEdges([]);
     setSavedGraphId(null);
+    setSelectedNodeId(null);
     setRun(null);
     setActionError(null);
     replaceGraphQuery(null);
@@ -289,20 +341,26 @@ function GraphCanvasInner() {
       event.preventDefault();
       const typeId = event.dataTransfer.getData(NODE_TYPE_DRAG_KEY);
       if (!typeId) return;
+      const registryType = registryNodeTypes.find((entry) => entry.id === typeId);
       addNodeAt(
-        { id: typeId, name: typeId, configSchema: {} },
+        registryType ?? { id: typeId, name: typeId, configSchema: {} },
         event.clientX,
         event.clientY,
       );
     },
-    [addNodeAt],
+    [addNodeAt, registryNodeTypes],
   );
 
   const busy = action !== "idle";
 
   return (
     <div data-testid="graph-editor" className="flex h-full w-full">
-      <NodePalette onAddNodeType={onAddNodeType} />
+      <NodePalette
+        onAddNodeType={onAddNodeType}
+        nodeTypes={registryNodeTypes}
+        loading={nodeTypesLoading}
+        error={nodeTypesError}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-2 border-b border-black/10 px-3 py-2 dark:border-white/15">
           <input
@@ -361,6 +419,7 @@ function GraphCanvasInner() {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onSelectionChange={onSelectionChange}
             onDragOver={onDragOver}
             onDrop={onDrop}
             deleteKeyCode={["Backspace", "Delete"]}
@@ -369,7 +428,7 @@ function GraphCanvasInner() {
           >
             <Panel position="top-right">
               <p className="rounded-md bg-white/70 px-2 py-1 text-xs text-black/60 dark:bg-neutral-900/70 dark:text-white/60">
-                Drag or click a node · drag handles to connect · select + Delete
+                Select a node to edit config · drag handles to connect · Delete
                 to remove
               </p>
             </Panel>
@@ -431,6 +490,15 @@ function GraphCanvasInner() {
           </div>
         )}
       </div>
+      {selectedNode && (
+        <NodeConfigPanel
+          node={selectedNode}
+          nodeType={selectedNodeType}
+          onChangeLabel={onChangeSelectedLabel}
+          onChangeConfig={onChangeSelectedConfig}
+          onClose={() => setSelectedNodeId(null)}
+        />
+      )}
     </div>
   );
 }
