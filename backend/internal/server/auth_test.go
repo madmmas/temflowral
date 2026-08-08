@@ -17,6 +17,7 @@ func TestAPIAuthTokenRequiredWhenConfigured(t *testing.T) {
 		[]byte("openapi: 3.1.0\n"),
 		NewAPI(store.NewMemoryStore(), &stubRunner{}, nil),
 		"test-secret",
+		nil,
 	)
 
 	t.Run("rejects missing bearer", func(t *testing.T) {
@@ -79,6 +80,7 @@ func TestAPIAuthOpenWhenTokenUnset(t *testing.T) {
 		[]byte("openapi: 3.1.0\n"),
 		NewAPI(store.NewMemoryStore(), &stubRunner{}, nil),
 		"",
+		nil,
 	)
 	request := httptest.NewRequest(http.MethodGet, "/node-types", nil)
 	recorder := httptest.NewRecorder()

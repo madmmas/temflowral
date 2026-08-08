@@ -33,20 +33,27 @@ const swaggerUI = `<!doctype html>
 
 // NewHandler serves the generated API routes, OpenAPI contract, and Swagger UI.
 // When API_AUTH_TOKEN is set, contract routes require Authorization: Bearer;
-// /docs and /openapi.yaml stay reachable without a token.
+// /docs and /openapi.yaml stay reachable without a token. Browser origins are
+// gated by API_CORS_ORIGINS (defaults to the local canvas ports).
 func NewHandler(openAPISpec []byte, implementation api.StrictServerInterface) http.Handler {
-	return newHandler(openAPISpec, implementation, apiAuthToken())
+	return newHandler(openAPISpec, implementation, apiAuthToken(), apiCORSOrigins())
 }
 
-func newHandler(openAPISpec []byte, implementation api.StrictServerInterface, authToken string) http.Handler {
+func newHandler(
+	openAPISpec []byte,
+	implementation api.StrictServerInterface,
+	authToken string,
+	corsOrigins []string,
+) http.Handler {
 	mux := http.NewServeMux()
 	registerDocsRoutes(mux, openAPISpec)
 
 	strictHandler := api.NewStrictHandler(implementation, nil)
-	return api.HandlerWithOptions(strictHandler, api.StdHTTPServerOptions{
+	handler := api.HandlerWithOptions(strictHandler, api.StdHTTPServerOptions{
 		BaseRouter:  mux,
 		Middlewares: bearerAuthMiddlewares(authToken),
 	})
+	return withCORS(handler, corsOrigins)
 }
 
 // NewDocsHandler serves only the OpenAPI contract and its Swagger UI.
