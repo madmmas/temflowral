@@ -151,13 +151,28 @@ export function isTerminalRunStatus(status: RunStatus): boolean {
 
 /** Read a contract Error.message when available, otherwise return the fallback. */
 export function apiErrorMessage(error: unknown, fallback: string): string {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof error.message === "string"
-  ) {
-    return error.message;
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+  if (typeof error === "object" && error !== null) {
+    if (
+      "message" in error &&
+      typeof error.message === "string" &&
+      error.message.trim()
+    ) {
+      return error.message;
+    }
+    // openapi-fetch sometimes nests the response body under `error`.
+    if (
+      "error" in error &&
+      typeof error.error === "object" &&
+      error.error !== null &&
+      "message" in error.error &&
+      typeof error.error.message === "string" &&
+      error.error.message.trim()
+    ) {
+      return error.error.message;
+    }
   }
   return fallback;
 }

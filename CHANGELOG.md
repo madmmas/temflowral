@@ -10,6 +10,8 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Schema-driven node config panel on the reference canvas (#91): edit label and
+  `configSchema` fields (HTTP, delay, condition, wait, …) before Save/Run.
 - Graph list and update APIs (`GET /graphs`, `PUT /graphs/{id}`) plus canvas
   reopen via `?graph=` / saved-graph picker (#90).
 - Browser CORS allowlist via `API_CORS_ORIGINS` (defaults to local canvas

@@ -400,9 +400,9 @@ The `frontend/` app is a reference canvas only (not a published package or
 embed). External UIs should use the same discovery + graph APIs — see
 [`docs/adr/001-canvas-packaging.md`](adr/001-canvas-packaging.md).
 
-The current frontend does **not** generate a config form from `ConfigSchema`;
-new nodes are created with `{}` config. A configured node needs a form or
-editor that writes validated values to `CanvasNodeData.config` before save.
+The current frontend builds a config form from each type's `ConfigSchema`
+(`NodeConfigPanel` / `fieldsFromConfigSchema`). New nodes still start with
+`{}` until the author fills the panel; save/run persist `CanvasNodeData.config`.
 A node with named handles, such as condition's `true`/`false` or wait's
 `received`/`timedOut` outputs, also needs a custom renderer exposing those
 handle IDs. Keep type-specific UI in sibling components rather than adding

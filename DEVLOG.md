@@ -5,6 +5,27 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-08 — Node config panel from configSchema (#91)
+
+**Did:**
+- `fieldsFromConfigSchema` helper + unit tests for http/delay/condition/wait.
+- `NodeConfigPanel` side panel: label + schema fields (string/number/enum/JSON).
+- Wire selection into the canvas; reuse one `GET /node-types` fetch for palette
+  + panel; surface clearer API error messages on Save/Run.
+- Docs: `adding-a-node-type.md` now notes the schema-driven form.
+
+**Decided / learned:**
+- Untyped / object / array properties use a JSON textarea (condition `equals`,
+  HTTP headers, childWorkflow `graph`) rather than nested forms for v1.
+
+**Verified:**
+- Frontend unit tests (including config-schema).
+
+**Next:**
+- #92 named handles + signal UI.
+
+---
+
 ## 2026-08-08 — List/update graphs and canvas reopen (#90)
 
 **Did:**
