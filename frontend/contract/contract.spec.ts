@@ -96,6 +96,16 @@ test.describe("contract conformance", () => {
     }
   });
 
+  test("DELETE /graphs/{id} returns 204", async ({ request }) => {
+    const { id } = await createGraph(request);
+    const response = await request.delete(`/graphs/${id}`);
+    expect(response.status(), await response.text()).toBe(204);
+    if (process.env.API_BASE_URL) {
+      const missing = await request.get(`/graphs/${id}`);
+      expect(missing.status()).toBe(404);
+    }
+  });
+
   test("POST /graphs/{id}/run returns a valid Run", async ({ request }) => {
     const { id } = await createGraph(request);
     const response = await request.post(`/graphs/${id}/run`, {

@@ -5,6 +5,23 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-08 — Canvas authoring polish (#93)
+
+**Did:**
+- Contract: `DELETE /graphs/{id}` (cascades run rows in the store).
+- Canvas: dirty-state Save + `beforeunload`/discard confirms; Run sends a
+  per-click `idempotencyKey`; Delete button; collapsed advanced
+  activityOptions/taskQueue; template placeholders on string config fields.
+- Docs: CHANGELOG, ISSUES, plan status.
+
+**Verified:**
+- Backend store/server delete tests; frontend fingerprint/serialize unit tests.
+
+**Next:**
+- #94 live e2e + demo seeds.
+
+---
+
 ## 2026-08-08 — Named handles + wait-signal UI (#92)
 
 **Did:**

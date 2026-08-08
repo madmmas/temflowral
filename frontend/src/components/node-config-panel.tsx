@@ -9,7 +9,12 @@ import {
   setConfigFieldValue,
   type ConfigField,
 } from "@/lib/config-schema";
-import type { CanvasNode } from "@/lib/graph-canvas";
+import {
+  CONFIG_TEMPLATE_HINT,
+  supportsActivityOptions,
+  type ActivityOptions,
+  type CanvasNode,
+} from "@/lib/graph-canvas";
 import type { NodeType } from "@/lib/node-types";
 
 type NodeConfigPanelProps = {
@@ -17,23 +22,28 @@ type NodeConfigPanelProps = {
   nodeType: NodeType | undefined;
   onChangeLabel: (label: string) => void;
   onChangeConfig: (config: Record<string, unknown>) => void;
+  onChangeActivityOptions: (options: ActivityOptions | undefined) => void;
+  onChangeTaskQueue: (taskQueue: string | undefined) => void;
   onClose: () => void;
 };
 
 /**
  * Side panel that edits the selected node's label and config from the
- * registry `configSchema` (#91).
+ * registry `configSchema` (#91), plus collapsed advanced activity fields (#93).
  */
 export function NodeConfigPanel({
   node,
   nodeType,
   onChangeLabel,
   onChangeConfig,
+  onChangeActivityOptions,
+  onChangeTaskQueue,
   onClose,
 }: NodeConfigPanelProps) {
   const config = node.data.config ?? {};
   const fields = fieldsFromConfigSchema(nodeType?.configSchema);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const showAdvanced = supportsActivityOptions(node.data.nodeType);
 
   const updateField = (field: ConfigField, raw: string) => {
     const parsed = parseConfigInputValue(field.kind, raw);
@@ -106,12 +116,141 @@ export function NodeConfigPanel({
         />
       ))}
 
+      {showAdvanced && (
+        <AdvancedActivityFields
+          activityOptions={node.data.activityOptions}
+          taskQueue={node.data.taskQueue}
+          onChangeActivityOptions={onChangeActivityOptions}
+          onChangeTaskQueue={onChangeTaskQueue}
+        />
+      )}
+
       {nodeType?.description && (
         <p className="text-[11px] leading-snug text-black/45 dark:text-white/45">
           {nodeType.description}
         </p>
       )}
     </aside>
+  );
+}
+
+function AdvancedActivityFields({
+  activityOptions,
+  taskQueue,
+  onChangeActivityOptions,
+  onChangeTaskQueue,
+}: {
+  activityOptions: ActivityOptions | undefined;
+  taskQueue: string | undefined;
+  onChangeActivityOptions: (options: ActivityOptions | undefined) => void;
+  onChangeTaskQueue: (taskQueue: string | undefined) => void;
+}) {
+  const startToClose = activityOptions?.startToCloseTimeoutSeconds;
+  const maxAttempts = activityOptions?.retryPolicy?.maximumAttempts;
+
+  const patchOptions = (patch: {
+    startToCloseTimeoutSeconds?: number | undefined;
+    maximumAttempts?: number | undefined;
+  }) => {
+    const nextStart =
+      patch.startToCloseTimeoutSeconds !== undefined
+        ? patch.startToCloseTimeoutSeconds
+        : startToClose;
+    const nextAttempts =
+      patch.maximumAttempts !== undefined ? patch.maximumAttempts : maxAttempts;
+
+    if (nextStart === undefined && nextAttempts === undefined) {
+      onChangeActivityOptions(undefined);
+      return;
+    }
+
+    const next: ActivityOptions = {};
+    if (nextStart !== undefined) {
+      next.startToCloseTimeoutSeconds = nextStart;
+    }
+    if (nextAttempts !== undefined) {
+      next.retryPolicy = { maximumAttempts: nextAttempts };
+    }
+    onChangeActivityOptions(next);
+  };
+
+  return (
+    <details
+      data-testid="advanced-activity-fields"
+      className="rounded-md border border-black/10 bg-white/60 p-2 dark:border-white/15 dark:bg-neutral-900/60"
+    >
+      <summary className="cursor-pointer text-xs font-medium text-black/60 dark:text-white/60">
+        Advanced (activity)
+      </summary>
+      <div className="mt-2 flex flex-col gap-2">
+        <label className="flex flex-col gap-1 text-xs">
+          <span className="font-medium text-black/70 dark:text-white/70">
+            Task queue
+          </span>
+          <input
+            aria-label="Task queue"
+            value={taskQueue ?? ""}
+            onChange={(event) => {
+              const value = event.target.value.trim();
+              onChangeTaskQueue(value || undefined);
+            }}
+            placeholder="temflowral"
+            className="rounded-md border border-black/10 bg-white px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-white/15 dark:bg-neutral-900"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs">
+          <span className="font-medium text-black/70 dark:text-white/70">
+            Start-to-close timeout (s)
+          </span>
+          <input
+            aria-label="Start-to-close timeout seconds"
+            type="number"
+            min={0.001}
+            max={86400}
+            step="any"
+            value={startToClose ?? ""}
+            onChange={(event) => {
+              const raw = event.target.value.trim();
+              if (raw === "") {
+                patchOptions({ startToCloseTimeoutSeconds: undefined });
+                return;
+              }
+              const value = Number(raw);
+              if (!Number.isFinite(value)) return;
+              patchOptions({ startToCloseTimeoutSeconds: value });
+            }}
+            className="rounded-md border border-black/10 bg-white px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-white/15 dark:bg-neutral-900"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs">
+          <span className="font-medium text-black/70 dark:text-white/70">
+            Max attempts
+          </span>
+          <input
+            aria-label="Maximum attempts"
+            type="number"
+            min={1}
+            max={100}
+            step={1}
+            value={maxAttempts ?? ""}
+            onChange={(event) => {
+              const raw = event.target.value.trim();
+              if (raw === "") {
+                patchOptions({ maximumAttempts: undefined });
+                return;
+              }
+              const value = Number(raw);
+              if (!Number.isFinite(value)) return;
+              patchOptions({ maximumAttempts: Math.trunc(value) });
+            }}
+            className="rounded-md border border-black/10 bg-white px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-white/15 dark:bg-neutral-900"
+          />
+        </label>
+        <p className="text-[10px] text-black/40 dark:text-white/40">
+          Only valid on activity-backed nodes. Engine defaults apply when empty.
+        </p>
+      </div>
+    </details>
   );
 }
 
@@ -189,11 +328,19 @@ function ConfigFieldInput({
           key={`${field.name}:${formatConfigValueForInput(field.kind, value)}`}
           onBlur={(event) => onChange(event.target.value)}
           spellCheck={false}
+          placeholder={
+            field.kind === "string" ? CONFIG_TEMPLATE_HINT : undefined
+          }
           className={`${commonClass} font-mono text-xs`}
         />
         {field.kind === "json" && (
           <span className="text-[10px] text-black/40 dark:text-white/40">
             JSON value — applied on blur
+          </span>
+        )}
+        {field.kind === "string" && (
+          <span className="text-[10px] text-black/40 dark:text-white/40">
+            Templates: {CONFIG_TEMPLATE_HINT}
           </span>
         )}
         {error && <span className="text-red-600 dark:text-red-400">{error}</span>}
@@ -211,8 +358,16 @@ function ConfigFieldInput({
         max={field.maximum}
         value={formatConfigValueForInput(field.kind, value)}
         onChange={(event) => onChange(event.target.value)}
+        placeholder={
+          field.kind === "string" ? CONFIG_TEMPLATE_HINT : undefined
+        }
         className={commonClass}
       />
+      {field.kind === "string" && (
+        <span className="text-[10px] text-black/40 dark:text-white/40">
+          Templates: {CONFIG_TEMPLATE_HINT}
+        </span>
+      )}
       {error && <span className="text-red-600 dark:text-red-400">{error}</span>}
     </label>
   );

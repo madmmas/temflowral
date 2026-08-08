@@ -53,7 +53,14 @@ export interface paths {
          */
         put: operations["updateGraph"];
         post?: never;
-        delete?: never;
+        /**
+         * Delete a saved graph
+         * @description Permanently removes a graph and its associated run records. Does not
+         *     cancel in-flight Temporal workflows. Returns 404 when the graph id does
+         *     not exist.
+         *
+         */
+        delete: operations["deleteGraph"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1249,6 +1256,33 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    deleteGraph: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Graph identifier
+                 * @example 550e8400-e29b-41d4-a716-446655440000
+                 */
+                graphId: components["parameters"]["GraphId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Graph deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];

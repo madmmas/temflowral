@@ -10,6 +10,10 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Canvas authoring polish (#93): dirty-state Save, `beforeunload` / discard
+  confirms, per-Run `idempotencyKey`, `DELETE /graphs/{id}`, collapsed
+  activityOptions/taskQueue panel, and template placeholders on string config
+  fields.
 - Named source handles on the reference canvas from registry `outputHandles`
   (condition `true`/`false`, wait `received`/`timedOut`) and wait-signal UI
   via `Run.currentWait` on `GET /runs/{id}` + `POST /runs/{id}/signal` (#92).

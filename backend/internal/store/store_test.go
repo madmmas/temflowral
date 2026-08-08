@@ -88,6 +88,24 @@ func TestMemoryStoreRoundTrip(t *testing.T) {
 		t.Fatalf("UpdateGraph missing ok=%v err=%v", missingOK, err)
 	}
 
+	ok, err = memory.DeleteGraph(ctx, graphID)
+	if err != nil || !ok {
+		t.Fatalf("DeleteGraph() ok=%v err=%v", ok, err)
+	}
+	_, ok, err = memory.GetGraph(ctx, graphID)
+	if err != nil || ok {
+		t.Fatalf("GetGraph after delete ok=%v err=%v", ok, err)
+	}
+	missingDelete, err := memory.DeleteGraph(ctx, graphID)
+	if err != nil || missingDelete {
+		t.Fatalf("DeleteGraph missing ok=%v err=%v", missingDelete, err)
+	}
+
+	// Re-create graph for run round-trip below.
+	if err := memory.PutGraph(ctx, graph); err != nil {
+		t.Fatalf("PutGraph after delete: %v", err)
+	}
+
 	runID := uuid.New()
 	record := RunRecord{
 		Run: api.Run{
@@ -112,6 +130,15 @@ func TestMemoryStoreRoundTrip(t *testing.T) {
 	}
 	if gotRun.Run.Status != api.Completed || gotRun.TemporalRunID != "temporal-run-1" {
 		t.Fatalf("GetRun() = %#v", gotRun)
+	}
+
+	ok, err = memory.DeleteGraph(ctx, graphID)
+	if err != nil || !ok {
+		t.Fatalf("DeleteGraph with runs ok=%v err=%v", ok, err)
+	}
+	_, ok, err = memory.GetRun(ctx, runID)
+	if err != nil || ok {
+		t.Fatalf("GetRun after graph delete ok=%v err=%v", ok, err)
 	}
 }
 

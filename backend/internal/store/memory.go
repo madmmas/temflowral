@@ -75,6 +75,25 @@ func (store *MemoryStore) UpdateGraph(_ context.Context, graph api.Graph) (bool,
 	return true, nil
 }
 
+func (store *MemoryStore) DeleteGraph(_ context.Context, id openapi_types.UUID) (bool, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if _, ok := store.graphs[id]; !ok {
+		return false, nil
+	}
+	for runID, record := range store.runs {
+		if record.Run.GraphId != id {
+			continue
+		}
+		delete(store.runs, runID)
+		if record.IdempotencyKey != nil {
+			delete(store.idempotency, idempotencyIndexKey(id, *record.IdempotencyKey))
+		}
+	}
+	delete(store.graphs, id)
+	return true, nil
+}
+
 func (store *MemoryStore) PutRun(_ context.Context, record RunRecord) error {
 	store.mu.Lock()
 	defer store.mu.Unlock()

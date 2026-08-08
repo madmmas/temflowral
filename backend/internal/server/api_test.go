@@ -206,6 +206,31 @@ func TestListAndUpdateGraph(t *testing.T) {
 	if missingRecorder.Code != http.StatusNotFound {
 		t.Fatalf("missing update status = %d, want 404 body=%s", missingRecorder.Code, missingRecorder.Body.String())
 	}
+
+	deleteRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(
+		deleteRecorder,
+		httptest.NewRequest(http.MethodDelete, "/graphs/"+created.Id.String(), nil),
+	)
+	if deleteRecorder.Code != http.StatusNoContent {
+		t.Fatalf("delete status = %d body=%s", deleteRecorder.Code, deleteRecorder.Body.String())
+	}
+	getAfterDelete := httptest.NewRecorder()
+	handler.ServeHTTP(
+		getAfterDelete,
+		httptest.NewRequest(http.MethodGet, "/graphs/"+created.Id.String(), nil),
+	)
+	if getAfterDelete.Code != http.StatusNotFound {
+		t.Fatalf("get after delete status = %d, want 404", getAfterDelete.Code)
+	}
+	missingDelete := httptest.NewRecorder()
+	handler.ServeHTTP(
+		missingDelete,
+		httptest.NewRequest(http.MethodDelete, "/graphs/"+created.Id.String(), nil),
+	)
+	if missingDelete.Code != http.StatusNotFound {
+		t.Fatalf("missing delete status = %d, want 404", missingDelete.Code)
+	}
 }
 
 func TestCreateGraphRejectsTaskQueueOnDelay(t *testing.T) {
