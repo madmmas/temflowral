@@ -24,6 +24,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { createApiClient, type components } from "@/api";
+import { AuthoringTip, EmptyCanvasGuide } from "@/components/canvas-guidance";
 import { CanvasErrorBanner } from "@/components/canvas-error-banner";
 import { GraphIdChip } from "@/components/graph-id-chip";
 import { NODE_TYPE_DRAG_KEY, NodePalette } from "@/components/node-palette";
@@ -38,6 +39,11 @@ import {
   isCanvasBannerDismissed,
   pickCanvasBannerMessage,
 } from "@/lib/canvas-error-banner";
+import {
+  paletteClickScreenOffset,
+  readAuthoringTipDismissed,
+  writeAuthoringTipDismissed,
+} from "@/lib/canvas-guidance";
 import {
   apiErrorMessage,
   createNode,
@@ -145,6 +151,7 @@ function GraphCanvasInner() {
   );
   const [minimapVisible, setMinimapVisible] = useState(MINIMAP_VISIBLE_DEFAULT);
   const [minimapPrefersDark, setMinimapPrefersDark] = useState(true);
+  const [authoringTipDismissed, setAuthoringTipDismissed] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const { screenToFlowPosition } = useReactFlow();
   const {
@@ -185,6 +192,7 @@ function GraphCanvasInner() {
 
   useEffect(() => {
     setMinimapVisible(readMinimapVisible());
+    setAuthoringTipDismissed(readAuthoringTipDismissed());
     if (typeof window === "undefined" || !window.matchMedia) return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const sync = () => setMinimapPrefersDark(media.matches);
@@ -399,9 +407,14 @@ function GraphCanvasInner() {
 
   const onAddNodeType = useCallback(
     (nodeType: NodeType) => {
-      addNodeAt(nodeType, window.innerWidth / 2, window.innerHeight / 2);
+      const offset = paletteClickScreenOffset(nodes.length);
+      addNodeAt(
+        nodeType,
+        window.innerWidth / 2 + offset.x,
+        window.innerHeight / 2 + offset.y,
+      );
     },
-    [addNodeAt],
+    [addNodeAt, nodes.length],
   );
 
   const saveGraph = useCallback(async () => {
@@ -747,6 +760,9 @@ function GraphCanvasInner() {
           </div>
         </div>
         <div data-testid="graph-canvas" className="relative min-h-0 flex-1">
+          <EmptyCanvasGuide
+            visible={nodes.length === 0 && action !== "loading"}
+          />
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -763,10 +779,13 @@ function GraphCanvasInner() {
           >
             <Panel position="top-right">
               <div className="flex flex-col items-end gap-1.5">
-                <p className="rounded-md bg-white/70 px-2 py-1 text-xs text-black/60 dark:bg-neutral-900/70 dark:text-white/60">
-                  Select a node to edit config · drag handles to connect · Delete
-                  to remove
-                </p>
+                <AuthoringTip
+                  visible={nodes.length > 0 && !authoringTipDismissed}
+                  onDismiss={() => {
+                    setAuthoringTipDismissed(true);
+                    writeAuthoringTipDismissed(true);
+                  }}
+                />
                 <button
                   type="button"
                   data-testid="toggle-minimap"

@@ -5,6 +5,22 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Empty canvas + dismissible tip (#109)
+
+**Did:**
+- Centered empty-state guide when the canvas has no nodes.
+- Authoring tip is dismissible; preference in `localStorage`.
+- Palette click placement fans out with a small screen offset.
+- Scaffold e2e for empty guide + tip persistence.
+
+**Verified:**
+- vitest `canvas-guidance`; tsc/eslint; Playwright scaffold.
+
+**Next:**
+- Remaining UX backlog (#110+ / #111+).
+
+---
+
 ## 2026-08-09 — Canvas error banners (#108)
 
 **Did:**

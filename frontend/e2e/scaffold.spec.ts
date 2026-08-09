@@ -4,6 +4,10 @@ test("loads the graph editor with the contract-backed node palette", async ({
   page,
 }) => {
   await page.goto("/");
+  await page.evaluate(() => {
+    window.localStorage.removeItem("temflowral.authoringTip.dismissed");
+  });
+  await page.reload();
 
   await expect(
     page.getByRole("heading", { name: "temflowral", level: 1 }),
@@ -11,6 +15,11 @@ test("loads the graph editor with the contract-backed node palette", async ({
   await expect(page.getByTestId("graph-editor")).toBeVisible();
   await expect(page.getByTestId("graph-canvas")).toBeVisible();
   await expect(page.getByTestId("node-palette")).toBeVisible();
+  await expect(page.getByTestId("empty-canvas-guide")).toBeVisible();
+  await expect(page.getByTestId("empty-canvas-guide")).toContainText(
+    "Build a workflow",
+  );
+  await expect(page.getByTestId("authoring-tip")).toHaveCount(0);
 
   // These values come from api/openapi.yaml's Prism response example, not a
   // hardcoded frontend registry.
@@ -35,6 +44,8 @@ test("loads the graph editor with the contract-backed node palette", async ({
   await expect(minimap).toBeVisible();
 
   await page.getByTestId("node-type-start").click();
+  await expect(page.getByTestId("empty-canvas-guide")).toHaveCount(0);
+  await expect(page.getByTestId("authoring-tip")).toBeVisible();
   await expect(page.getByTestId("unsaved-indicator")).toHaveText("Unsaved");
   await expect(page.getByTestId("graph-name-hint")).toHaveText(
     "Name this workflow before first save",
@@ -42,6 +53,23 @@ test("loads the graph editor with the contract-backed node palette", async ({
 
   await page.getByLabel("Graph name").fill("Scaffold named flow");
   await expect(page.getByTestId("graph-name-hint")).toHaveCount(0);
+});
+
+test("remembers dismissed authoring tip across reloads", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    window.localStorage.removeItem("temflowral.authoringTip.dismissed");
+  });
+  await page.reload();
+
+  await page.getByTestId("node-type-start").click();
+  await expect(page.getByTestId("authoring-tip")).toBeVisible();
+  await page.getByTestId("authoring-tip-dismiss").click();
+  await expect(page.getByTestId("authoring-tip")).toHaveCount(0);
+
+  await page.reload();
+  await page.getByTestId("node-type-start").click();
+  await expect(page.getByTestId("authoring-tip")).toHaveCount(0);
 });
 
 test("prompts for a name on first Save when still Untitled", async ({
