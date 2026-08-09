@@ -5,6 +5,10 @@ const usesPrismMock = !process.env.API_BASE_URL;
 test("builds a graph from the palette, runs it, and shows the result", async ({
   page,
 }) => {
+  // Captured after the Start node is placed so the completed-run mock can
+  // decorate that canvas node (#113).
+  let completedNodeId = "node-1";
+
   if (usesPrismMock) {
     // Prism's contract example stays in "running". Complete only the polling
     // response so this mock-backed test exercises the UI's terminal state and
@@ -24,7 +28,14 @@ test("builds a graph from the palette, runs it, and shows the result", async ({
           status: "completed",
           startedAt: "2026-07-16T08:01:00Z",
           completedAt: "2026-07-16T08:01:01Z",
-          result: { message: "Workflow completed" },
+          result: {
+            nodes: [
+              {
+                nodeId: completedNodeId,
+                value: { message: "Workflow completed" },
+              },
+            ],
+          },
         }),
       });
     });
@@ -45,6 +56,11 @@ test("builds a graph from the palette, runs it, and shows the result", async ({
     page.getByTestId("graph-canvas").getByText("Start", { exact: true }),
   ).toBeVisible();
 
+  const startNode = page.locator('[data-testid^="workflow-node-"]').first();
+  const startTestId = await startNode.getAttribute("data-testid");
+  expect(startTestId).toBeTruthy();
+  completedNodeId = startTestId!.replace("workflow-node-", "");
+
   // Start-only is a valid Temporal graph. Connecting Start→No-op in the UI is
   // covered manually / via seed-demo; automated Start→No-op uses live-run.
   const createGraphRequest = page.waitForRequest(
@@ -63,6 +79,13 @@ test("builds a graph from the palette, runs it, and shows the result", async ({
   await expect(page.getByTestId("run-status")).toHaveText("Run completed", {
     timeout: 10_000,
   });
+  await expect(
+    page.getByTestId(`node-execution-status-${completedNodeId}`),
+  ).toHaveText("Done");
+  await expect(page.getByTestId(`workflow-node-${completedNodeId}`)).toHaveAttribute(
+    "data-execution-status",
+    "completed",
+  );
   await expect(page.getByTestId("graph-id-chip")).toBeVisible();
   await expect(page.getByTestId("graph-id-chip")).toContainText("Graph:");
   await expect(page.getByTestId("copy-graph-id")).toBeVisible();

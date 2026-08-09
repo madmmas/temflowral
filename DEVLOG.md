@@ -5,6 +5,25 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Per-node run status on canvas (#113)
+
+**Did:**
+- Derive node execution chrome from the active Run without a new OpenAPI
+  progress field: `completed` from `result.nodes[].nodeId`, `waiting` from
+  `currentWait.nodeId`, otherwise idle.
+- `WorkflowNode` badges (Done / Waiting + pulse) + `data-execution-status`;
+  provider wired from `graph-canvas`.
+- Happy-path mock returns `result.nodes` with the placed Start id; scaffold
+  asserts idle chrome before run.
+
+**Verified:**
+- vitest `node-execution-status`; tsc/eslint; Playwright scaffold + happy-path.
+
+**Next:**
+- Remaining UX backlog (#114+); live mid-run pending/running needs contract work.
+
+---
+
 ## 2026-08-09 — Config form quality (#112)
 
 **Did:**

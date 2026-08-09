@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Per-node execution chrome on the canvas (#113): Done / Waiting badges from
+  `run.result.nodes` and `run.currentWait` (interim — live pending/running
+  needs a future progress contract field).
 - Node config form quality (#112): HTTP field order via `x-order` (with
   frontend fallbacks), key/value headers builder, and `{{` template
   suggestions from upstream nodes.
