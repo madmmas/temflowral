@@ -45,6 +45,12 @@ import {
   type CanvasNode,
 } from "@/lib/graph-canvas";
 import { useGraphList } from "@/lib/graph-list";
+import {
+  DEFAULT_GRAPH_NAME,
+  findGraphsWithSameName,
+  graphNameHint,
+  resolveGraphNameForSave,
+} from "@/lib/graph-naming";
 import { NodeTypeRegistryProvider } from "@/lib/node-type-registry";
 import { useNodeTypes, type NodeType } from "@/lib/node-types";
 import {
@@ -72,7 +78,7 @@ const initialEdges: CanvasEdge[] = [];
 const RUN_POLL_INTERVAL_MS = 1_500;
 const GRAPH_QUERY_PARAM = "graph";
 const EMPTY_GRAPH_FINGERPRINT = graphFingerprint(
-  "Untitled workflow",
+  DEFAULT_GRAPH_NAME,
   initialNodes,
   initialEdges,
 );
@@ -113,7 +119,7 @@ function replaceGraphQuery(graphId: string | null): void {
 function GraphCanvasInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [graphName, setGraphName] = useState("Untitled workflow");
+  const [graphName, setGraphName] = useState(DEFAULT_GRAPH_NAME);
   const [savedGraphId, setSavedGraphId] = useState<string | null>(null);
   const [baselineFingerprint, setBaselineFingerprint] = useState(
     EMPTY_GRAPH_FINGERPRINT,
@@ -148,6 +154,16 @@ function GraphCanvasInner() {
   const hasResultContent = runHasResultPanelContent(run);
   const showResultPanel = resultPanelVisible && hasResultContent;
   const graphRunHistory = runsForGraph(runHistory, savedGraphId);
+  const duplicateNameCount = findGraphsWithSameName(
+    graphs,
+    graphName,
+    savedGraphId,
+  ).length;
+  const nameHint = graphNameHint({
+    name: graphName,
+    isNewGraph: savedGraphId === null,
+    duplicateCount: duplicateNameCount,
+  });
   const dirty =
     graphFingerprint(graphName, nodes, edges) !== baselineFingerprint;
 
@@ -374,9 +390,31 @@ function GraphCanvasInner() {
       return null;
     }
 
+    const resolved = resolveGraphNameForSave({
+      name: graphName,
+      isNewGraph: savedGraphId === null,
+      graphs,
+      excludeGraphId: savedGraphId,
+      prompt: (message, defaultValue) =>
+        typeof window === "undefined"
+          ? null
+          : window.prompt(message, defaultValue ?? ""),
+      confirm: (message) =>
+        typeof window === "undefined" ? true : window.confirm(message),
+    });
+    if (!resolved.ok) {
+      if (resolved.reason === "placeholder" && resolved.message) {
+        setActionError(resolved.message);
+      }
+      return null;
+    }
+    if (resolved.name !== graphName) {
+      setGraphName(resolved.name);
+    }
+
     setAction("saving");
     setActionError(null);
-    const body = serializeGraph(graphName, nodes, edges);
+    const body = serializeGraph(resolved.name, nodes, edges);
     const client = createApiClient();
     try {
       const result = savedGraphId
@@ -393,7 +431,7 @@ function GraphCanvasInner() {
       }
       setSavedGraphId(data.id);
       replaceGraphQuery(data.id);
-      setBaselineFingerprint(graphFingerprint(graphName, nodes, edges));
+      setBaselineFingerprint(graphFingerprint(resolved.name, nodes, edges));
       refreshGraphs();
       return data;
     } catch {
@@ -402,7 +440,7 @@ function GraphCanvasInner() {
     } finally {
       setAction("idle");
     }
-  }, [edges, graphName, nodes, refreshGraphs, savedGraphId]);
+  }, [edges, graphName, graphs, nodes, refreshGraphs, savedGraphId]);
 
   const runGraph = useCallback(async () => {
     let graphId = savedGraphId;
@@ -454,7 +492,7 @@ function GraphCanvasInner() {
         setActionError(apiErrorMessage(error, "Failed to delete graph"));
         return;
       }
-      setGraphName("Untitled workflow");
+      setGraphName(DEFAULT_GRAPH_NAME);
       setNodes([]);
       setEdges([]);
       setSavedGraphId(null);
@@ -514,7 +552,7 @@ function GraphCanvasInner() {
 
   const onNewGraph = useCallback(() => {
     if (!confirmDiscardIfDirty(dirty)) return;
-    setGraphName("Untitled workflow");
+    setGraphName(DEFAULT_GRAPH_NAME);
     setNodes([]);
     setEdges([]);
     setSavedGraphId(null);
@@ -572,12 +610,22 @@ function GraphCanvasInner() {
           className="flex flex-nowrap items-center gap-2 overflow-x-auto border-b border-black/10 px-3 py-2 dark:border-white/15"
         >
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <input
-              aria-label="Graph name"
-              value={graphName}
-              onChange={(event) => setGraphName(event.target.value)}
-              className="min-w-32 w-full max-w-md rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-white/15 dark:bg-neutral-900"
-            />
+            <div className="flex min-w-0 w-full max-w-md flex-col gap-0.5">
+              <input
+                aria-label="Graph name"
+                value={graphName}
+                onChange={(event) => setGraphName(event.target.value)}
+                className="min-w-32 w-full rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-white/15 dark:bg-neutral-900"
+              />
+              {nameHint && (
+                <span
+                  data-testid="graph-name-hint"
+                  className="truncate text-[11px] text-amber-800 dark:text-amber-200"
+                >
+                  {nameHint}
+                </span>
+              )}
+            </div>
             {dirty ? (
               <span
                 data-testid="unsaved-indicator"
