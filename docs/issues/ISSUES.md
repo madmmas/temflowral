@@ -158,7 +158,7 @@ Filed 2026-08-09 after a live-canvas UX audit (`localhost:3000`). Label: `ux` (+
 | P0 | [#103](https://github.com/madmmas/temflowral/issues/103) (done) | Replace saved-graph **dropdown** with searchable workflow library |
 | P1 | [#104](https://github.com/madmmas/temflowral/issues/104) (done) | Theme **MiniMap** for dark canvas + hide/toggle |
 | P1 | [#105](https://github.com/madmmas/temflowral/issues/105) (done) | **Toolbar** layout; separate Delete from Run; dirty indicator; **stable on config open** |
-| P1 | [#106](https://github.com/madmmas/temflowral/issues/106) | **Run history** + clearer status / short graph id |
+| P1 | [#106](https://github.com/madmmas/temflowral/issues/106) (done) | **Run history** + clearer status / short graph id |
 | P1 | [#111](https://github.com/madmmas/temflowral/issues/111) | **Fit viewport** after async graph load |
 | P1 | [#112](https://github.com/madmmas/temflowral/issues/112) | Node **config form** quality (order, headers builder, templates) |
 | P1 | [#113](https://github.com/madmmas/temflowral/issues/113) | **Per-node** visual execution status on the canvas |
@@ -194,9 +194,12 @@ jump into the graph-name field). **Shipped:** nowrap toolbar with Unsaved
 badge, Save/Run primary group, Delete in a separated danger zone; config
 panel overlays the canvas instead of shrinking the toolbar column.
 
-**[#106](https://github.com/madmmas/temflowral/issues/106) — Run history and clearer run status presentation** `[canvas][ux]`
+**[#106](https://github.com/madmmas/temflowral/issues/106) — Run history and clearer run status presentation** `[canvas][ux]` ✅
 Only the latest run is kept; footer dumps full graph UUID. Session (or API)
 history + status chips + short id with copy. May need OpenAPI if durable.
+**Shipped:** session-local recent-run list (no `GET …/runs` yet), compact
+status chip (incl. waiting), short graph id + Copy; clicking history restores
+result/error in the drawer.
 
 **[#107](https://github.com/madmmas/temflowral/issues/107) — Graph naming UX: discourage duplicate Untitled workflows** `[canvas][ux]`
 Prompt/nudge on first Save; optional duplicate-name warning. Pairs with #103.
