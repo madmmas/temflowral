@@ -4,7 +4,6 @@ import {
   useCallback,
   useEffect,
   useState,
-  type ChangeEvent,
 } from "react";
 import {
   addEdge,
@@ -30,6 +29,7 @@ import { NodeConfigPanel } from "@/components/node-config-panel";
 import { WorkflowNode } from "@/components/nodes/workflow-node";
 import { RunResultPanel } from "@/components/run-result-panel";
 import { RunSignalPanel } from "@/components/run-signal-panel";
+import { WorkflowLibrary } from "@/components/workflow-library";
 import {
   apiErrorMessage,
   createNode,
@@ -48,7 +48,7 @@ import {
   runHasResultPanelContent,
   RUN_RESULT_PANEL_DEFAULT_HEIGHT,
 } from "@/lib/run-result-panel";
-
+import { graphShortId } from "@/lib/workflow-library";
 const initialNodes: CanvasNode[] = [];
 const initialEdges: CanvasEdge[] = [];
 const RUN_POLL_INTERVAL_MS = 1_500;
@@ -109,6 +109,7 @@ function GraphCanvasInner() {
   const [resultPanelHeight, setResultPanelHeight] = useState(
     RUN_RESULT_PANEL_DEFAULT_HEIGHT,
   );
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const { screenToFlowPosition } = useReactFlow();
   const {
     nodeTypes: registryNodeTypes,
@@ -461,22 +462,14 @@ function GraphCanvasInner() {
     [runId],
   );
 
-  const onOpenGraphChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const graphId = event.target.value;
-      if (!graphId) {
-        if (!confirmDiscardIfDirty(dirty)) {
-          event.target.value = savedGraphId ?? "";
-          return;
-        }
-        setSavedGraphId(null);
-        replaceGraphQuery(null);
+  const onOpenGraphFromLibrary = useCallback(
+    (graphId: string) => {
+      if (graphId === savedGraphId) {
+        setLibraryOpen(false);
         return;
       }
-      if (!confirmDiscardIfDirty(dirty)) {
-        event.target.value = savedGraphId ?? "";
-        return;
-      }
+      if (!confirmDiscardIfDirty(dirty)) return;
+      setLibraryOpen(false);
       void loadGraphById(graphId);
     },
     [dirty, loadGraphById, savedGraphId],
@@ -535,23 +528,20 @@ function GraphCanvasInner() {
             onChange={(event) => setGraphName(event.target.value)}
             className="min-w-40 flex-1 rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-white/15 dark:bg-neutral-900"
           />
-          <select
-            aria-label="Open saved graph"
+          <button
+            type="button"
             data-testid="open-graph"
-            value={savedGraphId ?? ""}
-            onChange={onOpenGraphChange}
-            disabled={busy || graphsLoading}
-            className="max-w-56 rounded-md border border-black/10 bg-white px-2 py-1.5 text-sm dark:border-white/15 dark:bg-neutral-900"
+            aria-label="Open workflow library"
+            onClick={() => setLibraryOpen(true)}
+            disabled={busy}
+            className="max-w-56 truncate rounded-md border border-black/10 bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-neutral-900 dark:hover:bg-white/10"
           >
-            <option value="">
-              {graphsLoading ? "Loading graphs…" : "Open saved graph…"}
-            </option>
-            {graphs.map((graph) => (
-              <option key={graph.id} value={graph.id}>
-                {graph.name?.trim() || "Untitled"} ({graph.id.slice(0, 8)})
-              </option>
-            ))}
-          </select>
+            {savedGraphId
+              ? `Open… (${graphShortId(savedGraphId)})`
+              : graphsLoading
+                ? "Loading…"
+                : "Open…"}
+          </button>
           <button
             type="button"
             onClick={onNewGraph}
@@ -713,6 +703,17 @@ function GraphCanvasInner() {
           onClose={() => setSelectedNodeId(null)}
         />
       )}
+      <WorkflowLibrary
+        open={libraryOpen}
+        graphs={graphs}
+        loading={graphsLoading}
+        error={graphsError}
+        currentGraphId={savedGraphId}
+        busy={busy}
+        onClose={() => setLibraryOpen(false)}
+        onOpenGraph={onOpenGraphFromLibrary}
+        onRefresh={refreshGraphs}
+      />
     </div>
     </NodeTypeRegistryProvider>
   );
