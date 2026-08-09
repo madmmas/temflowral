@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Toolbar layout polish (#105): Unsaved indicator, Save/Run primary group,
+  Delete separated in a danger zone, and node config as an overlay so opening
+  it does not shift toolbar hit targets.
 - Collapsible / resizable / dismissible run result drawer on the canvas with
   Copy and footer reopen (`Run completed · View result`) so JSON no longer
   expands the status strip (#102).

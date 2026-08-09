@@ -62,7 +62,7 @@ export function NodeConfigPanel({
   return (
     <aside
       data-testid="node-config-panel"
-      className="flex w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l border-black/10 bg-black/[0.02] p-3 dark:border-white/15 dark:bg-white/[0.03]"
+      className="flex h-full w-72 flex-col gap-3 overflow-y-auto border-l border-black/10 bg-white p-3 dark:border-white/15 dark:bg-neutral-950"
     >
       <div className="flex items-start justify-between gap-2">
         <div>

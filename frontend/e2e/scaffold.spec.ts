@@ -17,6 +17,15 @@ test("loads the graph editor with the contract-backed node palette", async ({
   await expect(page.getByTestId("node-type-start")).toBeVisible();
   await expect(page.getByTestId("node-type-http")).toBeVisible();
 
-  await expect(page.getByRole("button", { name: "Save" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Run" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Run", exact: true })).toBeDisabled();
+
+  const primary = page.getByTestId("primary-actions");
+  const danger = page.getByTestId("danger-actions");
+  await expect(primary.getByRole("button", { name: "Run", exact: true })).toBeVisible();
+  await expect(danger.getByTestId("delete-graph")).toBeVisible();
+  await expect(primary.getByTestId("delete-graph")).toHaveCount(0);
+
+  await page.getByTestId("node-type-start").click();
+  await expect(page.getByTestId("unsaved-indicator")).toHaveText("Unsaved");
 });
