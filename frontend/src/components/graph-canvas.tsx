@@ -45,6 +45,11 @@ import {
   writeAuthoringTipDismissed,
 } from "@/lib/canvas-guidance";
 import {
+  FIT_VIEW_DURATION_MS,
+  FIT_VIEW_PADDING,
+  shouldFitViewportAfterLoad,
+} from "@/lib/fit-viewport";
+import {
   apiErrorMessage,
   createNode,
   deserializeGraph,
@@ -162,7 +167,8 @@ function GraphCanvasInner() {
   const [minimapPrefersDark, setMinimapPrefersDark] = useState(true);
   const [authoringTipDismissed, setAuthoringTipDismissed] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const { screenToFlowPosition } = useReactFlow();
+  const [fitViewGeneration, setFitViewGeneration] = useState(0);
+  const { screenToFlowPosition, fitView } = useReactFlow();
   const {
     nodeTypes: registryNodeTypes,
     loading: nodeTypesLoading,
@@ -221,6 +227,31 @@ function GraphCanvasInner() {
     setResultPanelVisible(true);
     setResultPanelCollapsed(false);
   }, [runId, hasResultContent]);
+
+  // fitView on mount often runs with nodes=[] (#111). After async open/hydrate,
+  // refit once React Flow has committed + measured the loaded nodes.
+  useEffect(() => {
+    if (fitViewGeneration === 0) return;
+    if (!shouldFitViewportAfterLoad(nodes.length)) return;
+
+    let cancelled = false;
+    let innerFrame = 0;
+    const outerFrame = window.requestAnimationFrame(() => {
+      innerFrame = window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        void fitView({
+          padding: FIT_VIEW_PADDING,
+          duration: FIT_VIEW_DURATION_MS,
+        });
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(outerFrame);
+      window.cancelAnimationFrame(innerFrame);
+    };
+  }, [fitViewGeneration, nodes, fitView]);
   const selectedNode =
     selectedNodeId === null
       ? undefined
@@ -249,6 +280,9 @@ function GraphCanvasInner() {
       setActionError(null);
       setBannerDismissed(null);
       replaceGraphQuery(graph.id);
+      if (shouldFitViewportAfterLoad(deserialized.nodes.length)) {
+        setFitViewGeneration((value) => value + 1);
+      }
     },
     [setEdges, setNodes],
   );

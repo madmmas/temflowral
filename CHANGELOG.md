@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Auto `fitView` after opening a graph (library / `?graph=` deep link) so nodes
+  outside the default camera are framed; sparse “lone Start” data is a separate
+  case from off-viewport (#111).
 - Dedicated wait/signal panel above the footer (no longer jammed into the
   status strip) and a resizable node config drawer with persisted width +
   “Editing: …” header (#110).

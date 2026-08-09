@@ -5,6 +5,23 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Fit viewport after graph load (#111)
+
+**Did:**
+- After `applyLoadedGraph`, bump a fit generation and call `fitView()` once
+  React Flow has committed/measured nodes (double rAF).
+- Empty loaded graphs skip fit (empty-state guide already covers them).
+- Scaffold e2e: deep-link a graph with nodes at (8000,8000) and assert they
+  land inside the canvas viewport.
+
+**Verified:**
+- vitest `fit-viewport`; tsc/eslint; Playwright scaffold + happy-path.
+
+**Next:**
+- Remaining UX backlog (#112+).
+
+---
+
 ## 2026-08-09 — Wait-signal panel + config resize (#110)
 
 **Did:**
