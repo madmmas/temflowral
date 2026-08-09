@@ -20,6 +20,23 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Workflow library (#103)
+
+**Did:**
+- Replace saved-graph `<select>` with an **Open…** button + `WorkflowLibrary`
+  modal: search by name/id, sort by updated/name, show short id + updated time,
+  highlight current graph.
+- Unit tests for filter/sort helpers; scaffold e2e covers open/search/close;
+  live-run asserts URL + Open button short id.
+
+**Verified:**
+- `npm test` (vitest) in `frontend/`.
+
+**Next:**
+- Remaining UX backlog P1s (#104+).
+
+---
+
 ## 2026-08-09 — Run result panel (#102)
 
 **Did:**
