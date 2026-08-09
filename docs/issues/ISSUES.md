@@ -159,7 +159,7 @@ Filed 2026-08-09 after a live-canvas UX audit (`localhost:3000`). Label: `ux` (+
 | P1 | [#104](https://github.com/madmmas/temflowral/issues/104) (done) | Theme **MiniMap** for dark canvas + hide/toggle |
 | P1 | [#105](https://github.com/madmmas/temflowral/issues/105) (done) | **Toolbar** layout; separate Delete from Run; dirty indicator; **stable on config open** |
 | P1 | [#106](https://github.com/madmmas/temflowral/issues/106) (done) | **Run history** + clearer status / short graph id |
-| P1 | [#111](https://github.com/madmmas/temflowral/issues/111) | **Fit viewport** after async graph load |
+| P1 | [#111](https://github.com/madmmas/temflowral/issues/111) (done) | **Fit viewport** after async graph load |
 | P1 | [#112](https://github.com/madmmas/temflowral/issues/112) | Node **config form** quality (order, headers builder, templates) |
 | P1 | [#113](https://github.com/madmmas/temflowral/issues/113) | **Per-node** visual execution status on the canvas |
 | P2 | [#107](https://github.com/madmmas/temflowral/issues/107) (done) | Graph **naming** UX (discourage duplicate Untitled) |
@@ -222,9 +222,11 @@ Pull signal UI out of the footer; allow config panel width resize. Builds on #92
 **Shipped:** dedicated amber wait/signal section above the footer; config
 drawer width resize (min/max + `localStorage`) with “Editing: …” header.
 
-**[#111](https://github.com/madmmas/temflowral/issues/111) — Fit viewport after async graph load** `[canvas][ux]`
+**[#111](https://github.com/madmmas/temflowral/issues/111) — Fit viewport after async graph load** `[canvas][ux]` ✅
 `fitView` on mount often runs with empty nodes; call `fitView()` after open/
 hydrate. Distinguish off-viewport from sparse graph data (lone Start, etc.).
+**Shipped:** bump a fit generation after `applyLoadedGraph` and call
+`fitView()` once nodes are committed; empty loads keep the #109 empty state.
 
 **[#112](https://github.com/madmmas/temflowral/issues/112) — Improve node config form quality** `[canvas][ux]`
 Stable field order (HTTP currently `body, headers, method, url` from Go map

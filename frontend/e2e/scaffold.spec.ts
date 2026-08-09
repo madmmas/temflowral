@@ -153,3 +153,53 @@ test("shows a dismissible banner when opening an invalid ?graph= deep link", asy
   await expect(page.getByTestId("canvas-error-banner")).toHaveCount(0);
   await expect(page.getByTestId("graph-canvas")).toBeVisible();
 });
+
+test("fits the viewport after opening a graph with far-off nodes", async ({
+  page,
+}) => {
+  // Distinguishes off-viewport (#111) from sparse “lone Start” data: without a
+  // post-load fitView, these nodes sit far outside the default camera.
+  const graphId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+  await page.route(`**/graphs/${graphId}`, async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: graphId,
+        name: "Far away workflow",
+        createdAt: "2026-08-09T00:00:00Z",
+        updatedAt: "2026-08-09T00:00:00Z",
+        nodes: [
+          {
+            id: "start-far",
+            type: "start",
+            label: "Far Start",
+            position: { x: 8000, y: 8000 },
+            config: {},
+          },
+        ],
+        edges: [],
+      }),
+    });
+  });
+
+  await page.goto(`/?graph=${graphId}`);
+  const canvas = page.getByTestId("graph-canvas");
+  const node = canvas.locator(".react-flow__node").filter({
+    hasText: "Far Start",
+  });
+  await expect(node).toBeVisible({ timeout: 10_000 });
+
+  const canvasBox = await canvas.boundingBox();
+  const nodeBox = await node.boundingBox();
+  expect(canvasBox).toBeTruthy();
+  expect(nodeBox).toBeTruthy();
+  expect(nodeBox!.x + nodeBox!.width).toBeGreaterThan(canvasBox!.x);
+  expect(nodeBox!.x).toBeLessThan(canvasBox!.x + canvasBox!.width);
+  expect(nodeBox!.y + nodeBox!.height).toBeGreaterThan(canvasBox!.y);
+  expect(nodeBox!.y).toBeLessThan(canvasBox!.y + canvasBox!.height);
+});
