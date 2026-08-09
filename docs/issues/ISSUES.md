@@ -157,7 +157,7 @@ Filed 2026-08-09 after a live-canvas UX audit (`localhost:3000`). Label: `ux` (+
 | P0 | [#102](https://github.com/madmmas/temflowral/issues/102) (done) | Collapsible / resizable / dismissible **run result** panel |
 | P0 | [#103](https://github.com/madmmas/temflowral/issues/103) (done) | Replace saved-graph **dropdown** with searchable workflow library |
 | P1 | [#104](https://github.com/madmmas/temflowral/issues/104) (done) | Theme **MiniMap** for dark canvas + hide/toggle |
-| P1 | [#105](https://github.com/madmmas/temflowral/issues/105) | **Toolbar** layout; separate Delete from Run; dirty indicator; **stable on config open** |
+| P1 | [#105](https://github.com/madmmas/temflowral/issues/105) (done) | **Toolbar** layout; separate Delete from Run; dirty indicator; **stable on config open** |
 | P1 | [#106](https://github.com/madmmas/temflowral/issues/106) | **Run history** + clearer status / short graph id |
 | P1 | [#111](https://github.com/madmmas/temflowral/issues/111) | **Fit viewport** after async graph load |
 | P1 | [#112](https://github.com/madmmas/temflowral/issues/112) | Node **config form** quality (order, headers builder, templates) |
@@ -187,10 +187,12 @@ Bright white MiniMap covers nodes; add dark styling and a show/hide control.
 **Shipped:** scheme-aware MiniMap colors, compact size, Show/Hide map toggle
 with `localStorage` preference.
 
-**[#105](https://github.com/madmmas/temflowral/issues/105) — Toolbar layout: stable actions and separate Delete from Run** `[canvas][ux]`
+**[#105](https://github.com/madmmas/temflowral/issues/105) — Toolbar layout: stable actions and separate Delete from Run** `[canvas][ux]` ✅
 Toolbar wrap puts Run next to Delete; add explicit dirty/unsaved indicator.
 Also: keep hit targets stable when the node config panel opens/closes (no
-jump into the graph-name field).
+jump into the graph-name field). **Shipped:** nowrap toolbar with Unsaved
+badge, Save/Run primary group, Delete in a separated danger zone; config
+panel overlays the canvas instead of shrinking the toolbar column.
 
 **[#106](https://github.com/madmmas/temflowral/issues/106) — Run history and clearer run status presentation** `[canvas][ux]`
 Only the latest run is kept; footer dumps full graph UUID. Session (or API)

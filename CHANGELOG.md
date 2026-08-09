@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Toolbar layout polish (#105): Unsaved indicator, Save/Run primary group,
+  Delete separated in a danger zone, and node config as an overlay so opening
+  it does not shift toolbar hit targets.
 - Dark-friendly MiniMap styling, smaller default size, and a Show/Hide map
   toggle persisted in `localStorage` (#104).
 - Searchable workflow library modal replaces the saved-graph `<select>`: search

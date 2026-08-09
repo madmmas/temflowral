@@ -5,6 +5,23 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Toolbar layout (#105)
+
+**Did:**
+- Graph toolbar: nowrap row, **Unsaved** badge by the name, Save/Run in a
+  primary group, Delete separated behind a left border (danger zone).
+- Node config panel overlays the canvas (absolute) so opening it no longer
+  shrinks the toolbar / shifts hit targets.
+- Scaffold e2e asserts primary vs danger grouping and Unsaved after add node.
+
+**Verified:**
+- `npm test` / tsc / eslint; Playwright scaffold.
+
+**Next:**
+- Remaining UX backlog (#106+).
+
+---
+
 ## 2026-08-09 — MiniMap theme + toggle (#104)
 
 **Did:**

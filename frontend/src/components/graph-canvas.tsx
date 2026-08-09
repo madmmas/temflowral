@@ -540,65 +540,100 @@ function GraphCanvasInner() {
         loading={nodeTypesLoading}
         error={nodeTypesError}
       />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex flex-wrap items-center gap-2 border-b border-black/10 px-3 py-2 dark:border-white/15">
-          <input
-            aria-label="Graph name"
-            value={graphName}
-            onChange={(event) => setGraphName(event.target.value)}
-            className="min-w-40 flex-1 rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-white/15 dark:bg-neutral-900"
-          />
-          <button
-            type="button"
-            data-testid="open-graph"
-            aria-label="Open workflow library"
-            onClick={() => setLibraryOpen(true)}
-            disabled={busy}
-            className="max-w-56 truncate rounded-md border border-black/10 bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-neutral-900 dark:hover:bg-white/10"
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        <div
+          data-testid="graph-toolbar"
+          className="flex flex-nowrap items-center gap-2 overflow-x-auto border-b border-black/10 px-3 py-2 dark:border-white/15"
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <input
+              aria-label="Graph name"
+              value={graphName}
+              onChange={(event) => setGraphName(event.target.value)}
+              className="min-w-32 w-full max-w-md rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-white/15 dark:bg-neutral-900"
+            />
+            {dirty ? (
+              <span
+                data-testid="unsaved-indicator"
+                className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-400/15 dark:text-amber-200"
+              >
+                Unsaved
+              </span>
+            ) : savedGraphId ? (
+              <span
+                data-testid="saved-indicator"
+                className="shrink-0 text-[11px] font-medium text-black/40 dark:text-white/40"
+              >
+                Saved
+              </span>
+            ) : null}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              data-testid="open-graph"
+              aria-label="Open workflow library"
+              onClick={() => setLibraryOpen(true)}
+              disabled={busy}
+              className="max-w-44 truncate rounded-md border border-black/10 bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-neutral-900 dark:hover:bg-white/10"
+            >
+              {savedGraphId
+                ? `Open… (${graphShortId(savedGraphId)})`
+                : graphsLoading
+                  ? "Loading…"
+                  : "Open…"}
+            </button>
+            <button
+              type="button"
+              onClick={onNewGraph}
+              disabled={busy}
+              className="rounded-md border border-black/10 bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-neutral-900 dark:hover:bg-white/10"
+            >
+              New
+            </button>
+          </div>
+
+          <div
+            data-testid="primary-actions"
+            className="flex shrink-0 items-center gap-2"
           >
-            {savedGraphId
-              ? `Open… (${graphShortId(savedGraphId)})`
-              : graphsLoading
-                ? "Loading…"
-                : "Open…"}
-          </button>
-          <button
-            type="button"
-            onClick={onNewGraph}
-            disabled={busy}
-            className="rounded-md border border-black/10 bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-neutral-900 dark:hover:bg-white/10"
+            <button
+              type="button"
+              onClick={saveGraph}
+              disabled={busy || nodes.length === 0 || !dirty}
+              className="rounded-md border border-black/10 bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-neutral-900 dark:hover:bg-white/10"
+            >
+              {action === "saving"
+                ? "Saving…"
+                : !dirty && savedGraphId
+                  ? "Saved"
+                  : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={runGraph}
+              disabled={busy || nodes.length === 0}
+              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {action === "starting" ? "Starting…" : "Run"}
+            </button>
+          </div>
+
+          <div
+            data-testid="danger-actions"
+            className="ml-1 flex shrink-0 items-center border-l border-black/10 pl-3 dark:border-white/15"
           >
-            New
-          </button>
-          <button
-            type="button"
-            onClick={saveGraph}
-            disabled={busy || nodes.length === 0 || !dirty}
-            className="rounded-md border border-black/10 bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-neutral-900 dark:hover:bg-white/10"
-          >
-            {action === "saving"
-              ? "Saving…"
-              : !dirty && savedGraphId
-                ? "Saved"
-                : "Save"}
-          </button>
-          <button
-            type="button"
-            onClick={runGraph}
-            disabled={busy || nodes.length === 0}
-            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {action === "starting" ? "Starting…" : "Run"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void deleteGraph()}
-            disabled={busy || !savedGraphId}
-            data-testid="delete-graph"
-            className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 shadow-sm hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-neutral-900 dark:text-red-400 dark:hover:bg-red-950/40"
-          >
-            {action === "deleting" ? "Deleting…" : "Delete"}
-          </button>
+            <button
+              type="button"
+              onClick={() => void deleteGraph()}
+              disabled={busy || !savedGraphId}
+              data-testid="delete-graph"
+              className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 shadow-sm hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-neutral-900 dark:text-red-400 dark:hover:bg-red-950/40"
+            >
+              {action === "deleting" ? "Deleting…" : "Delete"}
+            </button>
+          </div>
         </div>
         <div data-testid="graph-canvas" className="relative min-h-0 flex-1">
           <ReactFlow
@@ -650,6 +685,21 @@ function GraphCanvasInner() {
             )}
             <Controls />
           </ReactFlow>
+          {selectedNode && (
+            <div className="pointer-events-none absolute inset-y-0 right-0 z-20 flex">
+              <div className="pointer-events-auto h-full shadow-lg">
+                <NodeConfigPanel
+                  node={selectedNode}
+                  nodeType={selectedNodeType}
+                  onChangeLabel={onChangeSelectedLabel}
+                  onChangeConfig={onChangeSelectedConfig}
+                  onChangeActivityOptions={onChangeSelectedActivityOptions}
+                  onChangeTaskQueue={onChangeSelectedTaskQueue}
+                  onClose={() => setSelectedNodeId(null)}
+                />
+              </div>
+            </div>
+          )}
         </div>
         {showResultPanel && run && (
           <RunResultPanel
@@ -737,17 +787,6 @@ function GraphCanvasInner() {
           </div>
         )}
       </div>
-      {selectedNode && (
-        <NodeConfigPanel
-          node={selectedNode}
-          nodeType={selectedNodeType}
-          onChangeLabel={onChangeSelectedLabel}
-          onChangeConfig={onChangeSelectedConfig}
-          onChangeActivityOptions={onChangeSelectedActivityOptions}
-          onChangeTaskQueue={onChangeSelectedTaskQueue}
-          onClose={() => setSelectedNodeId(null)}
-        />
-      )}
       <WorkflowLibrary
         open={libraryOpen}
         graphs={graphs}
