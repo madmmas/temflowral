@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Empty-canvas first-run guide and a dismissible authoring tip remembered in
+  `localStorage`; palette clicks get a slight offset so stacked drops fan out
+  (#109).
 - Dismissible canvas error banner for open/save/run/list failures; invalid
   `?graph=` deep links clear the URL and stay obvious without the footer (#108).
 - Graph naming UX (#107): hint for Untitled / duplicate names, prompt on first
