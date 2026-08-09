@@ -161,7 +161,7 @@ Filed 2026-08-09 after a live-canvas UX audit (`localhost:3000`). Label: `ux` (+
 | P1 | [#106](https://github.com/madmmas/temflowral/issues/106) (done) | **Run history** + clearer status / short graph id |
 | P1 | [#111](https://github.com/madmmas/temflowral/issues/111) (done) | **Fit viewport** after async graph load |
 | P1 | [#112](https://github.com/madmmas/temflowral/issues/112) (done) | Node **config form** quality (order, headers builder, templates) |
-| P1 | [#113](https://github.com/madmmas/temflowral/issues/113) | **Per-node** visual execution status on the canvas |
+| P1 | [#113](https://github.com/madmmas/temflowral/issues/113) (done) | **Per-node** visual execution status on the canvas |
 | P2 | [#107](https://github.com/madmmas/temflowral/issues/107) (done) | Graph **naming** UX (discourage duplicate Untitled) |
 | P2 | [#108](https://github.com/madmmas/temflowral/issues/108) (done) | Surface load/API **errors** as banners (not footer-only) |
 | P2 | [#109](https://github.com/madmmas/temflowral/issues/109) (done) | Empty canvas guidance + dismissible authoring tip |
@@ -235,9 +235,12 @@ Complements #110 (drawer chrome only).
 **Shipped:** `x-order` on HTTP schema (OpenAPI + Go) with frontend fallback
 order; headers row editor; `{{` template suggestions from upstream nodes.
 
-**[#113](https://github.com/madmmas/temflowral/issues/113) — Per-node visual execution status on the canvas** `[canvas][executor][ux]`
+**[#113](https://github.com/madmmas/temflowral/issues/113) — Per-node visual execution status on the canvas** `[canvas][executor][ux]` ✅
 Decorate nodes pending/running/completed/failed/waiting during or after runs.
 May need contract progress beyond #106 footer/history.
+**Shipped (interim):** node chrome from existing Run fields — `completed` via
+`result.nodes[].nodeId`, `waiting` via `currentWait.nodeId`; no mid-run
+pending/running without a future progress API.
 
 **[#114](https://github.com/madmmas/temflowral/issues/114) — Accessibility baseline for the reference canvas** `[canvas][ux]`
 Keyboard path, focus rings, dark-theme contrast; umbrella placeholder.

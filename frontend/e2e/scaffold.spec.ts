@@ -196,6 +196,25 @@ test("shows a dismissible banner when opening an invalid ?graph= deep link", asy
   await expect(page.getByTestId("graph-canvas")).toBeVisible();
 });
 
+test("nodes have no execution chrome until a run reports status", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByTestId("node-type-start").click();
+  const startNode = page.locator('[data-testid^="workflow-node-"]').first();
+  const startTestId = await startNode.getAttribute("data-testid");
+  expect(startTestId).toBeTruthy();
+  const nodeId = startTestId!.replace("workflow-node-", "");
+
+  await expect(page.getByTestId(`workflow-node-${nodeId}`)).toHaveAttribute(
+    "data-execution-status",
+    "idle",
+  );
+  await expect(page.getByTestId(`node-execution-status-${nodeId}`)).toHaveCount(
+    0,
+  );
+});
+
 test("fits the viewport after opening a graph with far-off nodes", async ({
   page,
 }) => {

@@ -49,6 +49,7 @@ import {
   FIT_VIEW_PADDING,
   shouldFitViewportAfterLoad,
 } from "@/lib/fit-viewport";
+import { NodeExecutionStatusProvider } from "@/lib/node-execution-status-context";
 import {
   apiErrorMessage,
   createNode,
@@ -807,58 +808,63 @@ function GraphCanvasInner() {
           <EmptyCanvasGuide
             visible={nodes.length === 0 && action !== "loading"}
           />
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onSelectionChange={onSelectionChange}
-            onDragOver={onDragOver}
-            onDrop={onDrop}
-            deleteKeyCode={["Backspace", "Delete"]}
-            fitView
-            proOptions={{ hideAttribution: true }}
+          <NodeExecutionStatusProvider
+            run={run}
+            nodeIds={nodes.map((node) => node.id)}
           >
-            <Panel position="top-right">
-              <div className="flex flex-col items-end gap-1.5">
-                <AuthoringTip
-                  visible={nodes.length > 0 && !authoringTipDismissed}
-                  onDismiss={() => {
-                    setAuthoringTipDismissed(true);
-                    writeAuthoringTipDismissed(true);
-                  }}
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onSelectionChange={onSelectionChange}
+              onDragOver={onDragOver}
+              onDrop={onDrop}
+              deleteKeyCode={["Backspace", "Delete"]}
+              fitView
+              proOptions={{ hideAttribution: true }}
+            >
+              <Panel position="top-right">
+                <div className="flex flex-col items-end gap-1.5">
+                  <AuthoringTip
+                    visible={nodes.length > 0 && !authoringTipDismissed}
+                    onDismiss={() => {
+                      setAuthoringTipDismissed(true);
+                      writeAuthoringTipDismissed(true);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    data-testid="toggle-minimap"
+                    aria-pressed={minimapVisible}
+                    onClick={() => {
+                      setMinimapVisible((current) => {
+                        const next = !current;
+                        writeMinimapVisible(next);
+                        return next;
+                      });
+                    }}
+                    className="rounded-md border border-black/10 bg-white/90 px-2 py-1 text-[11px] font-medium text-black/70 shadow-sm hover:bg-black/5 dark:border-white/15 dark:bg-neutral-900/90 dark:text-white/70 dark:hover:bg-white/10"
+                  >
+                    {minimapVisible ? "Hide map" : "Show map"}
+                  </button>
+                </div>
+              </Panel>
+              <Background />
+              {minimapVisible && (
+                <MiniMap
+                  pannable
+                  zoomable
+                  style={MINIMAP_STYLE}
+                  {...minimapColorsForScheme(minimapPrefersDark)}
+                  className="!rounded-md !border !border-black/20 !shadow-sm dark:!border-white/20"
                 />
-                <button
-                  type="button"
-                  data-testid="toggle-minimap"
-                  aria-pressed={minimapVisible}
-                  onClick={() => {
-                    setMinimapVisible((current) => {
-                      const next = !current;
-                      writeMinimapVisible(next);
-                      return next;
-                    });
-                  }}
-                  className="rounded-md border border-black/10 bg-white/90 px-2 py-1 text-[11px] font-medium text-black/70 shadow-sm hover:bg-black/5 dark:border-white/15 dark:bg-neutral-900/90 dark:text-white/70 dark:hover:bg-white/10"
-                >
-                  {minimapVisible ? "Hide map" : "Show map"}
-                </button>
-              </div>
-            </Panel>
-            <Background />
-            {minimapVisible && (
-              <MiniMap
-                pannable
-                zoomable
-                style={MINIMAP_STYLE}
-                {...minimapColorsForScheme(minimapPrefersDark)}
-                className="!rounded-md !border !border-black/20 !shadow-sm dark:!border-white/20"
-              />
-            )}
-            <Controls />
-          </ReactFlow>
+              )}
+              <Controls />
+            </ReactFlow>
+          </NodeExecutionStatusProvider>
           {selectedNode && (
             <div className="pointer-events-none absolute inset-y-0 right-0 z-20 flex">
               <div className="pointer-events-auto h-full shadow-lg">
