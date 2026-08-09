@@ -28,6 +28,7 @@ import { createApiClient, type components } from "@/api";
 import { NODE_TYPE_DRAG_KEY, NodePalette } from "@/components/node-palette";
 import { NodeConfigPanel } from "@/components/node-config-panel";
 import { WorkflowNode } from "@/components/nodes/workflow-node";
+import { RunResultPanel } from "@/components/run-result-panel";
 import { RunSignalPanel } from "@/components/run-signal-panel";
 import {
   apiErrorMessage,
@@ -43,6 +44,10 @@ import {
 import { useGraphList } from "@/lib/graph-list";
 import { NodeTypeRegistryProvider } from "@/lib/node-type-registry";
 import { useNodeTypes, type NodeType } from "@/lib/node-types";
+import {
+  runHasResultPanelContent,
+  RUN_RESULT_PANEL_DEFAULT_HEIGHT,
+} from "@/lib/run-result-panel";
 
 const initialNodes: CanvasNode[] = [];
 const initialEdges: CanvasEdge[] = [];
@@ -99,6 +104,11 @@ function GraphCanvasInner() {
   const [action, setAction] = useState<Action>("idle");
   const [actionError, setActionError] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [resultPanelVisible, setResultPanelVisible] = useState(false);
+  const [resultPanelCollapsed, setResultPanelCollapsed] = useState(false);
+  const [resultPanelHeight, setResultPanelHeight] = useState(
+    RUN_RESULT_PANEL_DEFAULT_HEIGHT,
+  );
   const { screenToFlowPosition } = useReactFlow();
   const {
     nodeTypes: registryNodeTypes,
@@ -113,8 +123,16 @@ function GraphCanvasInner() {
   } = useGraphList();
   const runId = run?.id;
   const runStatus = run?.status;
+  const hasResultContent = runHasResultPanelContent(run);
+  const showResultPanel = resultPanelVisible && hasResultContent;
   const dirty =
     graphFingerprint(graphName, nodes, edges) !== baselineFingerprint;
+
+  useEffect(() => {
+    if (!hasResultContent) return;
+    setResultPanelVisible(true);
+    setResultPanelCollapsed(false);
+  }, [runId, hasResultContent]);
   const selectedNode =
     selectedNodeId === null
       ? undefined
@@ -139,6 +157,7 @@ function GraphCanvasInner() {
       );
       setSelectedNodeId(null);
       setRun(null);
+      setResultPanelVisible(false);
       setActionError(null);
       replaceGraphQuery(graph.id);
     },
@@ -404,6 +423,7 @@ function GraphCanvasInner() {
       setBaselineFingerprint(EMPTY_GRAPH_FINGERPRINT);
       setSelectedNodeId(null);
       setRun(null);
+      setResultPanelVisible(false);
       replaceGraphQuery(null);
       refreshGraphs();
     } catch {
@@ -471,6 +491,7 @@ function GraphCanvasInner() {
     setBaselineFingerprint(EMPTY_GRAPH_FINGERPRINT);
     setSelectedNodeId(null);
     setRun(null);
+    setResultPanelVisible(false);
     setActionError(null);
     replaceGraphQuery(null);
   }, [dirty, setEdges, setNodes]);
@@ -595,6 +616,17 @@ function GraphCanvasInner() {
             <Controls />
           </ReactFlow>
         </div>
+        {showResultPanel && run && (
+          <RunResultPanel
+            result={run.result}
+            error={run.error}
+            collapsed={resultPanelCollapsed}
+            height={resultPanelHeight}
+            onCollapsedChange={setResultPanelCollapsed}
+            onHeightChange={setResultPanelHeight}
+            onDismiss={() => setResultPanelVisible(false)}
+          />
+        )}
         {(savedGraphId || run || actionError || graphsError || action === "loading") && (
           <div
             role={actionError || graphsError ? "alert" : "status"}
@@ -610,20 +642,45 @@ function GraphCanvasInner() {
                 Graph: {savedGraphId}
               </span>
             )}
-            {run && (
-              <span
-                data-testid="run-status"
-                className={
-                  run.status === "failed" || run.status === "cancelled"
-                    ? "font-medium text-red-600 dark:text-red-400"
-                    : run.status === "completed"
-                      ? "font-medium text-green-600 dark:text-green-400"
-                      : "font-medium text-blue-600 dark:text-blue-400"
-                }
-              >
-                Run {run.status}
-              </span>
-            )}
+            {run &&
+              (hasResultContent ? (
+                <button
+                  type="button"
+                  data-testid="run-status"
+                  onClick={() => {
+                    setResultPanelVisible(true);
+                    setResultPanelCollapsed(false);
+                  }}
+                  title={
+                    showResultPanel
+                      ? "Run result panel is open"
+                      : "Show run result"
+                  }
+                  className={
+                    run.status === "failed" || run.status === "cancelled"
+                      ? "font-medium text-red-600 hover:underline dark:text-red-400"
+                      : run.status === "completed"
+                        ? "font-medium text-green-600 hover:underline dark:text-green-400"
+                        : "font-medium text-blue-600 hover:underline dark:text-blue-400"
+                  }
+                >
+                  Run {run.status}
+                  {!showResultPanel && " · View result"}
+                </button>
+              ) : (
+                <span
+                  data-testid="run-status"
+                  className={
+                    run.status === "failed" || run.status === "cancelled"
+                      ? "font-medium text-red-600 dark:text-red-400"
+                      : run.status === "completed"
+                        ? "font-medium text-green-600 dark:text-green-400"
+                        : "font-medium text-blue-600 dark:text-blue-400"
+                  }
+                >
+                  Run {run.status}
+                </span>
+              ))}
             {run?.currentWait && runId && (
               <RunSignalPanel
                 runId={runId}
@@ -631,17 +688,6 @@ function GraphCanvasInner() {
                 busy={busy}
                 onSend={sendRunSignal}
               />
-            )}
-            {run?.result && (
-              <pre
-                data-testid="run-result"
-                className="max-w-full overflow-x-auto rounded bg-black/5 px-2 py-1 text-black/70 dark:bg-white/10 dark:text-white/70"
-              >
-                {JSON.stringify(run.result, null, 2)}
-              </pre>
-            )}
-            {run?.error && (
-              <span className="text-red-600 dark:text-red-400">{run.error}</span>
             )}
             {graphsError && (
               <span className="text-red-600 dark:text-red-400">

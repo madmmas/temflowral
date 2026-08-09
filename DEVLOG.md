@@ -5,6 +5,23 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Run result panel (#102)
+
+**Did:**
+- Bottom `RunResultPanel` drawer: collapse / expand, drag-resize height, Hide,
+  Copy JSON; run error uses the same panel.
+- Footer keeps a compact `Run {status}` chip; when dismissed, shows
+  `· View result` and reopens the drawer on click.
+- Unit tests for panel helpers; happy-path e2e covers collapse / hide / reopen.
+
+**Verified:**
+- `npm test` (vitest) in `frontend/`.
+
+**Next:**
+- #103 searchable workflow library.
+
+---
+
 ## 2026-08-09 — Canvas UI/UX backlog (#102–#114)
 
 **Did:**
