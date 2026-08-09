@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Accessibility baseline for the reference canvas (#114): keyboard Escape
+  layers, focus-visible rings, typing-safe node delete, skip link, and
+  `docs/canvas-accessibility.md` (verified checklist + known gaps).
 - Per-node execution chrome on the canvas (#113): Done / Waiting badges from
   `run.result.nodes` and `run.currentWait` (interim — live pending/running
   needs a future progress contract field).

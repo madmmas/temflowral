@@ -78,6 +78,7 @@ export function WorkflowNode({ id, data, selected }: NodeProps<CanvasNode>) {
         {statusLabel && chrome && (
           <span
             data-testid={`node-execution-status-${id}`}
+            aria-label={`Status: ${statusLabel}`}
             className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${chrome.badge}`}
           >
             {statusLabel}

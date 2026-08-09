@@ -16,7 +16,7 @@ type NodePaletteProps = {
 
 /**
  * Sidebar palette populated from `GET /node-types`. Drag an item onto the
- * canvas, or click it to drop one at the centre.
+ * canvas, or click / activate it to drop one at the centre.
  */
 export function NodePalette({
   onAddNodeType,
@@ -32,29 +32,32 @@ export function NodePalette({
   return (
     <aside
       data-testid="node-palette"
+      aria-label="Node types"
       className="flex w-56 shrink-0 flex-col gap-3 overflow-y-auto border-r border-black/10 bg-black/[0.02] p-3 dark:border-white/15 dark:bg-white/[0.03]"
     >
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-black/55 dark:text-white/55">
         Nodes
       </h2>
 
       {loading && (
-        <p className="text-xs text-black/50 dark:text-white/50">Loading…</p>
+        <p className="text-xs text-black/55 dark:text-white/55">Loading…</p>
       )}
 
       {error && (
-        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+        <p role="alert" className="text-xs text-red-700 dark:text-red-300">
+          {error}
+        </p>
       )}
 
       {!loading && !error && nodeTypes.length === 0 && (
-        <p className="text-xs text-black/50 dark:text-white/50">
+        <p className="text-xs text-black/55 dark:text-white/55">
           No node types available.
         </p>
       )}
 
       {groupByCategory(nodeTypes).map(([category, types]) => (
         <div key={category} className="flex flex-col gap-1.5">
-          <h3 className="text-[10px] font-semibold uppercase tracking-wide text-black/40 dark:text-white/40">
+          <h3 className="text-[10px] font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">
             {category}
           </h3>
           {types.map((nodeType) => (
@@ -69,6 +72,7 @@ export function NodePalette({
               }}
               onClick={() => onAddNodeType(nodeType)}
               title={nodeType.description ?? nodeType.name}
+              aria-label={`Add ${nodeType.name} node`}
               className="cursor-grab rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-left text-sm shadow-sm hover:bg-black/5 active:cursor-grabbing dark:border-white/15 dark:bg-neutral-900 dark:hover:bg-white/10"
             >
               {nodeType.name}

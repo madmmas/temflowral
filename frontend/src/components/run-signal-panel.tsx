@@ -92,7 +92,7 @@ export function RunSignalPanel({
             value={signal}
             onChange={(event) => setSignal(event.target.value)}
             disabled={busy || sending}
-            className="rounded-md border border-amber-700/25 bg-white px-2.5 py-1.5 text-sm dark:border-amber-300/20 dark:bg-neutral-900"
+            className="rounded-md border border-amber-700/25 bg-white px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-amber-600/40 dark:border-amber-300/20 dark:bg-neutral-900"
           />
         </label>
         <label className="flex min-w-56 flex-1 flex-col gap-1 text-xs text-amber-950/80 dark:text-amber-50/80">
@@ -104,7 +104,7 @@ export function RunSignalPanel({
             onChange={(event) => setPayloadText(event.target.value)}
             placeholder='{"approved":true}'
             disabled={busy || sending}
-            className="rounded-md border border-amber-700/25 bg-white px-2.5 py-1.5 font-mono text-sm dark:border-amber-300/20 dark:bg-neutral-900"
+            className="rounded-md border border-amber-700/25 bg-white px-2.5 py-1.5 font-mono text-sm outline-none focus:ring-2 focus:ring-amber-600/40 dark:border-amber-300/20 dark:bg-neutral-900"
           />
         </label>
         <button
