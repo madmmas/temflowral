@@ -48,6 +48,13 @@ import {
   runHasResultPanelContent,
   RUN_RESULT_PANEL_DEFAULT_HEIGHT,
 } from "@/lib/run-result-panel";
+import {
+  MINIMAP_STYLE,
+  MINIMAP_VISIBLE_DEFAULT,
+  minimapColorsForScheme,
+  readMinimapVisible,
+  writeMinimapVisible,
+} from "@/lib/minimap-prefs";
 
 const initialNodes: CanvasNode[] = [];
 const initialEdges: CanvasEdge[] = [];
@@ -109,6 +116,8 @@ function GraphCanvasInner() {
   const [resultPanelHeight, setResultPanelHeight] = useState(
     RUN_RESULT_PANEL_DEFAULT_HEIGHT,
   );
+  const [minimapVisible, setMinimapVisible] = useState(MINIMAP_VISIBLE_DEFAULT);
+  const [minimapPrefersDark, setMinimapPrefersDark] = useState(true);
   const { screenToFlowPosition } = useReactFlow();
   const {
     nodeTypes: registryNodeTypes,
@@ -127,6 +136,16 @@ function GraphCanvasInner() {
   const showResultPanel = resultPanelVisible && hasResultContent;
   const dirty =
     graphFingerprint(graphName, nodes, edges) !== baselineFingerprint;
+
+  useEffect(() => {
+    setMinimapVisible(readMinimapVisible());
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const sync = () => setMinimapPrefersDark(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     if (!hasResultContent) return;
@@ -606,13 +625,38 @@ function GraphCanvasInner() {
             proOptions={{ hideAttribution: true }}
           >
             <Panel position="top-right">
-              <p className="rounded-md bg-white/70 px-2 py-1 text-xs text-black/60 dark:bg-neutral-900/70 dark:text-white/60">
-                Select a node to edit config · drag handles to connect · Delete
-                to remove
-              </p>
+              <div className="flex flex-col items-end gap-1.5">
+                <p className="rounded-md bg-white/70 px-2 py-1 text-xs text-black/60 dark:bg-neutral-900/70 dark:text-white/60">
+                  Select a node to edit config · drag handles to connect · Delete
+                  to remove
+                </p>
+                <button
+                  type="button"
+                  data-testid="toggle-minimap"
+                  aria-pressed={minimapVisible}
+                  onClick={() => {
+                    setMinimapVisible((current) => {
+                      const next = !current;
+                      writeMinimapVisible(next);
+                      return next;
+                    });
+                  }}
+                  className="rounded-md border border-black/10 bg-white/90 px-2 py-1 text-[11px] font-medium text-black/70 shadow-sm hover:bg-black/5 dark:border-white/15 dark:bg-neutral-900/90 dark:text-white/70 dark:hover:bg-white/10"
+                >
+                  {minimapVisible ? "Hide map" : "Show map"}
+                </button>
+              </div>
             </Panel>
             <Background />
-            <MiniMap pannable zoomable />
+            {minimapVisible && (
+              <MiniMap
+                pannable
+                zoomable
+                style={MINIMAP_STYLE}
+                {...minimapColorsForScheme(minimapPrefersDark)}
+                className="!rounded-md !border !border-black/20 !shadow-sm dark:!border-white/20"
+              />
+            )}
             <Controls />
           </ReactFlow>
         </div>

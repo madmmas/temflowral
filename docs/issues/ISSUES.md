@@ -156,7 +156,7 @@ Filed 2026-08-09 after a live-canvas UX audit (`localhost:3000`). Label: `ux` (+
 | --- | --- | --- |
 | P0 | [#102](https://github.com/madmmas/temflowral/issues/102) (done) | Collapsible / resizable / dismissible **run result** panel |
 | P0 | [#103](https://github.com/madmmas/temflowral/issues/103) | Replace saved-graph **dropdown** with searchable workflow library |
-| P1 | [#104](https://github.com/madmmas/temflowral/issues/104) | Theme **MiniMap** for dark canvas + hide/toggle |
+| P1 | [#104](https://github.com/madmmas/temflowral/issues/104) (done) | Theme **MiniMap** for dark canvas + hide/toggle |
 | P1 | [#105](https://github.com/madmmas/temflowral/issues/105) | **Toolbar** layout; separate Delete from Run; dirty indicator; **stable on config open** |
 | P1 | [#106](https://github.com/madmmas/temflowral/issues/106) | **Run history** + clearer status / short graph id |
 | P1 | [#111](https://github.com/madmmas/temflowral/issues/111) | **Fit viewport** after async graph load |
@@ -180,8 +180,10 @@ keeps a status chip that reopens the panel.
 `<select>` does not scale; duplicate names + truncated UUIDs. Modal/side library
 with search, sort by `updatedAt`, and metadata. Depends on #90 (done).
 
-**[#104](https://github.com/madmmas/temflowral/issues/104) — Theme MiniMap for dark canvas and add hide/toggle** `[canvas][ux]`
+**[#104](https://github.com/madmmas/temflowral/issues/104) — Theme MiniMap for dark canvas and add hide/toggle** `[canvas][ux]` ✅
 Bright white MiniMap covers nodes; add dark styling and a show/hide control.
+**Shipped:** scheme-aware MiniMap colors, compact size, Show/Hide map toggle
+with `localStorage` preference.
 
 **[#105](https://github.com/madmmas/temflowral/issues/105) — Toolbar layout: stable actions and separate Delete from Run** `[canvas][ux]`
 Toolbar wrap puts Run next to Delete; add explicit dirty/unsaved indicator.
