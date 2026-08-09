@@ -5,6 +5,22 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Graph naming UX (#107)
+
+**Did:**
+- `graph-naming` helpers: placeholder detection, duplicate lookup, resolve for
+  Save (prompt + soft confirm), toolbar hint text.
+- Wire into canvas Save/Run path; amber hint under the name field.
+- Scaffold e2e: hint + first-Save prompt dialog.
+
+**Verified:**
+- vitest `graph-naming`; tsc/eslint; Playwright scaffold (+ happy-path).
+
+**Next:**
+- Remaining UX backlog (#108+ / #111+).
+
+---
+
 ## 2026-08-09 — Run history + status (#106)
 
 **Did:**

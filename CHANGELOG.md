@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Graph naming UX (#107): hint for Untitled / duplicate names, prompt on first
+  Save of a new workflow, and a soft confirm when the name already exists
+  (no API uniqueness requirement).
 - Session-local run history in the canvas footer, compact run-status chip
   (including waiting), and short graph id with Copy (#106). Durable listing
   awaits a future `GET /graphs/{id}/runs` contract.

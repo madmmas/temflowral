@@ -36,6 +36,31 @@ test("loads the graph editor with the contract-backed node palette", async ({
 
   await page.getByTestId("node-type-start").click();
   await expect(page.getByTestId("unsaved-indicator")).toHaveText("Unsaved");
+  await expect(page.getByTestId("graph-name-hint")).toHaveText(
+    "Name this workflow before first save",
+  );
+
+  await page.getByLabel("Graph name").fill("Scaffold named flow");
+  await expect(page.getByTestId("graph-name-hint")).toHaveCount(0);
+});
+
+test("prompts for a name on first Save when still Untitled", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByTestId("node-type-start").click();
+
+  page.once("dialog", async (dialog) => {
+    expect(dialog.type()).toBe("prompt");
+    expect(dialog.message()).toMatch(/Name this workflow/);
+    await dialog.accept("Named from prompt");
+  });
+
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByLabel("Graph name")).toHaveValue("Named from prompt");
+  await expect(page.getByTestId("saved-indicator")).toBeVisible({
+    timeout: 10_000,
+  });
 });
 
 test("opens the searchable workflow library from Open…", async ({ page }) => {
