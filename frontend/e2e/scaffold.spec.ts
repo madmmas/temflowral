@@ -17,6 +17,31 @@ test("loads the graph editor with the contract-backed node palette", async ({
   await expect(page.getByTestId("node-type-start")).toBeVisible();
   await expect(page.getByTestId("node-type-http")).toBeVisible();
 
-  await expect(page.getByRole("button", { name: "Save" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Run" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Run", exact: true })).toBeDisabled();
+});
+
+test("opens the searchable workflow library from Open…", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("open-graph").click();
+  await expect(page.getByTestId("workflow-library")).toBeVisible();
+  await expect(page.getByText("Hello workflow")).toBeVisible();
+  await expect(
+    page.getByTestId(
+      "workflow-library-item-550e8400-e29b-41d4-a716-446655440000",
+    ),
+  ).toContainText(/Updated/);
+
+  await page.getByTestId("workflow-library-search").fill("hello");
+  await expect(
+    page.getByTestId(
+      "workflow-library-item-550e8400-e29b-41d4-a716-446655440000",
+    ),
+  ).toBeVisible();
+
+  await page.getByTestId("workflow-library-search").fill("zzz-no-match");
+  await expect(page.getByText("No workflows match your search.")).toBeVisible();
+
+  await page.getByTestId("workflow-library-close").click();
+  await expect(page.getByTestId("workflow-library")).toHaveCount(0);
 });

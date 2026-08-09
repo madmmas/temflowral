@@ -155,7 +155,7 @@ Filed 2026-08-09 after a live-canvas UX audit (`localhost:3000`). Label: `ux` (+
 | Pri | Issue | Focus |
 | --- | --- | --- |
 | P0 | [#102](https://github.com/madmmas/temflowral/issues/102) (done) | Collapsible / resizable / dismissible **run result** panel |
-| P0 | [#103](https://github.com/madmmas/temflowral/issues/103) | Replace saved-graph **dropdown** with searchable workflow library |
+| P0 | [#103](https://github.com/madmmas/temflowral/issues/103) (done) | Replace saved-graph **dropdown** with searchable workflow library |
 | P1 | [#104](https://github.com/madmmas/temflowral/issues/104) | Theme **MiniMap** for dark canvas + hide/toggle |
 | P1 | [#105](https://github.com/madmmas/temflowral/issues/105) | **Toolbar** layout; separate Delete from Run; dirty indicator; **stable on config open** |
 | P1 | [#106](https://github.com/madmmas/temflowral/issues/106) | **Run history** + clearer status / short graph id |
@@ -176,9 +176,11 @@ canvas height after Run completes. Move to a dedicated panel with collapse,
 resize, hide, and copy. **Shipped:** `RunResultPanel` bottom drawer; footer
 keeps a status chip that reopens the panel.
 
-**[#103](https://github.com/madmmas/temflowral/issues/103) — Replace saved-graph dropdown with searchable workflow library** `[canvas][ux]`
+**[#103](https://github.com/madmmas/temflowral/issues/103) — Replace saved-graph dropdown with searchable workflow library** `[canvas][ux]` ✅
 `<select>` does not scale; duplicate names + truncated UUIDs. Modal/side library
 with search, sort by `updatedAt`, and metadata. Depends on #90 (done).
+**Shipped:** `WorkflowLibrary` modal (search, sort Updated/Name, short id +
+updated time); toolbar **Open…** button keeps `data-testid="open-graph"`.
 
 **[#104](https://github.com/madmmas/temflowral/issues/104) — Theme MiniMap for dark canvas and add hide/toggle** `[canvas][ux]`
 Bright white MiniMap covers nodes; add dark styling and a show/hide control.
