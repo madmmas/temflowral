@@ -5,6 +5,21 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — MiniMap theme + toggle (#104)
+
+**Did:**
+- Style MiniMap for dark/light `prefers-color-scheme` (no bright white panel);
+  shrink default size; Show/Hide map control with `localStorage` persistence.
+- Unit tests for preference helpers; scaffold e2e toggles visibility.
+
+**Verified:**
+- `npm test` (vitest) in `frontend/`.
+
+**Next:**
+- UX backlog P1s (#105+).
+
+---
+
 ## 2026-08-09 — Workflow library (#103)
 
 **Did:**

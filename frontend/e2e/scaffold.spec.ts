@@ -19,6 +19,14 @@ test("loads the graph editor with the contract-backed node palette", async ({
 
   await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Run", exact: true })).toBeDisabled();
+
+  await expect(page.getByTestId("toggle-minimap")).toBeVisible();
+  const minimap = page.locator(".react-flow__minimap");
+  await expect(minimap).toBeVisible();
+  await page.getByTestId("toggle-minimap").click();
+  await expect(minimap).toHaveCount(0);
+  await page.getByTestId("toggle-minimap").click();
+  await expect(minimap).toBeVisible();
 });
 
 test("opens the searchable workflow library from Open…", async ({ page }) => {
