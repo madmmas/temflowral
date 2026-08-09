@@ -26,6 +26,39 @@ test("loads the graph editor with the contract-backed node palette", async ({
   await expect(danger.getByTestId("delete-graph")).toBeVisible();
   await expect(primary.getByTestId("delete-graph")).toHaveCount(0);
 
+  await expect(page.getByTestId("toggle-minimap")).toBeVisible();
+  const minimap = page.locator(".react-flow__minimap");
+  await expect(minimap).toBeVisible();
+  await page.getByTestId("toggle-minimap").click();
+  await expect(minimap).toHaveCount(0);
+  await page.getByTestId("toggle-minimap").click();
+  await expect(minimap).toBeVisible();
+
   await page.getByTestId("node-type-start").click();
   await expect(page.getByTestId("unsaved-indicator")).toHaveText("Unsaved");
+});
+
+test("opens the searchable workflow library from Open…", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("open-graph").click();
+  await expect(page.getByTestId("workflow-library")).toBeVisible();
+  await expect(page.getByText("Hello workflow")).toBeVisible();
+  await expect(
+    page.getByTestId(
+      "workflow-library-item-550e8400-e29b-41d4-a716-446655440000",
+    ),
+  ).toContainText(/Updated/);
+
+  await page.getByTestId("workflow-library-search").fill("hello");
+  await expect(
+    page.getByTestId(
+      "workflow-library-item-550e8400-e29b-41d4-a716-446655440000",
+    ),
+  ).toBeVisible();
+
+  await page.getByTestId("workflow-library-search").fill("zzz-no-match");
+  await expect(page.getByText("No workflows match your search.")).toBeVisible();
+
+  await page.getByTestId("workflow-library-close").click();
+  await expect(page.getByTestId("workflow-library")).toHaveCount(0);
 });

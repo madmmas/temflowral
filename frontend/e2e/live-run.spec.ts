@@ -21,9 +21,13 @@ test.describe("live backend create → run", () => {
 
     await page.goto(`/?graph=${graphId}`);
     await expect(page.getByTestId("graph-editor")).toBeVisible();
-    await expect(page.getByTestId("open-graph")).toHaveValue(graphId, {
+    await expect(page).toHaveURL(new RegExp(`[?&]graph=${graphId}`), {
       timeout: 15_000,
     });
+    await expect(page.getByTestId("open-graph")).toContainText(
+      graphId.slice(0, 8),
+      { timeout: 15_000 },
+    );
     await expect(
       page.getByTestId("graph-canvas").getByText("Start", { exact: true }),
     ).toBeVisible();

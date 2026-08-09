@@ -13,6 +13,10 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 - Toolbar layout polish (#105): Unsaved indicator, Save/Run primary group,
   Delete separated in a danger zone, and node config as an overlay so opening
   it does not shift toolbar hit targets.
+- Dark-friendly MiniMap styling, smaller default size, and a Show/Hide map
+  toggle persisted in `localStorage` (#104).
+- Searchable workflow library modal replaces the saved-graph `<select>`: search
+  by name/id, sort by updated/name, show short id + updated time (#103).
 - Collapsible / resizable / dismissible run result drawer on the canvas with
   Copy and footer reopen (`Run completed · View result`) so JSON no longer
   expands the status strip (#102).
