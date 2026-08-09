@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Dedicated wait/signal panel above the footer (no longer jammed into the
+  status strip) and a resizable node config drawer with persisted width +
+  “Editing: …” header (#110).
 - Empty-canvas first-run guide and a dismissible authoring tip remembered in
   `localStorage`; palette clicks get a slight offset so stacked drops fan out
   (#109).

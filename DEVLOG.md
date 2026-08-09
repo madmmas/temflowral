@@ -5,6 +5,22 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Wait-signal panel + config resize (#110)
+
+**Did:**
+- Move `RunSignalPanel` out of the footer into a dedicated amber section.
+- Node config drawer: drag-to-resize width (clamped), persist in
+  `localStorage`, show `Editing: <label>` header.
+- Unit tests for width helpers; scaffold e2e for config panel chrome.
+
+**Verified:**
+- vitest `node-config-panel`; tsc/eslint; Playwright scaffold.
+
+**Next:**
+- Remaining UX backlog (#111+).
+
+---
+
 ## 2026-08-09 — Empty canvas + dismissible tip (#109)
 
 **Did:**

@@ -165,7 +165,7 @@ Filed 2026-08-09 after a live-canvas UX audit (`localhost:3000`). Label: `ux` (+
 | P2 | [#107](https://github.com/madmmas/temflowral/issues/107) (done) | Graph **naming** UX (discourage duplicate Untitled) |
 | P2 | [#108](https://github.com/madmmas/temflowral/issues/108) (done) | Surface load/API **errors** as banners (not footer-only) |
 | P2 | [#109](https://github.com/madmmas/temflowral/issues/109) (done) | Empty canvas guidance + dismissible authoring tip |
-| P2 | [#110](https://github.com/madmmas/temflowral/issues/110) | Dedicated **wait-signal** panel + resizable node config |
+| P2 | [#110](https://github.com/madmmas/temflowral/issues/110) (done) | Dedicated **wait-signal** panel + resizable node config |
 | P2 | [#114](https://github.com/madmmas/temflowral/issues/114) | **Accessibility** baseline for the reference canvas |
 
 ### Detail
@@ -217,8 +217,10 @@ First-run empty state; dismissible tip remembered in `localStorage`.
 **Shipped:** centered empty-canvas guide; authoring tip dismissible + persisted;
 slight palette-click offset so stacked center drops fan out.
 
-**[#110](https://github.com/madmmas/temflowral/issues/110) — Dedicated wait-signal panel and resizable node config drawer** `[canvas][ux]`
+**[#110](https://github.com/madmmas/temflowral/issues/110) — Dedicated wait-signal panel and resizable node config drawer** `[canvas][ux]` ✅
 Pull signal UI out of the footer; allow config panel width resize. Builds on #92.
+**Shipped:** dedicated amber wait/signal section above the footer; config
+drawer width resize (min/max + `localStorage`) with “Editing: …” header.
 
 **[#111](https://github.com/madmmas/temflowral/issues/111) — Fit viewport after async graph load** `[canvas][ux]`
 `fitView` on mount often runs with empty nodes; call `fitView()` after open/

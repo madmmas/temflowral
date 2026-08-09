@@ -53,6 +53,16 @@ test("loads the graph editor with the contract-backed node palette", async ({
 
   await page.getByLabel("Graph name").fill("Scaffold named flow");
   await expect(page.getByTestId("graph-name-hint")).toHaveCount(0);
+
+  await page
+    .getByTestId("graph-canvas")
+    .getByText("Start", { exact: true })
+    .click();
+  await expect(page.getByTestId("node-config-panel")).toBeVisible();
+  await expect(page.getByTestId("node-config-editing")).toContainText(
+    "Editing: Start",
+  );
+  await expect(page.getByTestId("node-config-resize")).toBeVisible();
 });
 
 test("remembers dismissed authoring tip across reloads", async ({ page }) => {

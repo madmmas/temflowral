@@ -14,8 +14,8 @@ type RunSignalPanelProps = {
 };
 
 /**
- * Shown while GET /runs/{id} reports `currentWait`. Sends
- * POST /runs/{id}/signal with the wait node's signal name.
+ * Dedicated wait/signal drawer shown while GET /runs/{id} reports
+ * `currentWait` (#110). Kept out of the crowded footer status strip.
  */
 export function RunSignalPanel({
   runId,
@@ -59,55 +59,70 @@ export function RunSignalPanel({
   };
 
   return (
-    <div
+    <section
       data-testid="run-signal-panel"
-      className="flex w-full flex-wrap items-end gap-2 rounded-md border border-amber-500/40 bg-amber-50/80 px-2 py-2 dark:border-amber-400/30 dark:bg-amber-950/40"
+      aria-label="Wait for signal"
+      className="flex shrink-0 flex-col gap-3 border-t border-amber-500/35 bg-amber-50/90 px-4 py-3 dark:border-amber-400/30 dark:bg-amber-950/50"
     >
-      <div className="min-w-40 flex-1">
-        <p className="text-[10px] font-medium uppercase tracking-wide text-amber-800/80 dark:text-amber-200/80">
-          Waiting on signal
-        </p>
-        <p className="text-[11px] text-amber-900/70 dark:text-amber-100/70">
-          Node <span className="font-mono">{currentWait.nodeId}</span>
-        </p>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-amber-900 dark:text-amber-100">
+            Waiting for signal
+          </h2>
+          <p className="mt-0.5 text-xs text-amber-900/75 dark:text-amber-100/70">
+            Run is blocked on node{" "}
+            <span className="font-mono">{currentWait.nodeId}</span>
+            {currentWait.signal ? (
+              <>
+                {" "}
+                · expected{" "}
+                <span className="font-mono">{currentWait.signal}</span>
+              </>
+            ) : null}
+          </p>
+        </div>
       </div>
-      <label className="flex min-w-36 flex-col gap-0.5 text-[10px] text-black/60 dark:text-white/60">
-        Signal
-        <input
-          aria-label="Signal name"
-          data-testid="signal-name"
-          value={signal}
-          onChange={(event) => setSignal(event.target.value)}
-          disabled={busy || sending}
-          className="rounded border border-black/10 bg-white px-2 py-1 text-xs dark:border-white/15 dark:bg-neutral-900"
-        />
-      </label>
-      <label className="flex min-w-40 flex-1 flex-col gap-0.5 text-[10px] text-black/60 dark:text-white/60">
-        Payload (JSON, optional)
-        <input
-          aria-label="Signal payload"
-          data-testid="signal-payload"
-          value={payloadText}
-          onChange={(event) => setPayloadText(event.target.value)}
-          placeholder='{"approved":true}'
-          disabled={busy || sending}
-          className="rounded border border-black/10 bg-white px-2 py-1 font-mono text-xs dark:border-white/15 dark:bg-neutral-900"
-        />
-      </label>
-      <button
-        type="button"
-        data-testid="send-signal"
-        onClick={() => void submit()}
-        disabled={busy || sending || !signal.trim()}
-        className="rounded-md bg-amber-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {sending ? "Sending…" : "Send signal"}
-      </button>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex min-w-40 flex-col gap-1 text-xs text-amber-950/80 dark:text-amber-50/80">
+          Signal name
+          <input
+            aria-label="Signal name"
+            data-testid="signal-name"
+            value={signal}
+            onChange={(event) => setSignal(event.target.value)}
+            disabled={busy || sending}
+            className="rounded-md border border-amber-700/25 bg-white px-2.5 py-1.5 text-sm dark:border-amber-300/20 dark:bg-neutral-900"
+          />
+        </label>
+        <label className="flex min-w-56 flex-1 flex-col gap-1 text-xs text-amber-950/80 dark:text-amber-50/80">
+          Payload (JSON, optional)
+          <input
+            aria-label="Signal payload"
+            data-testid="signal-payload"
+            value={payloadText}
+            onChange={(event) => setPayloadText(event.target.value)}
+            placeholder='{"approved":true}'
+            disabled={busy || sending}
+            className="rounded-md border border-amber-700/25 bg-white px-2.5 py-1.5 font-mono text-sm dark:border-amber-300/20 dark:bg-neutral-900"
+          />
+        </label>
+        <button
+          type="button"
+          data-testid="send-signal"
+          onClick={() => void submit()}
+          disabled={busy || sending || !signal.trim()}
+          className="rounded-md bg-amber-800 px-4 py-2 text-sm font-medium text-white hover:bg-amber-900 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-600 dark:hover:bg-amber-500"
+        >
+          {sending ? "Sending…" : "Send signal"}
+        </button>
+      </div>
+
       {localError && (
-        <span className="w-full text-xs text-red-600 dark:text-red-400">
+        <p role="alert" className="text-xs text-red-700 dark:text-red-300">
           {localError}
-        </span>
+        </p>
       )}
-    </div>
+    </section>
   );
 }

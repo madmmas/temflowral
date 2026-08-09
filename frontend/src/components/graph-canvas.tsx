@@ -76,6 +76,12 @@ import {
   RUN_RESULT_PANEL_DEFAULT_HEIGHT,
 } from "@/lib/run-result-panel";
 import {
+  clampNodeConfigPanelWidth,
+  NODE_CONFIG_PANEL_DEFAULT_WIDTH,
+  readNodeConfigPanelWidth,
+  writeNodeConfigPanelWidth,
+} from "@/lib/node-config-panel";
+import {
   MINIMAP_STYLE,
   MINIMAP_VISIBLE_DEFAULT,
   minimapColorsForScheme,
@@ -149,6 +155,9 @@ function GraphCanvasInner() {
   const [resultPanelHeight, setResultPanelHeight] = useState(
     RUN_RESULT_PANEL_DEFAULT_HEIGHT,
   );
+  const [configPanelWidth, setConfigPanelWidth] = useState(
+    NODE_CONFIG_PANEL_DEFAULT_WIDTH,
+  );
   const [minimapVisible, setMinimapVisible] = useState(MINIMAP_VISIBLE_DEFAULT);
   const [minimapPrefersDark, setMinimapPrefersDark] = useState(true);
   const [authoringTipDismissed, setAuthoringTipDismissed] = useState(false);
@@ -193,6 +202,7 @@ function GraphCanvasInner() {
   useEffect(() => {
     setMinimapVisible(readMinimapVisible());
     setAuthoringTipDismissed(readAuthoringTipDismissed());
+    setConfigPanelWidth(readNodeConfigPanelWidth());
     if (typeof window === "undefined" || !window.matchMedia) return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const sync = () => setMinimapPrefersDark(media.matches);
@@ -821,6 +831,12 @@ function GraphCanvasInner() {
                 <NodeConfigPanel
                   node={selectedNode}
                   nodeType={selectedNodeType}
+                  width={configPanelWidth}
+                  onWidthChange={(next) => {
+                    const clamped = clampNodeConfigPanelWidth(next);
+                    setConfigPanelWidth(clamped);
+                    writeNodeConfigPanelWidth(clamped);
+                  }}
                   onChangeLabel={onChangeSelectedLabel}
                   onChangeConfig={onChangeSelectedConfig}
                   onChangeActivityOptions={onChangeSelectedActivityOptions}
@@ -831,6 +847,14 @@ function GraphCanvasInner() {
             </div>
           )}
         </div>
+        {run?.currentWait && runId && (
+          <RunSignalPanel
+            runId={runId}
+            currentWait={run.currentWait}
+            busy={busy}
+            onSend={sendRunSignal}
+          />
+        )}
         {showResultPanel && run && (
           <RunResultPanel
             result={run.result}
@@ -866,14 +890,6 @@ function GraphCanvasInner() {
                   setResultPanelVisible(true);
                   setResultPanelCollapsed(false);
                 }}
-              />
-            )}
-            {run?.currentWait && runId && (
-              <RunSignalPanel
-                runId={runId}
-                currentWait={run.currentWait}
-                busy={busy}
-                onSend={sendRunSignal}
               />
             )}
             <RunHistoryList
