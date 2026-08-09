@@ -27,8 +27,11 @@ import { createApiClient, type components } from "@/api";
 import { NODE_TYPE_DRAG_KEY, NodePalette } from "@/components/node-palette";
 import { NodeConfigPanel } from "@/components/node-config-panel";
 import { WorkflowNode } from "@/components/nodes/workflow-node";
+import { GraphIdChip } from "@/components/graph-id-chip";
+import { RunHistoryList } from "@/components/run-history-list";
 import { RunResultPanel } from "@/components/run-result-panel";
 import { RunSignalPanel } from "@/components/run-signal-panel";
+import { RunStatusChip } from "@/components/run-status-chip";
 import { WorkflowLibrary } from "@/components/workflow-library";
 import {
   apiErrorMessage,
@@ -44,6 +47,13 @@ import {
 import { useGraphList } from "@/lib/graph-list";
 import { NodeTypeRegistryProvider } from "@/lib/node-type-registry";
 import { useNodeTypes, type NodeType } from "@/lib/node-types";
+import {
+  historyEntryToRun,
+  runsForGraph,
+  runToHistoryEntry,
+  upsertRunHistory,
+  type RunHistoryEntry,
+} from "@/lib/run-history";
 import {
   runHasResultPanelContent,
   RUN_RESULT_PANEL_DEFAULT_HEIGHT,
@@ -109,6 +119,7 @@ function GraphCanvasInner() {
     EMPTY_GRAPH_FINGERPRINT,
   );
   const [run, setRun] = useState<Run | null>(null);
+  const [runHistory, setRunHistory] = useState<RunHistoryEntry[]>([]);
   const [action, setAction] = useState<Action>("idle");
   const [actionError, setActionError] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -136,6 +147,7 @@ function GraphCanvasInner() {
   const runStatus = run?.status;
   const hasResultContent = runHasResultPanelContent(run);
   const showResultPanel = resultPanelVisible && hasResultContent;
+  const graphRunHistory = runsForGraph(runHistory, savedGraphId);
   const dirty =
     graphFingerprint(graphName, nodes, edges) !== baselineFingerprint;
 
@@ -148,6 +160,11 @@ function GraphCanvasInner() {
     media.addEventListener("change", sync);
     return () => media.removeEventListener("change", sync);
   }, []);
+
+  useEffect(() => {
+    if (!run) return;
+    setRunHistory((prev) => upsertRunHistory(prev, runToHistoryEntry(run)));
+  }, [run]);
 
   useEffect(() => {
     if (!hasResultContent) return;
@@ -509,6 +526,15 @@ function GraphCanvasInner() {
     replaceGraphQuery(null);
   }, [dirty, setEdges, setNodes]);
 
+  const onSelectHistoryRun = useCallback((entry: RunHistoryEntry) => {
+    setRun(historyEntryToRun(entry));
+    setActionError(null);
+    if (runHasResultPanelContent(entry)) {
+      setResultPanelVisible(true);
+      setResultPanelCollapsed(false);
+    }
+  }, []);
+
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
@@ -712,7 +738,12 @@ function GraphCanvasInner() {
             onDismiss={() => setResultPanelVisible(false)}
           />
         )}
-        {(savedGraphId || run || actionError || graphsError || action === "loading") && (
+        {(savedGraphId ||
+          run ||
+          graphRunHistory.length > 0 ||
+          actionError ||
+          graphsError ||
+          action === "loading") && (
           <div
             role={actionError || graphsError ? "alert" : "status"}
             className="flex min-h-9 flex-wrap items-center gap-3 border-t border-black/10 px-3 py-2 text-xs dark:border-white/15"
@@ -722,50 +753,19 @@ function GraphCanvasInner() {
                 Opening graph…
               </span>
             )}
-            {savedGraphId && (
-              <span className="text-black/50 dark:text-white/50">
-                Graph: {savedGraphId}
-              </span>
+            {savedGraphId && <GraphIdChip graphId={savedGraphId} />}
+            {run && (
+              <RunStatusChip
+                status={run.status}
+                waiting={Boolean(run.currentWait)}
+                canOpenResult={hasResultContent}
+                resultPanelOpen={showResultPanel}
+                onOpenResult={() => {
+                  setResultPanelVisible(true);
+                  setResultPanelCollapsed(false);
+                }}
+              />
             )}
-            {run &&
-              (hasResultContent ? (
-                <button
-                  type="button"
-                  data-testid="run-status"
-                  onClick={() => {
-                    setResultPanelVisible(true);
-                    setResultPanelCollapsed(false);
-                  }}
-                  title={
-                    showResultPanel
-                      ? "Run result panel is open"
-                      : "Show run result"
-                  }
-                  className={
-                    run.status === "failed" || run.status === "cancelled"
-                      ? "font-medium text-red-600 hover:underline dark:text-red-400"
-                      : run.status === "completed"
-                        ? "font-medium text-green-600 hover:underline dark:text-green-400"
-                        : "font-medium text-blue-600 hover:underline dark:text-blue-400"
-                  }
-                >
-                  Run {run.status}
-                  {!showResultPanel && " · View result"}
-                </button>
-              ) : (
-                <span
-                  data-testid="run-status"
-                  className={
-                    run.status === "failed" || run.status === "cancelled"
-                      ? "font-medium text-red-600 dark:text-red-400"
-                      : run.status === "completed"
-                        ? "font-medium text-green-600 dark:text-green-400"
-                        : "font-medium text-blue-600 dark:text-blue-400"
-                  }
-                >
-                  Run {run.status}
-                </span>
-              ))}
             {run?.currentWait && runId && (
               <RunSignalPanel
                 runId={runId}
@@ -774,6 +774,11 @@ function GraphCanvasInner() {
                 onSend={sendRunSignal}
               />
             )}
+            <RunHistoryList
+              entries={graphRunHistory}
+              activeRunId={runId ?? null}
+              onSelect={onSelectHistoryRun}
+            />
             {graphsError && (
               <span className="text-red-600 dark:text-red-400">
                 {graphsError}

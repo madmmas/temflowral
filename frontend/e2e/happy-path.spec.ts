@@ -63,6 +63,11 @@ test("builds a graph from the palette, runs it, and shows the result", async ({
   await expect(page.getByTestId("run-status")).toHaveText("Run completed", {
     timeout: 10_000,
   });
+  await expect(page.getByTestId("graph-id-chip")).toBeVisible();
+  await expect(page.getByTestId("graph-id-chip")).toContainText("Graph:");
+  await expect(page.getByTestId("copy-graph-id")).toBeVisible();
+  await expect(page.getByTestId("run-history")).toBeVisible();
+  await expect(page.getByTestId("run-history")).toContainText("completed");
   await expect(page.getByTestId("run-result-panel")).toBeVisible();
   await expect(page.getByTestId("run-result")).toBeVisible();
   await expect(page.getByTestId("run-result")).toContainText(

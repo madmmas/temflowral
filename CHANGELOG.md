@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Session-local run history in the canvas footer, compact run-status chip
+  (including waiting), and short graph id with Copy (#106). Durable listing
+  awaits a future `GET /graphs/{id}/runs` contract.
 - Toolbar layout polish (#105): Unsaved indicator, Save/Run primary group,
   Delete separated in a danger zone, and node config as an overlay so opening
   it does not shift toolbar hit targets.

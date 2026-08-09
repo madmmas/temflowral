@@ -5,6 +5,23 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Run history + status (#106)
+
+**Did:**
+- Session-local recent runs for the open graph (upsert on poll/start; click
+  restores result/error in the drawer). No OpenAPI list endpoint yet.
+- Compact `RunStatusChip` (waiting → amber) keeping `data-testid="run-status"`.
+- `GraphIdChip`: 8-char prefix + Copy instead of full UUID in the footer.
+- Happy-path e2e asserts chip, history strip, and copy control.
+
+**Verified:**
+- `npm test` / tsc; Playwright happy-path (Prism).
+
+**Next:**
+- Remaining UX backlog (#107+ / #111+).
+
+---
+
 ## 2026-08-09 — Toolbar layout (#105)
 
 **Did:**
