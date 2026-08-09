@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Collapsible / resizable / dismissible run result drawer on the canvas with
+  Copy and footer reopen (`Run completed · View result`) so JSON no longer
+  expands the status strip (#102).
 - Demo graph seeds (`make seed-demo`), Prism-backed Playwright e2e in CI, and
   opt-in live Temporal UI e2e (`make e2e-live`) / contract live
   (`make test-contract-live`) (#94).

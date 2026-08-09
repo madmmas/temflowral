@@ -154,7 +154,7 @@ Filed 2026-08-09 after a live-canvas UX audit (`localhost:3000`). Label: `ux` (+
 
 | Pri | Issue | Focus |
 | --- | --- | --- |
-| P0 | [#102](https://github.com/madmmas/temflowral/issues/102) | Collapsible / resizable / dismissible **run result** panel |
+| P0 | [#102](https://github.com/madmmas/temflowral/issues/102) (done) | Collapsible / resizable / dismissible **run result** panel |
 | P0 | [#103](https://github.com/madmmas/temflowral/issues/103) | Replace saved-graph **dropdown** with searchable workflow library |
 | P1 | [#104](https://github.com/madmmas/temflowral/issues/104) | Theme **MiniMap** for dark canvas + hide/toggle |
 | P1 | [#105](https://github.com/madmmas/temflowral/issues/105) | **Toolbar** layout; separate Delete from Run; dirty indicator; **stable on config open** |
@@ -170,10 +170,11 @@ Filed 2026-08-09 after a live-canvas UX audit (`localhost:3000`). Label: `ux` (+
 
 ### Detail
 
-**[#102](https://github.com/madmmas/temflowral/issues/102) — Collapsible / resizable / dismissible run result panel** `[canvas][ux]`
+**[#102](https://github.com/madmmas/temflowral/issues/102) — Collapsible / resizable / dismissible run result panel** `[canvas][ux]` ✅
 Result JSON currently lives in the bottom `flex-wrap` status strip and steals
 canvas height after Run completes. Move to a dedicated panel with collapse,
-resize, hide, and copy.
+resize, hide, and copy. **Shipped:** `RunResultPanel` bottom drawer; footer
+keeps a status chip that reopens the panel.
 
 **[#103](https://github.com/madmmas/temflowral/issues/103) — Replace saved-graph dropdown with searchable workflow library** `[canvas][ux]`
 `<select>` does not scale; duplicate names + truncated UUIDs. Modal/side library
