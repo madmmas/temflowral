@@ -15,10 +15,11 @@ import {
   setConfigFieldValue,
   type ConfigField,
 } from "@/lib/config-schema";
+import { templateSuggestionsForNode } from "@/lib/config-templates";
 import {
-  CONFIG_TEMPLATE_HINT,
   supportsActivityOptions,
   type ActivityOptions,
+  type CanvasEdge,
   type CanvasNode,
 } from "@/lib/graph-canvas";
 import {
@@ -26,10 +27,14 @@ import {
   NODE_CONFIG_PANEL_DEFAULT_WIDTH,
 } from "@/lib/node-config-panel";
 import type { NodeType } from "@/lib/node-types";
+import { HeadersFieldEditor } from "@/components/headers-field-editor";
+import { TemplateStringInput } from "@/components/template-string-input";
 
 type NodeConfigPanelProps = {
   node: CanvasNode;
   nodeType: NodeType | undefined;
+  nodes?: CanvasNode[];
+  edges?: CanvasEdge[];
   width?: number;
   onWidthChange?: (width: number) => void;
   onChangeLabel: (label: string) => void;
@@ -47,6 +52,8 @@ type NodeConfigPanelProps = {
 export function NodeConfigPanel({
   node,
   nodeType,
+  nodes = [],
+  edges = [],
   width = NODE_CONFIG_PANEL_DEFAULT_WIDTH,
   onWidthChange,
   onChangeLabel,
@@ -56,12 +63,19 @@ export function NodeConfigPanel({
   onClose,
 }: NodeConfigPanelProps) {
   const config = node.data.config ?? {};
-  const fields = fieldsFromConfigSchema(nodeType?.configSchema);
+  const fields = fieldsFromConfigSchema(nodeType?.configSchema, {
+    nodeTypeId: node.data.nodeType,
+  });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const showAdvanced = supportsActivityOptions(node.data.nodeType);
   const dragStartX = useRef<number | null>(null);
   const dragStartWidth = useRef(width);
   const panelWidth = clampNodeConfigPanelWidth(width);
+  const templateSuggestions = templateSuggestionsForNode(
+    nodes,
+    edges,
+    node.id,
+  );
 
   const updateField = (field: ConfigField, raw: string) => {
     const parsed = parseConfigInputValue(field.kind, raw);
@@ -188,7 +202,17 @@ export function NodeConfigPanel({
           field={field}
           value={config[field.name]}
           error={fieldErrors[field.name]}
+          nodeId={node.id}
+          templateSuggestions={templateSuggestions}
           onChange={(raw) => updateField(field, raw)}
+          onChangeObject={(next) => {
+            setFieldErrors((current) => {
+              const copy = { ...current };
+              delete copy[field.name];
+              return copy;
+            });
+            onChangeConfig(setConfigFieldValue(config, field.name, next));
+          }}
         />
       ))}
 
@@ -334,12 +358,18 @@ function ConfigFieldInput({
   field,
   value,
   error,
+  nodeId,
+  templateSuggestions,
   onChange,
+  onChangeObject,
 }: {
   field: ConfigField;
   value: unknown;
   error?: string;
+  nodeId: string;
+  templateSuggestions: readonly string[];
   onChange: (raw: string) => void;
+  onChangeObject: (value: Record<string, string> | undefined) => void;
 }) {
   const label = (
     <span className="font-medium text-black/70 dark:text-white/70">
@@ -351,9 +381,21 @@ function ConfigFieldInput({
   const commonClass =
     "rounded-md border border-black/10 bg-white px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-white/15 dark:bg-neutral-900";
 
+  if (field.kind === "stringMap") {
+    return (
+      <HeadersFieldEditor
+        name={field.name}
+        value={value}
+        syncKey={`${nodeId}:${field.name}`}
+        required={field.required}
+        onChange={onChangeObject}
+      />
+    );
+  }
+
   if (field.kind === "enum" && field.enumValues) {
     return (
-      <label className="flex flex-col gap-1 text-xs">
+      <label className="flex flex-col gap-1 text-xs" data-testid={`config-field-${field.name}`}>
         {label}
         <select
           aria-label={field.name}
@@ -378,7 +420,7 @@ function ConfigFieldInput({
   if (field.kind === "boolean") {
     const checked = value === true;
     return (
-      <label className="flex items-center gap-2 text-xs">
+      <label className="flex items-center gap-2 text-xs" data-testid={`config-field-${field.name}`}>
         <input
           aria-label={field.name}
           type="checkbox"
@@ -393,39 +435,47 @@ function ConfigFieldInput({
     );
   }
 
-  if (field.kind === "json" || (field.kind === "string" && field.name === "body")) {
+  if (field.kind === "string") {
     return (
-      <label className="flex flex-col gap-1 text-xs">
+      <div data-testid={`config-field-${field.name}`}>
+        <TemplateStringInput
+          name={field.name}
+          value={typeof value === "string" ? value : ""}
+          multiline={field.name === "body"}
+          required={field.required}
+          suggestions={templateSuggestions}
+          onChange={onChange}
+        />
+        {error && (
+          <span className="text-xs text-red-600 dark:text-red-400">{error}</span>
+        )}
+      </div>
+    );
+  }
+
+  if (field.kind === "json") {
+    return (
+      <label className="flex flex-col gap-1 text-xs" data-testid={`config-field-${field.name}`}>
         {label}
         <textarea
           aria-label={field.name}
-          rows={field.kind === "json" ? 6 : 3}
+          rows={6}
           defaultValue={formatConfigValueForInput(field.kind, value)}
-          key={`${field.name}:${formatConfigValueForInput(field.kind, value)}`}
+          key={`${nodeId}:${field.name}:${formatConfigValueForInput(field.kind, value)}`}
           onBlur={(event) => onChange(event.target.value)}
           spellCheck={false}
-          placeholder={
-            field.kind === "string" ? CONFIG_TEMPLATE_HINT : undefined
-          }
           className={`${commonClass} font-mono text-xs`}
         />
-        {field.kind === "json" && (
-          <span className="text-[10px] text-black/40 dark:text-white/40">
-            JSON value — applied on blur
-          </span>
-        )}
-        {field.kind === "string" && (
-          <span className="text-[10px] text-black/40 dark:text-white/40">
-            Templates: {CONFIG_TEMPLATE_HINT}
-          </span>
-        )}
+        <span className="text-[10px] text-black/40 dark:text-white/40">
+          JSON value — applied on blur
+        </span>
         {error && <span className="text-red-600 dark:text-red-400">{error}</span>}
       </label>
     );
   }
 
   return (
-    <label className="flex flex-col gap-1 text-xs">
+    <label className="flex flex-col gap-1 text-xs" data-testid={`config-field-${field.name}`}>
       {label}
       <input
         aria-label={field.name}
@@ -434,16 +484,8 @@ function ConfigFieldInput({
         max={field.maximum}
         value={formatConfigValueForInput(field.kind, value)}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={
-          field.kind === "string" ? CONFIG_TEMPLATE_HINT : undefined
-        }
         className={commonClass}
       />
-      {field.kind === "string" && (
-        <span className="text-[10px] text-black/40 dark:text-white/40">
-          Templates: {CONFIG_TEMPLATE_HINT}
-        </span>
-      )}
       {error && <span className="text-red-600 dark:text-red-400">{error}</span>}
     </label>
   );

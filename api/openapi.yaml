@@ -763,10 +763,12 @@ components:
         method:
           type: string
           enum: [GET, POST, PUT, PATCH, DELETE]
+          x-order: 1
           description: HTTP method. Activity retries are disabled to avoid replaying side effects.
         url:
           type: string
           maxLength: 2048
+          x-order: 2
           description: |
             Absolute HTTP(S) URL, or a string containing
             `{{ nodes.<nodeId>.output.<path> }}` templates resolved at run time
@@ -781,6 +783,7 @@ components:
         headers:
           type: object
           maxProperties: 32
+          x-order: 3
           additionalProperties:
             type: string
             maxLength: 8192
@@ -792,6 +795,7 @@ components:
         body:
           type: string
           maxLength: 1048576
+          x-order: 4
           description: |
             Optional request body, limited to 1 MiB. May contain
             `{{ nodes.<nodeId>.output.<path> }}` templates resolved at run time.
@@ -1154,18 +1158,22 @@ components:
             method:
               type: string
               enum: [GET, POST, PUT, PATCH, DELETE]
+              x-order: 1
             url:
               type: string
               maxLength: 2048
+              x-order: 2
             headers:
               type: object
               maxProperties: 32
+              x-order: 3
               additionalProperties:
                 type: string
                 maxLength: 8192
             body:
               type: string
               maxLength: 1048576
+              x-order: 4
 
     NodeTypeList:
       type: object
@@ -1203,18 +1211,22 @@ components:
                 method:
                   type: string
                   enum: [GET, POST, PUT, PATCH, DELETE]
+                  x-order: 1
                 url:
                   type: string
                   maxLength: 2048
+                  x-order: 2
                 headers:
                   type: object
                   maxProperties: 32
+                  x-order: 3
                   additionalProperties:
                     type: string
                     maxLength: 8192
                 body:
                   type: string
                   maxLength: 1048576
+                  x-order: 4
           - id: delay
             name: Delay
             description: Pause the workflow with a durable Temporal timer

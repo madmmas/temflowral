@@ -13,16 +13,18 @@ const httpSchema = {
   required: ["method", "url"],
   additionalProperties: false,
   properties: {
+    // Deliberately scrambled entry order (Go map / alpha) — form order must
+    // still be method → url → headers → body via nodeTypeId override / x-order.
+    body: { type: "string" },
+    headers: {
+      type: "object",
+      additionalProperties: { type: "string" },
+    },
     method: {
       type: "string",
       enum: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     },
     url: { type: "string", maxLength: 2048 },
-    headers: {
-      type: "object",
-      additionalProperties: { type: "string" },
-    },
-    body: { type: "string" },
   },
 };
 
@@ -53,12 +55,12 @@ const waitSchema = {
 };
 
 describe("fieldsFromConfigSchema", () => {
-  it("maps HTTP configSchema fields including enums and objects", () => {
-    const fields = fieldsFromConfigSchema(httpSchema);
+  it("maps HTTP configSchema fields including enums and string-map headers", () => {
+    const fields = fieldsFromConfigSchema(httpSchema, { nodeTypeId: "http" });
     expect(fields.map((field) => [field.name, field.kind, field.required])).toEqual([
       ["method", "enum", true],
       ["url", "string", true],
-      ["headers", "json", false],
+      ["headers", "stringMap", false],
       ["body", "string", false],
     ]);
     expect(fields[0]?.enumValues).toEqual([
@@ -67,6 +69,28 @@ describe("fieldsFromConfigSchema", () => {
       "PUT",
       "PATCH",
       "DELETE",
+    ]);
+  });
+
+  it("orders by x-order when present", () => {
+    const fields = fieldsFromConfigSchema({
+      type: "object",
+      properties: {
+        body: { type: "string", "x-order": 4 },
+        method: { type: "string", "x-order": 1 },
+        url: { type: "string", "x-order": 2 },
+        headers: {
+          type: "object",
+          "x-order": 3,
+          additionalProperties: { type: "string" },
+        },
+      },
+    });
+    expect(fields.map((field) => field.name)).toEqual([
+      "method",
+      "url",
+      "headers",
+      "body",
     ]);
   });
 
@@ -127,6 +151,12 @@ describe("fieldKindFromPropertySchema", () => {
       fieldKindFromPropertySchema({ type: "string", enum: ["a", "b"] }),
     ).toBe("enum");
     expect(fieldKindFromPropertySchema({ type: "object" })).toBe("json");
+    expect(
+      fieldKindFromPropertySchema({
+        type: "object",
+        additionalProperties: { type: "string" },
+      }),
+    ).toBe("stringMap");
     expect(fieldKindFromPropertySchema({})).toBe("json");
   });
 });

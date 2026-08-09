@@ -65,6 +65,48 @@ test("loads the graph editor with the contract-backed node palette", async ({
   await expect(page.getByTestId("node-config-resize")).toBeVisible();
 });
 
+test("orders HTTP config fields and offers a headers builder", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByTestId("node-type-start").click();
+  await page.getByTestId("node-type-http").click();
+
+  // Connect Start → HTTP so template suggestions have an upstream node.
+  // Selection: open HTTP config.
+  await page
+    .getByTestId("graph-canvas")
+    .getByText("HTTP Request", { exact: true })
+    .click();
+  await expect(page.getByTestId("node-config-panel")).toBeVisible();
+
+  const fieldOrder = page.locator(
+    "[data-testid^='config-field-'], [data-testid='headers-field-editor']",
+  );
+  await expect(fieldOrder).toHaveCount(4);
+  await expect(fieldOrder.nth(0)).toHaveAttribute(
+    "data-testid",
+    "config-field-method",
+  );
+  await expect(fieldOrder.nth(1)).toHaveAttribute(
+    "data-testid",
+    "config-field-url",
+  );
+  await expect(fieldOrder.nth(2)).toHaveAttribute(
+    "data-testid",
+    "headers-field-editor",
+  );
+  await expect(fieldOrder.nth(3)).toHaveAttribute(
+    "data-testid",
+    "config-field-body",
+  );
+
+  await page.getByTestId("header-key-0").fill("Accept");
+  await page.getByTestId("header-value-0").fill("application/json");
+  await page.getByTestId("header-add-row").click();
+  await expect(page.getByTestId("header-key-1")).toBeVisible();
+});
+
 test("remembers dismissed authoring tip across reloads", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => {

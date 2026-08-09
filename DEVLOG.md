@@ -5,6 +5,24 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Config form quality (#112)
+
+**Did:**
+- Prefer `x-order` on configSchema properties (OpenAPI + Go HTTP builtins);
+  frontend falls back to known-type order so method→url→headers→body.
+- Headers key/value row editor for string-map fields.
+- Template string input suggests upstream `{{ nodes.<id>.output… }}` when
+  typing `{{`.
+- Unit + scaffold e2e for HTTP field order / headers builder.
+
+**Verified:**
+- vitest config-schema / headers / templates; tsc/eslint; Playwright scaffold.
+
+**Next:**
+- Remaining UX backlog (#113+).
+
+---
+
 ## 2026-08-09 — Fit viewport after graph load (#111)
 
 **Did:**
