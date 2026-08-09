@@ -119,16 +119,19 @@ func RegisterBuiltins(registry *nodetype.Registry, options BuiltinOptions) error
 				"additionalProperties": false,
 				"properties": map[string]interface{}{
 					"method": map[string]interface{}{
-						"type": "string",
-						"enum": []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+						"type":    "string",
+						"enum":    []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+						"x-order": 1,
 					},
 					"url": map[string]interface{}{
 						"type":      "string",
 						"maxLength": 2048,
+						"x-order":   2,
 					},
 					"headers": map[string]interface{}{
 						"type":          "object",
 						"maxProperties": 32,
+						"x-order":       3,
 						"additionalProperties": map[string]interface{}{
 							"type":      "string",
 							"maxLength": 8192,
@@ -137,6 +140,7 @@ func RegisterBuiltins(registry *nodetype.Registry, options BuiltinOptions) error
 					"body": map[string]interface{}{
 						"type":      "string",
 						"maxLength": 1048576,
+						"x-order":   4,
 					},
 				},
 			},

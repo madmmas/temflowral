@@ -10,6 +10,9 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Node config form quality (#112): HTTP field order via `x-order` (with
+  frontend fallbacks), key/value headers builder, and `{{` template
+  suggestions from upstream nodes.
 - Auto `fitView` after opening a graph (library / `?graph=` deep link) so nodes
   outside the default camera are framed; sparse “lone Start” data is a separate
   case from off-viewport (#111).

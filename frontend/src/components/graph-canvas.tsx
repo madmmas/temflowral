@@ -865,6 +865,8 @@ function GraphCanvasInner() {
                 <NodeConfigPanel
                   node={selectedNode}
                   nodeType={selectedNodeType}
+                  nodes={nodes}
+                  edges={edges}
                   width={configPanelWidth}
                   onWidthChange={(next) => {
                     const clamped = clampNodeConfigPanelWidth(next);

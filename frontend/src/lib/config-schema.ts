@@ -1,9 +1,16 @@
 /**
  * Derive editable form fields from a node type's JSON Schema (`configSchema`
  * from GET /node-types). Kept pure for unit tests without a DOM (#91).
+ * Field order prefers `x-order`, then known type overrides (#112).
  */
 
-export type ConfigFieldKind = "string" | "number" | "boolean" | "enum" | "json";
+export type ConfigFieldKind =
+  | "string"
+  | "number"
+  | "boolean"
+  | "enum"
+  | "json"
+  | "stringMap";
 
 export type ConfigField = {
   name: string;
@@ -13,6 +20,8 @@ export type ConfigField = {
   description?: string;
   minimum?: number;
   maximum?: number;
+  /** Present when the property schema declared `x-order`. */
+  order?: number;
 };
 
 type JsonSchemaObject = {
@@ -24,6 +33,16 @@ type JsonSchemaObject = {
   minimum?: number;
   maximum?: number;
   additionalProperties?: unknown;
+  "x-order"?: unknown;
+};
+
+/** Authoring order when Go map JSON / missing x-order would scramble fields. */
+export const NODE_TYPE_FIELD_ORDER: Record<string, readonly string[]> = {
+  http: ["method", "url", "headers", "body"],
+  wait: ["signal", "timeoutSeconds"],
+  condition: ["field", "equals"],
+  delay: ["seconds"],
+  childWorkflow: ["graph", "input"],
 };
 
 function asObject(value: unknown): JsonSchemaObject | null {
@@ -47,14 +66,36 @@ function stringEnumValues(schema: JsonSchemaObject): string[] | undefined {
   return schema.enum as string[];
 }
 
+function readXOrder(propertySchema: unknown): number | undefined {
+  const property = asObject(propertySchema);
+  if (!property) return undefined;
+  const order = property["x-order"];
+  return typeof order === "number" && Number.isFinite(order) ? order : undefined;
+}
+
+/** True when the property is an object of string values (HTTP headers). */
+export function isStringMapPropertySchema(propertySchema: unknown): boolean {
+  const schema = asObject(propertySchema) ?? {};
+  if (primaryType(schema) !== "object") return false;
+  const additional = schema.additionalProperties;
+  if (additional === true) return false;
+  if (typeof additional === "object" && additional !== null) {
+    const valueSchema = asObject(additional);
+    return primaryType(valueSchema ?? {}) === "string";
+  }
+  return false;
+}
+
 /**
  * Map a property schema to a form field kind.
  * Untyped / object / array properties become JSON textareas (e.g. condition
- * `equals`, HTTP `headers`, childWorkflow `graph`).
+ * `equals`, childWorkflow `graph`), except string-maps → headers builder.
  */
 export function fieldKindFromPropertySchema(
   propertySchema: unknown,
 ): ConfigFieldKind {
+  if (isStringMapPropertySchema(propertySchema)) return "stringMap";
+
   const schema = asObject(propertySchema) ?? {};
   const enumValues = stringEnumValues(schema);
   if (enumValues) return "enum";
@@ -77,11 +118,44 @@ export function fieldKindFromPropertySchema(
   }
 }
 
+function sortConfigFields(
+  fields: ConfigField[],
+  nodeTypeId?: string,
+): ConfigField[] {
+  const hasXOrder = fields.some((field) => field.order !== undefined);
+  if (hasXOrder) {
+    return [...fields].sort((a, b) => {
+      const ao = a.order ?? Number.POSITIVE_INFINITY;
+      const bo = b.order ?? Number.POSITIVE_INFINITY;
+      if (ao !== bo) return ao - bo;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  const preferred = nodeTypeId
+    ? NODE_TYPE_FIELD_ORDER[nodeTypeId]
+    : undefined;
+  if (preferred && preferred.length > 0) {
+    const rank = new Map(preferred.map((name, index) => [name, index]));
+    return [...fields].sort((a, b) => {
+      const ar = rank.get(a.name) ?? preferred.length + 1;
+      const br = rank.get(b.name) ?? preferred.length + 1;
+      if (ar !== br) return ar - br;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  return fields;
+}
+
 /**
  * List top-level properties of an object configSchema as form fields.
  * Schemas without `properties` yield an empty list (e.g. start / open noop).
  */
-export function fieldsFromConfigSchema(configSchema: unknown): ConfigField[] {
+export function fieldsFromConfigSchema(
+  configSchema: unknown,
+  options?: { nodeTypeId?: string },
+): ConfigField[] {
   const schema = asObject(configSchema);
   if (!schema) return [];
 
@@ -94,9 +168,10 @@ export function fieldsFromConfigSchema(configSchema: unknown): ConfigField[] {
       : [],
   );
 
-  return Object.entries(properties).map(([name, propertySchema]) => {
+  const fields = Object.entries(properties).map(([name, propertySchema]) => {
     const property = asObject(propertySchema) ?? {};
     const kind = fieldKindFromPropertySchema(propertySchema);
+    const order = readXOrder(propertySchema);
     const field: ConfigField = {
       name,
       kind,
@@ -106,6 +181,7 @@ export function fieldsFromConfigSchema(configSchema: unknown): ConfigField[] {
           ? property.description
           : undefined,
     };
+    if (order !== undefined) field.order = order;
     if (kind === "enum") {
       field.enumValues = stringEnumValues(property);
     }
@@ -115,6 +191,8 @@ export function fieldsFromConfigSchema(configSchema: unknown): ConfigField[] {
     }
     return field;
   });
+
+  return sortConfigFields(fields, options?.nodeTypeId);
 }
 
 /** Format a config value for a text/JSON input. */
@@ -123,7 +201,7 @@ export function formatConfigValueForInput(
   value: unknown,
 ): string {
   if (value === undefined || value === null) return "";
-  if (kind === "json") {
+  if (kind === "json" || kind === "stringMap") {
     try {
       return JSON.stringify(value, null, 2);
     } catch {
@@ -161,7 +239,8 @@ export function parseConfigInputValue(
       if (trimmed === "true") return { ok: true, value: true };
       if (trimmed === "false") return { ok: true, value: false };
       return { ok: false, error: "Must be true or false" };
-    case "json": {
+    case "json":
+    case "stringMap": {
       if (trimmed === "") return { ok: true, value: undefined };
       try {
         return { ok: true, value: JSON.parse(trimmed) as unknown };
