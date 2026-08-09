@@ -5,6 +5,28 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Canvas UI/UX backlog (#102–#114)
+
+**Did:**
+- Live UX audit of the reference canvas (`localhost:3000`): run-result footer,
+  saved-graph `<select>`, MiniMap contrast, toolbar/Delete adjacency, and
+  related polish gaps.
+- Filed [#102](https://github.com/madmmas/temflowral/issues/102)–[#110](https://github.com/madmmas/temflowral/issues/110)
+  with label `ux`; mirrored in `docs/issues/ISSUES.md`.
+- Review follow-ups: amended [#105](https://github.com/madmmas/temflowral/issues/105)
+  (toolbar stable on config open); filed
+  [#111](https://github.com/madmmas/temflowral/issues/111) (fitView after load),
+  [#112](https://github.com/madmmas/temflowral/issues/112) (config form quality),
+  [#113](https://github.com/madmmas/temflowral/issues/113) (per-node run status),
+  [#114](https://github.com/madmmas/temflowral/issues/114) (a11y baseline). Pushed
+  back on a “nodes don’t render” P0 — Happy path row was sparse data, not a
+  missing DOM.
+
+**Next:**
+- Implement P0: #102 (result panel) and #103 (workflow library).
+
+---
+
 ## 2026-08-08 — Live e2e + demo seeds (#94)
 
 **Did:**
