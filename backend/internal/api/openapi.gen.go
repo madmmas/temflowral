@@ -206,17 +206,6 @@ type GraphSummary struct {
 
 // HttpNodeConfig defines model for HttpNodeConfig.
 type HttpNodeConfig struct {
-	// Body Optional request body, limited to 1 MiB. May contain
-	// `{{ nodes.<nodeId>.output.<path> }}` templates resolved at run time.
-	// After resolution the body is still size-capped at 1 MiB.
-	Body *string `json:"body,omitempty"`
-
-	// Headers Optional request headers. Values may use the same
-	// `{{ nodes.<nodeId>.output.<path> }}` templates as url/body; the
-	// fully rendered header set is revalidated (hop-by-hop and
-	// transport-controlled headers remain rejected).
-	Headers *map[string]string `json:"headers,omitempty"`
-
 	// Method HTTP method. Activity retries are disabled to avoid replaying side effects.
 	Method HttpNodeConfigMethod `json:"method"`
 
@@ -231,6 +220,17 @@ type HttpNodeConfig struct {
 	// SECURITY.md for timeouts, size limits, redirect policy, and
 	// templating rules.
 	Url string `json:"url"`
+
+	// Headers Optional request headers. Values may use the same
+	// `{{ nodes.<nodeId>.output.<path> }}` templates as url/body; the
+	// fully rendered header set is revalidated (hop-by-hop and
+	// transport-controlled headers remain rejected).
+	Headers *map[string]string `json:"headers,omitempty"`
+
+	// Body Optional request body, limited to 1 MiB. May contain
+	// `{{ nodes.<nodeId>.output.<path> }}` templates resolved at run time.
+	// After resolution the body is still size-capped at 1 MiB.
+	Body *string `json:"body,omitempty"`
 }
 
 // HttpNodeConfigMethod HTTP method. Activity retries are disabled to avoid replaying side effects.
