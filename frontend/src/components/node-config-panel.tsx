@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type ChangeEvent,
@@ -70,12 +71,18 @@ export function NodeConfigPanel({
   const showAdvanced = supportsActivityOptions(node.data.nodeType);
   const dragStartX = useRef<number | null>(null);
   const dragStartWidth = useRef(width);
+  const labelInputRef = useRef<HTMLInputElement>(null);
   const panelWidth = clampNodeConfigPanelWidth(width);
   const templateSuggestions = templateSuggestionsForNode(
     nodes,
     edges,
     node.id,
   );
+
+  useEffect(() => {
+    // Move keyboard focus into the panel when a node is selected (#114).
+    labelInputRef.current?.focus();
+  }, [node.id]);
 
   const updateField = (field: ConfigField, raw: string) => {
     const parsed = parseConfigInputValue(field.kind, raw);
@@ -128,6 +135,7 @@ export function NodeConfigPanel({
   return (
     <aside
       data-testid="node-config-panel"
+      aria-label="Node config"
       className="relative flex h-full flex-col gap-3 overflow-y-auto border-l border-black/10 bg-white p-3 dark:border-white/15 dark:bg-neutral-950"
       style={{ width: panelWidth }}
     >
@@ -165,6 +173,8 @@ export function NodeConfigPanel({
         </div>
         <button
           type="button"
+          data-testid="close-node-config"
+          aria-label="Close node config"
           onClick={onClose}
           className="shrink-0 rounded px-1.5 py-0.5 text-xs text-black/50 hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/10"
         >
@@ -177,6 +187,7 @@ export function NodeConfigPanel({
           Label
         </span>
         <input
+          ref={labelInputRef}
           aria-label="Node label"
           value={node.data.label}
           onChange={(event) => onChangeLabel(event.target.value)}

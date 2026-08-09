@@ -24,3 +24,27 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/* Visible keyboard focus for controls that omit per-component rings (#114). */
+:where(
+  button,
+  [role="button"],
+  a,
+  summary,
+  [role="menuitem"]
+):focus-visible {
+  outline: 2px solid rgb(59 130 246 / 0.85);
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :where(
+    button,
+    [role="button"],
+    a,
+    summary,
+    [role="menuitem"]
+  ):focus-visible {
+    outline-color: rgb(96 165 250 / 0.95);
+  }
+}

@@ -41,6 +41,7 @@ export function GraphIdChip({ graphId }: GraphIdChipProps) {
       <button
         type="button"
         data-testid="copy-graph-id"
+        aria-label="Copy graph id"
         onClick={() => void onCopy()}
         className="rounded px-1.5 py-0.5 text-[10px] font-medium text-black/60 hover:bg-black/5 dark:text-white/60 dark:hover:bg-white/10"
       >

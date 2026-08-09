@@ -17,6 +17,7 @@ export function EmptyCanvasGuide({ visible }: EmptyCanvasGuideProps) {
   return (
     <div
       data-testid="empty-canvas-guide"
+      role="status"
       className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6"
     >
       <div className="max-w-sm rounded-lg border border-black/10 bg-white/90 px-5 py-4 text-center shadow-sm dark:border-white/15 dark:bg-neutral-900/90">
@@ -49,6 +50,7 @@ export function AuthoringTip({ visible, onDismiss }: AuthoringTipProps) {
       <button
         type="button"
         data-testid="authoring-tip-dismiss"
+        aria-label="Dismiss authoring tip"
         onClick={onDismiss}
         className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-black/50 hover:bg-black/5 hover:text-black/80 dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white/80"
       >

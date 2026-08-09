@@ -78,6 +78,13 @@ export function TemplateStringInput({
             // Allow click on a suggestion before closing.
             window.setTimeout(() => setOpen(false), 120);
           }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && showMenu) {
+              event.preventDefault();
+              event.stopPropagation();
+              setOpen(false);
+            }
+          }}
           placeholder={CONFIG_TEMPLATE_HINT}
           spellCheck={false}
           className={`${commonClass} font-mono text-xs`}
@@ -94,6 +101,13 @@ export function TemplateStringInput({
           onFocus={() => setOpen(true)}
           onBlur={() => {
             window.setTimeout(() => setOpen(false), 120);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && showMenu) {
+              event.preventDefault();
+              event.stopPropagation();
+              setOpen(false);
+            }
           }}
           placeholder={CONFIG_TEMPLATE_HINT}
           className={commonClass}

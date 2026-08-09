@@ -166,7 +166,7 @@ Filed 2026-08-09 after a live-canvas UX audit (`localhost:3000`). Label: `ux` (+
 | P2 | [#108](https://github.com/madmmas/temflowral/issues/108) (done) | Surface load/API **errors** as banners (not footer-only) |
 | P2 | [#109](https://github.com/madmmas/temflowral/issues/109) (done) | Empty canvas guidance + dismissible authoring tip |
 | P2 | [#110](https://github.com/madmmas/temflowral/issues/110) (done) | Dedicated **wait-signal** panel + resizable node config |
-| P2 | [#114](https://github.com/madmmas/temflowral/issues/114) | **Accessibility** baseline for the reference canvas |
+| P2 | [#114](https://github.com/madmmas/temflowral/issues/114) (done) | **Accessibility** baseline for the reference canvas |
 
 ### Detail
 
@@ -242,5 +242,8 @@ May need contract progress beyond #106 footer/history.
 `result.nodes[].nodeId`, `waiting` via `currentWait.nodeId`; no mid-run
 pending/running without a future progress API.
 
-**[#114](https://github.com/madmmas/temflowral/issues/114) — Accessibility baseline for the reference canvas** `[canvas][ux]`
+**[#114](https://github.com/madmmas/temflowral/issues/114) — Accessibility baseline for the reference canvas** `[canvas][ux]` ✅
 Keyboard path, focus rings, dark-theme contrast; umbrella placeholder.
+**Shipped:** Escape closes library → config → result; focus-visible rings;
+typing-safe Delete/Backspace; skip link; `docs/canvas-accessibility.md`
+checklist of verified vs known gaps (not a WCAG claim).

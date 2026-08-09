@@ -29,6 +29,7 @@ export function CanvasErrorBanner({
           <button
             type="button"
             data-testid="canvas-error-new"
+            aria-label="Start a new graph"
             onClick={onNew}
             className="rounded-md border border-red-500/30 bg-white/70 px-2 py-1 text-xs font-medium hover:bg-white dark:bg-neutral-900/70 dark:hover:bg-neutral-900"
           >
@@ -38,6 +39,7 @@ export function CanvasErrorBanner({
         <button
           type="button"
           data-testid="canvas-error-dismiss"
+          aria-label="Dismiss error"
           onClick={onDismiss}
           className="rounded-md border border-red-500/30 bg-white/70 px-2 py-1 text-xs font-medium hover:bg-white dark:bg-neutral-900/70 dark:hover:bg-neutral-900"
         >

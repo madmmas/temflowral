@@ -5,6 +5,24 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Accessibility baseline (#114)
+
+**Did:**
+- Escape closes overlays in order (library → node config → run result);
+  template suggestion menus consume Escape first.
+- Global `:focus-visible` rings; toolbar/`Node types` landmarks; skip link;
+  config panel focuses Label on open; Backspace/Delete ignored while typing.
+- `docs/canvas-accessibility.md` checklist + known gaps (not WCAG compliance).
+- Playwright `a11y-baseline` keyboard happy path.
+
+**Verified:**
+- vitest `a11y`; tsc/eslint; Playwright a11y-baseline.
+
+**Next:**
+- UX backlog complete for #102–#114; split further a11y follow-ups as needed.
+
+---
+
 ## 2026-08-09 — Per-node run status on canvas (#113)
 
 **Did:**

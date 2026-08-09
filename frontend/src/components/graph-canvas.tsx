@@ -36,6 +36,10 @@ import { RunSignalPanel } from "@/components/run-signal-panel";
 import { RunStatusChip } from "@/components/run-status-chip";
 import { WorkflowLibrary } from "@/components/workflow-library";
 import {
+  isTypingTarget,
+  resolveEscapeLayer,
+} from "@/lib/a11y";
+import {
   isCanvasBannerDismissed,
   pickCanvasBannerMessage,
 } from "@/lib/canvas-error-banner";
@@ -168,6 +172,7 @@ function GraphCanvasInner() {
   const [minimapPrefersDark, setMinimapPrefersDark] = useState(true);
   const [authoringTipDismissed, setAuthoringTipDismissed] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [typingInField, setTypingInField] = useState(false);
   const [fitViewGeneration, setFitViewGeneration] = useState(0);
   const { screenToFlowPosition, fitView } = useReactFlow();
   const {
@@ -205,6 +210,44 @@ function GraphCanvasInner() {
     );
   const dirty =
     graphFingerprint(graphName, nodes, edges) !== baselineFingerprint;
+
+  useEffect(() => {
+    const syncTyping = () => {
+      setTypingInField(isTypingTarget(document.activeElement));
+    };
+    window.addEventListener("focusin", syncTyping);
+    window.addEventListener("focusout", syncTyping);
+    syncTyping();
+    return () => {
+      window.removeEventListener("focusin", syncTyping);
+      window.removeEventListener("focusout", syncTyping);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      // Let focused widgets (e.g. template suggestions) handle Escape first.
+      if (event.defaultPrevented) return;
+      const layer = resolveEscapeLayer({
+        libraryOpen,
+        configOpen: selectedNodeId !== null,
+        resultOpen: showResultPanel,
+      });
+      if (layer === "library") return; // WorkflowLibrary owns this layer.
+      if (layer === "config") {
+        event.preventDefault();
+        setSelectedNodeId(null);
+        return;
+      }
+      if (layer === "result") {
+        event.preventDefault();
+        setResultPanelVisible(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [libraryOpen, selectedNodeId, showResultPanel]);
 
   useEffect(() => {
     setMinimapVisible(readMinimapVisible());
@@ -702,6 +745,8 @@ function GraphCanvasInner() {
         )}
         <div
           data-testid="graph-toolbar"
+          role="toolbar"
+          aria-label="Graph actions"
           className="flex flex-nowrap items-center gap-2 overflow-x-auto border-b border-black/10 px-3 py-2 dark:border-white/15"
         >
           <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -804,7 +849,11 @@ function GraphCanvasInner() {
             </button>
           </div>
         </div>
-        <div data-testid="graph-canvas" className="relative min-h-0 flex-1">
+        <div
+          id="graph-canvas-main"
+          data-testid="graph-canvas"
+          className="relative min-h-0 flex-1"
+        >
           <EmptyCanvasGuide
             visible={nodes.length === 0 && action !== "loading"}
           />
@@ -822,7 +871,9 @@ function GraphCanvasInner() {
               onSelectionChange={onSelectionChange}
               onDragOver={onDragOver}
               onDrop={onDrop}
-              deleteKeyCode={["Backspace", "Delete"]}
+              deleteKeyCode={
+                typingInField ? null : ["Backspace", "Delete"]
+              }
               fitView
               proOptions={{ hideAttribution: true }}
             >
@@ -838,6 +889,9 @@ function GraphCanvasInner() {
                   <button
                     type="button"
                     data-testid="toggle-minimap"
+                    aria-label={
+                      minimapVisible ? "Hide minimap" : "Show minimap"
+                    }
                     aria-pressed={minimapVisible}
                     onClick={() => {
                       setMinimapVisible((current) => {
