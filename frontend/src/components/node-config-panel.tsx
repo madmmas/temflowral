@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type PointerEvent,
+} from "react";
 
 import {
   fieldsFromConfigSchema,
@@ -15,11 +21,17 @@ import {
   type ActivityOptions,
   type CanvasNode,
 } from "@/lib/graph-canvas";
+import {
+  clampNodeConfigPanelWidth,
+  NODE_CONFIG_PANEL_DEFAULT_WIDTH,
+} from "@/lib/node-config-panel";
 import type { NodeType } from "@/lib/node-types";
 
 type NodeConfigPanelProps = {
   node: CanvasNode;
   nodeType: NodeType | undefined;
+  width?: number;
+  onWidthChange?: (width: number) => void;
   onChangeLabel: (label: string) => void;
   onChangeConfig: (config: Record<string, unknown>) => void;
   onChangeActivityOptions: (options: ActivityOptions | undefined) => void;
@@ -30,10 +42,13 @@ type NodeConfigPanelProps = {
 /**
  * Side panel that edits the selected node's label and config from the
  * registry `configSchema` (#91), plus collapsed advanced activity fields (#93).
+ * Width is user-resizable (#110).
  */
 export function NodeConfigPanel({
   node,
   nodeType,
+  width = NODE_CONFIG_PANEL_DEFAULT_WIDTH,
+  onWidthChange,
   onChangeLabel,
   onChangeConfig,
   onChangeActivityOptions,
@@ -44,6 +59,9 @@ export function NodeConfigPanel({
   const fields = fieldsFromConfigSchema(nodeType?.configSchema);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const showAdvanced = supportsActivityOptions(node.data.nodeType);
+  const dragStartX = useRef<number | null>(null);
+  const dragStartWidth = useRef(width);
+  const panelWidth = clampNodeConfigPanelWidth(width);
 
   const updateField = (field: ConfigField, raw: string) => {
     const parsed = parseConfigInputValue(field.kind, raw);
@@ -59,16 +77,74 @@ export function NodeConfigPanel({
     onChangeConfig(setConfigFieldValue(config, field.name, parsed.value));
   };
 
+  const onResizePointerDown = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (!onWidthChange) return;
+      event.preventDefault();
+      dragStartX.current = event.clientX;
+      dragStartWidth.current = panelWidth;
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [onWidthChange, panelWidth],
+  );
+
+  const onResizePointerMove = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (dragStartX.current === null || !onWidthChange) return;
+      // Dragging the left handle leftward grows the panel.
+      const delta = dragStartX.current - event.clientX;
+      onWidthChange(
+        clampNodeConfigPanelWidth(dragStartWidth.current + delta),
+      );
+    },
+    [onWidthChange],
+  );
+
+  const onResizePointerUp = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (dragStartX.current === null) return;
+      dragStartX.current = null;
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    [],
+  );
+
   return (
     <aside
       data-testid="node-config-panel"
-      className="flex h-full w-72 flex-col gap-3 overflow-y-auto border-l border-black/10 bg-white p-3 dark:border-white/15 dark:bg-neutral-950"
+      className="relative flex h-full flex-col gap-3 overflow-y-auto border-l border-black/10 bg-white p-3 dark:border-white/15 dark:bg-neutral-950"
+      style={{ width: panelWidth }}
     >
+      {onWidthChange && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize node config panel"
+          data-testid="node-config-resize"
+          onPointerDown={onResizePointerDown}
+          onPointerMove={onResizePointerMove}
+          onPointerUp={onResizePointerUp}
+          onPointerCancel={onResizePointerUp}
+          className="absolute inset-y-0 left-0 z-10 flex w-2 -translate-x-1/2 cursor-ew-resize touch-none items-center justify-center"
+        >
+          <span className="h-8 w-0.5 rounded-full bg-black/20 dark:bg-white/25" />
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-2">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">
             Node config
           </h2>
+          <p
+            data-testid="node-config-editing"
+            className="mt-0.5 truncate text-sm font-medium text-black/80 dark:text-white/80"
+            title={node.data.label}
+          >
+            Editing: {node.data.label || node.data.nodeType}
+          </p>
           <p className="mt-0.5 text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40">
             {node.data.nodeType}
           </p>
@@ -76,7 +152,7 @@ export function NodeConfigPanel({
         <button
           type="button"
           onClick={onClose}
-          className="rounded px-1.5 py-0.5 text-xs text-black/50 hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/10"
+          className="shrink-0 rounded px-1.5 py-0.5 text-xs text-black/50 hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/10"
         >
           Close
         </button>
