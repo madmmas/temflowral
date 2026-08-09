@@ -6,6 +6,10 @@ are closed (filed 2026-07-15; repo PRs already occupied #1–#4).
 Post-kickoff backlog filed 2026-07-19 as
 [#55](https://github.com/madmmas/temflowral/issues/55)–[#67](https://github.com/madmmas/temflowral/issues/67).
 
+Canvas UI/UX backlog filed 2026-08-09 as
+[#102](https://github.com/madmmas/temflowral/issues/102)–[#110](https://github.com/madmmas/temflowral/issues/110);
+follow-ups [#111](https://github.com/madmmas/temflowral/issues/111)–[#114](https://github.com/madmmas/temflowral/issues/114).
+
 ## Team split
 - **You:** backend contract + implementation, frontend scaffold + integration.
 - **Contributor 2:** Playwright automated testing, working off the contract/mock
@@ -140,3 +144,77 @@ reference canvas and a few API affordances. Full plan:
 | 4 | Dirty state, idempotent Run, advanced fields | P1 | [#93](https://github.com/madmmas/temflowral/issues/93) (done) |
 | 5 | Live e2e + demo seeds | P2 | [#94](https://github.com/madmmas/temflowral/issues/94) (done) |
 | 6 | Deferred (ADR-001 package, multi-tenant, …) | — | — |
+
+---
+
+## Post-#94 — Canvas UI/UX backlog
+
+Filed 2026-08-09 after a live-canvas UX audit (`localhost:3000`). Label: `ux` (+
+`canvas`). Suggested build order: P0 first, then P1, then P2.
+
+| Pri | Issue | Focus |
+| --- | --- | --- |
+| P0 | [#102](https://github.com/madmmas/temflowral/issues/102) | Collapsible / resizable / dismissible **run result** panel |
+| P0 | [#103](https://github.com/madmmas/temflowral/issues/103) | Replace saved-graph **dropdown** with searchable workflow library |
+| P1 | [#104](https://github.com/madmmas/temflowral/issues/104) | Theme **MiniMap** for dark canvas + hide/toggle |
+| P1 | [#105](https://github.com/madmmas/temflowral/issues/105) | **Toolbar** layout; separate Delete from Run; dirty indicator; **stable on config open** |
+| P1 | [#106](https://github.com/madmmas/temflowral/issues/106) | **Run history** + clearer status / short graph id |
+| P1 | [#111](https://github.com/madmmas/temflowral/issues/111) | **Fit viewport** after async graph load |
+| P1 | [#112](https://github.com/madmmas/temflowral/issues/112) | Node **config form** quality (order, headers builder, templates) |
+| P1 | [#113](https://github.com/madmmas/temflowral/issues/113) | **Per-node** visual execution status on the canvas |
+| P2 | [#107](https://github.com/madmmas/temflowral/issues/107) | Graph **naming** UX (discourage duplicate Untitled) |
+| P2 | [#108](https://github.com/madmmas/temflowral/issues/108) | Surface load/API **errors** as banners (not footer-only) |
+| P2 | [#109](https://github.com/madmmas/temflowral/issues/109) | Empty canvas guidance + dismissible authoring tip |
+| P2 | [#110](https://github.com/madmmas/temflowral/issues/110) | Dedicated **wait-signal** panel + resizable node config |
+| P2 | [#114](https://github.com/madmmas/temflowral/issues/114) | **Accessibility** baseline for the reference canvas |
+
+### Detail
+
+**[#102](https://github.com/madmmas/temflowral/issues/102) — Collapsible / resizable / dismissible run result panel** `[canvas][ux]`
+Result JSON currently lives in the bottom `flex-wrap` status strip and steals
+canvas height after Run completes. Move to a dedicated panel with collapse,
+resize, hide, and copy.
+
+**[#103](https://github.com/madmmas/temflowral/issues/103) — Replace saved-graph dropdown with searchable workflow library** `[canvas][ux]`
+`<select>` does not scale; duplicate names + truncated UUIDs. Modal/side library
+with search, sort by `updatedAt`, and metadata. Depends on #90 (done).
+
+**[#104](https://github.com/madmmas/temflowral/issues/104) — Theme MiniMap for dark canvas and add hide/toggle** `[canvas][ux]`
+Bright white MiniMap covers nodes; add dark styling and a show/hide control.
+
+**[#105](https://github.com/madmmas/temflowral/issues/105) — Toolbar layout: stable actions and separate Delete from Run** `[canvas][ux]`
+Toolbar wrap puts Run next to Delete; add explicit dirty/unsaved indicator.
+Also: keep hit targets stable when the node config panel opens/closes (no
+jump into the graph-name field).
+
+**[#106](https://github.com/madmmas/temflowral/issues/106) — Run history and clearer run status presentation** `[canvas][ux]`
+Only the latest run is kept; footer dumps full graph UUID. Session (or API)
+history + status chips + short id with copy. May need OpenAPI if durable.
+
+**[#107](https://github.com/madmmas/temflowral/issues/107) — Graph naming UX: discourage duplicate Untitled workflows** `[canvas][ux]`
+Prompt/nudge on first Save; optional duplicate-name warning. Pairs with #103.
+
+**[#108](https://github.com/madmmas/temflowral/issues/108) — Surface load/API errors as banners instead of footer-only text** `[canvas][ux]`
+Invalid `?graph=` is easy to miss in the footer. Dismissible banner/toast.
+
+**[#109](https://github.com/madmmas/temflowral/issues/109) — Empty canvas guidance and dismissible authoring tip** `[canvas][ux]`
+First-run empty state; dismissible tip remembered in `localStorage`.
+
+**[#110](https://github.com/madmmas/temflowral/issues/110) — Dedicated wait-signal panel and resizable node config drawer** `[canvas][ux]`
+Pull signal UI out of the footer; allow config panel width resize. Builds on #92.
+
+**[#111](https://github.com/madmmas/temflowral/issues/111) — Fit viewport after async graph load** `[canvas][ux]`
+`fitView` on mount often runs with empty nodes; call `fitView()` after open/
+hydrate. Distinguish off-viewport from sparse graph data (lone Start, etc.).
+
+**[#112](https://github.com/madmmas/temflowral/issues/112) — Improve node config form quality** `[canvas][ux]`
+Stable field order (HTTP currently `body, headers, method, url` from Go map
+JSON), headers key/value builder, template autocomplete for upstream nodes.
+Complements #110 (drawer chrome only).
+
+**[#113](https://github.com/madmmas/temflowral/issues/113) — Per-node visual execution status on the canvas** `[canvas][executor][ux]`
+Decorate nodes pending/running/completed/failed/waiting during or after runs.
+May need contract progress beyond #106 footer/history.
+
+**[#114](https://github.com/madmmas/temflowral/issues/114) — Accessibility baseline for the reference canvas** `[canvas][ux]`
+Keyboard path, focus rings, dark-theme contrast; umbrella placeholder.
