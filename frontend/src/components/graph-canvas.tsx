@@ -24,15 +24,20 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { createApiClient, type components } from "@/api";
+import { CanvasErrorBanner } from "@/components/canvas-error-banner";
+import { GraphIdChip } from "@/components/graph-id-chip";
 import { NODE_TYPE_DRAG_KEY, NodePalette } from "@/components/node-palette";
 import { NodeConfigPanel } from "@/components/node-config-panel";
 import { WorkflowNode } from "@/components/nodes/workflow-node";
-import { GraphIdChip } from "@/components/graph-id-chip";
 import { RunHistoryList } from "@/components/run-history-list";
 import { RunResultPanel } from "@/components/run-result-panel";
 import { RunSignalPanel } from "@/components/run-signal-panel";
 import { RunStatusChip } from "@/components/run-status-chip";
 import { WorkflowLibrary } from "@/components/workflow-library";
+import {
+  isCanvasBannerDismissed,
+  pickCanvasBannerMessage,
+} from "@/lib/canvas-error-banner";
 import {
   apiErrorMessage,
   createNode,
@@ -128,6 +133,10 @@ function GraphCanvasInner() {
   const [runHistory, setRunHistory] = useState<RunHistoryEntry[]>([]);
   const [action, setAction] = useState<Action>("idle");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState<{
+    source: "action" | "graphs";
+    message: string;
+  } | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [resultPanelVisible, setResultPanelVisible] = useState(false);
   const [resultPanelCollapsed, setResultPanelCollapsed] = useState(false);
@@ -164,6 +173,13 @@ function GraphCanvasInner() {
     isNewGraph: savedGraphId === null,
     duplicateCount: duplicateNameCount,
   });
+  const banner = pickCanvasBannerMessage(actionError, graphsError);
+  const showErrorBanner =
+    banner !== null &&
+    !(
+      banner.source === "graphs" &&
+      isCanvasBannerDismissed(bannerDismissed, banner)
+    );
   const dirty =
     graphFingerprint(graphName, nodes, edges) !== baselineFingerprint;
 
@@ -213,6 +229,7 @@ function GraphCanvasInner() {
       setRun(null);
       setResultPanelVisible(false);
       setActionError(null);
+      setBannerDismissed(null);
       replaceGraphQuery(graph.id);
     },
     [setEdges, setNodes],
@@ -228,12 +245,15 @@ function GraphCanvasInner() {
         });
         if (error || !data) {
           setActionError(apiErrorMessage(error, "Failed to open graph"));
+          // Invalid deep links should not stick in the URL after a failed open.
+          replaceGraphQuery(null);
           return;
         }
         applyLoadedGraph(data);
         refreshGraphs();
       } catch {
         setActionError("Failed to open graph");
+        replaceGraphQuery(null);
       } finally {
         setAction("idle");
       }
@@ -561,8 +581,18 @@ function GraphCanvasInner() {
     setRun(null);
     setResultPanelVisible(false);
     setActionError(null);
+    setBannerDismissed(null);
     replaceGraphQuery(null);
   }, [dirty, setEdges, setNodes]);
+
+  const onDismissErrorBanner = useCallback(() => {
+    if (!banner) return;
+    if (banner.source === "action") {
+      setActionError(null);
+      return;
+    }
+    setBannerDismissed(banner);
+  }, [banner]);
 
   const onSelectHistoryRun = useCallback((entry: RunHistoryEntry) => {
     setRun(historyEntryToRun(entry));
@@ -605,6 +635,13 @@ function GraphCanvasInner() {
         error={nodeTypesError}
       />
       <div className="relative flex min-w-0 flex-1 flex-col">
+        {showErrorBanner && banner && (
+          <CanvasErrorBanner
+            message={banner.message}
+            onDismiss={onDismissErrorBanner}
+            onNew={onNewGraph}
+          />
+        )}
         <div
           data-testid="graph-toolbar"
           className="flex flex-nowrap items-center gap-2 overflow-x-auto border-b border-black/10 px-3 py-2 dark:border-white/15"
@@ -789,11 +826,9 @@ function GraphCanvasInner() {
         {(savedGraphId ||
           run ||
           graphRunHistory.length > 0 ||
-          actionError ||
-          graphsError ||
           action === "loading") && (
           <div
-            role={actionError || graphsError ? "alert" : "status"}
+            role="status"
             className="flex min-h-9 flex-wrap items-center gap-3 border-t border-black/10 px-3 py-2 text-xs dark:border-white/15"
           >
             {action === "loading" && (
@@ -827,16 +862,6 @@ function GraphCanvasInner() {
               activeRunId={runId ?? null}
               onSelect={onSelectHistoryRun}
             />
-            {graphsError && (
-              <span className="text-red-600 dark:text-red-400">
-                {graphsError}
-              </span>
-            )}
-            {actionError && (
-              <span className="text-red-600 dark:text-red-400">
-                {actionError}
-              </span>
-            )}
           </div>
         )}
       </div>

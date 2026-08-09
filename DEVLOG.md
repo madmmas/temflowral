@@ -5,6 +5,22 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-09 — Canvas error banners (#108)
+
+**Did:**
+- Top dismissible `CanvasErrorBanner` (`role="alert"`) for action + graph-list
+  errors; footer no longer carries red error text.
+- Failed `?graph=` open clears the query param; banner offers Dismiss + New.
+- Scaffold e2e for invalid deep-link banner.
+
+**Verified:**
+- vitest `canvas-error-banner`; tsc/eslint; Playwright scaffold.
+
+**Next:**
+- Remaining UX backlog (#109+ / #111+).
+
+---
+
 ## 2026-08-09 — Graph naming UX (#107)
 
 **Did:**

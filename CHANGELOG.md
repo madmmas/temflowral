@@ -10,6 +10,8 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Dismissible canvas error banner for open/save/run/list failures; invalid
+  `?graph=` deep links clear the URL and stay obvious without the footer (#108).
 - Graph naming UX (#107): hint for Untitled / duplicate names, prompt on first
   Save of a new workflow, and a soft confirm when the name already exists
   (no API uniqueness requirement).

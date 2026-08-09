@@ -87,3 +87,31 @@ test("opens the searchable workflow library from Open…", async ({ page }) => {
   await page.getByTestId("workflow-library-close").click();
   await expect(page.getByTestId("workflow-library")).toHaveCount(0);
 });
+
+test("shows a dismissible banner when opening an invalid ?graph= deep link", async ({
+  page,
+}) => {
+  const missingId = "00000000-0000-4000-8000-000000000099";
+  await page.route(`**/graphs/${missingId}`, async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 404,
+      contentType: "application/json",
+      body: JSON.stringify({ message: "graph not found" }),
+    });
+  });
+
+  await page.goto(`/?graph=${missingId}`);
+  await expect(page.getByTestId("canvas-error-banner")).toBeVisible();
+  await expect(page.getByTestId("canvas-error-message")).toContainText(
+    "graph not found",
+  );
+  await expect(page).not.toHaveURL(/graph=/);
+
+  await page.getByTestId("canvas-error-dismiss").click();
+  await expect(page.getByTestId("canvas-error-banner")).toHaveCount(0);
+  await expect(page.getByTestId("graph-canvas")).toBeVisible();
+});
