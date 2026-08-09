@@ -163,7 +163,7 @@ Filed 2026-08-09 after a live-canvas UX audit (`localhost:3000`). Label: `ux` (+
 | P1 | [#112](https://github.com/madmmas/temflowral/issues/112) | Node **config form** quality (order, headers builder, templates) |
 | P1 | [#113](https://github.com/madmmas/temflowral/issues/113) | **Per-node** visual execution status on the canvas |
 | P2 | [#107](https://github.com/madmmas/temflowral/issues/107) (done) | Graph **naming** UX (discourage duplicate Untitled) |
-| P2 | [#108](https://github.com/madmmas/temflowral/issues/108) | Surface load/API **errors** as banners (not footer-only) |
+| P2 | [#108](https://github.com/madmmas/temflowral/issues/108) (done) | Surface load/API **errors** as banners (not footer-only) |
 | P2 | [#109](https://github.com/madmmas/temflowral/issues/109) | Empty canvas guidance + dismissible authoring tip |
 | P2 | [#110](https://github.com/madmmas/temflowral/issues/110) | Dedicated **wait-signal** panel + resizable node config |
 | P2 | [#114](https://github.com/madmmas/temflowral/issues/114) | **Accessibility** baseline for the reference canvas |
@@ -207,8 +207,10 @@ Prompt/nudge on first Save; optional duplicate-name warning. Pairs with #103.
 away from `Untitled workflow`; soft confirm when the name already exists in
 `GET /graphs` (API uniqueness unchanged).
 
-**[#108](https://github.com/madmmas/temflowral/issues/108) — Surface load/API errors as banners instead of footer-only text** `[canvas][ux]`
+**[#108](https://github.com/madmmas/temflowral/issues/108) — Surface load/API errors as banners instead of footer-only text** `[canvas][ux]` ✅
 Invalid `?graph=` is easy to miss in the footer. Dismissible banner/toast.
+**Shipped:** top `role="alert"` banner for open/save/run/list failures with
+Dismiss + New; failed deep links clear `?graph=` from the URL.
 
 **[#109](https://github.com/madmmas/temflowral/issues/109) — Empty canvas guidance and dismissible authoring tip** `[canvas][ux]`
 First-run empty state; dismissible tip remembered in `localStorage`.
