@@ -31,22 +31,30 @@ updated BEFORE backend handlers or frontend calls are written, not after.
 - Backend + frontend integration: primary contributor.
 - Automated testing (Playwright): second contributor, builds against a Prism
   mock server generated from `openapi.yaml`, not against the live backend.
+  CI runs Prism-backed Playwright e2e; live Temporal e2e is opt-in
+  (`make e2e-live`).
 
 ## Where things live
 
 - `api/openapi.yaml` — the contract.
 - `backend/` — Go module `github.com/madmmas/temflowral/backend`.
-- `frontend/` — Next.js app.
-- `ISSUES.md` — current backlog and build order.
+- `frontend/` — Next.js reference host / demo canvas.
+- `packages/canvas-remote/` — Module Federation remote (`WorkflowBuilder`).
+- `docs/issues/ISSUES.md` — backlog and build order.
+- `docs/sidecar.md` — consume as HTTP sidecar (BYO Postgres).
+- `docs/embedding-canvas-mf.md` — embed the builder via MF.
 - `DEVLOG.md` — running progress log. Add an entry per work session; don't skip it.
+
+## Consumer modes
+
+- **Sidecar:** compose backend (+ Temporal); optional external Postgres — see
+  `docs/sidecar.md`.
+- **Custom node types:** import `backend/pkg/nodetype` from another Go module.
+- **Canvas embed:** Module Federation remote (ADR-002), not a deep npm React SDK.
 
 ## General guidance
 
-- This is an early-stage project (day 0/1 as of kickoff). Expect a lot of
-  scaffolding work before real logic. Don't over-engineer abstractions for
-  node types that don't exist yet — the first real node type is the HTTP
-  activity node; SECURITY.md already flags it as the main attack surface
-  (SSRF, template injection in config, arbitrary outbound requests), so build
-  validation alongside it, not after.
-- Prefer editing `ISSUES.md` and `DEVLOG.md` to reflect real decisions over
-  keeping the plan only in chat history.
+- Prefer editing `docs/issues/ISSUES.md` and `DEVLOG.md` to reflect real decisions
+  over keeping the plan only in chat history.
+- HTTP activity node remains the main attack surface (SSRF, templates) —
+  validate alongside features, not after. See SECURITY.md.

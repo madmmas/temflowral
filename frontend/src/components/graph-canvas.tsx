@@ -23,7 +23,7 @@ import {
 
 import "@xyflow/react/dist/style.css";
 
-import { createApiClient, type components } from "@/api";
+import { type components } from "@/api";
 import { AuthoringTip, EmptyCanvasGuide } from "@/components/canvas-guidance";
 import { CanvasErrorBanner } from "@/components/canvas-error-banner";
 import { GraphIdChip } from "@/components/graph-id-chip";
@@ -39,6 +39,11 @@ import {
   isTypingTarget,
   resolveEscapeLayer,
 } from "@/lib/a11y";
+import {
+  ApiClientProvider,
+  useCreateApiClient,
+  type WorkflowBuilderApiConfig,
+} from "@/lib/api-client-context";
 import {
   isCanvasBannerDismissed,
   pickCanvasBannerMessage,
@@ -100,6 +105,16 @@ import {
 } from "@/lib/minimap-prefs";
 import { graphShortId } from "@/lib/workflow-library";
 
+/** Embeddable workflow builder props (Module Federation / host apps). */
+export type WorkflowBuilderProps = WorkflowBuilderApiConfig & {
+  /** Open this graph on mount (also used when syncGraphQueryParam is false). */
+  initialGraphId?: string | null;
+  /** Sync `?graph=` in the browser URL (default true for the reference app). */
+  syncGraphQueryParam?: boolean;
+  onGraphSaved?: (graphId: string) => void;
+  onRunCompleted?: (run: components["schemas"]["Run"]) => void;
+  className?: string;
+};
 const initialNodes: CanvasNode[] = [];
 const initialEdges: CanvasEdge[] = [];
 const RUN_POLL_INTERVAL_MS = 1_500;
@@ -143,7 +158,14 @@ function replaceGraphQuery(graphId: string | null): void {
   window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
-function GraphCanvasInner() {
+function GraphCanvasInner({
+  initialGraphId = null,
+  syncGraphQueryParam = true,
+  onGraphSaved,
+  onRunCompleted,
+  className,
+}: WorkflowBuilderProps) {
+  const createClient = useCreateApiClient();
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [graphName, setGraphName] = useState(DEFAULT_GRAPH_NAME);
@@ -323,12 +345,14 @@ function GraphCanvasInner() {
       setResultPanelVisible(false);
       setActionError(null);
       setBannerDismissed(null);
-      replaceGraphQuery(graph.id);
+      if (syncGraphQueryParam) {
+        replaceGraphQuery(graph.id);
+      }
       if (shouldFitViewportAfterLoad(deserialized.nodes.length)) {
         setFitViewGeneration((value) => value + 1);
       }
     },
-    [setEdges, setNodes],
+    [setEdges, setNodes, syncGraphQueryParam],
   );
 
   const loadGraphById = useCallback(
@@ -336,32 +360,38 @@ function GraphCanvasInner() {
       setAction("loading");
       setActionError(null);
       try {
-        const { data, error } = await createApiClient().GET("/graphs/{graphId}", {
+        const { data, error } = await createClient().GET("/graphs/{graphId}", {
           params: { path: { graphId } },
         });
         if (error || !data) {
           setActionError(apiErrorMessage(error, "Failed to open graph"));
           // Invalid deep links should not stick in the URL after a failed open.
-          replaceGraphQuery(null);
+          if (syncGraphQueryParam) {
+            replaceGraphQuery(null);
+          }
           return;
         }
         applyLoadedGraph(data);
         refreshGraphs();
       } catch {
         setActionError("Failed to open graph");
-        replaceGraphQuery(null);
+        if (syncGraphQueryParam) {
+          replaceGraphQuery(null);
+        }
       } finally {
         setAction("idle");
       }
     },
-    [applyLoadedGraph, refreshGraphs],
+    [applyLoadedGraph, refreshGraphs, createClient, syncGraphQueryParam],
   );
 
   useEffect(() => {
-    const graphId = readGraphIdFromLocation();
+    const graphId =
+      initialGraphId?.trim() ||
+      (syncGraphQueryParam ? readGraphIdFromLocation() : null);
     if (!graphId) return;
     void loadGraphById(graphId);
-    // Open once from the initial URL; subsequent opens go through the picker.
+    // Open once from props / initial URL; subsequent opens go through the picker.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only hydrate
   }, []);
 
@@ -380,7 +410,7 @@ function GraphCanvasInner() {
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
-    const client = createApiClient();
+    const client = createClient();
 
     const poll = async () => {
       try {
@@ -395,6 +425,8 @@ function GraphCanvasInner() {
         setRun(data);
         if (!isTerminalRunStatus(data.status)) {
           timer = setTimeout(poll, RUN_POLL_INTERVAL_MS);
+        } else {
+          onRunCompleted?.(data);
         }
       } catch {
         if (!cancelled) setActionError("Failed to refresh run status");
@@ -406,7 +438,7 @@ function GraphCanvasInner() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [runId, runStatus]);
+  }, [runId, runStatus, createClient, onRunCompleted]);
 
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
@@ -536,7 +568,7 @@ function GraphCanvasInner() {
     setAction("saving");
     setActionError(null);
     const body = serializeGraph(resolved.name, nodes, edges);
-    const client = createApiClient();
+    const client = createClient();
     try {
       const result = savedGraphId
         ? await client.PUT("/graphs/{graphId}", {
@@ -551,9 +583,12 @@ function GraphCanvasInner() {
         return null;
       }
       setSavedGraphId(data.id);
-      replaceGraphQuery(data.id);
+      if (syncGraphQueryParam) {
+        replaceGraphQuery(data.id);
+      }
       setBaselineFingerprint(graphFingerprint(resolved.name, nodes, edges));
       refreshGraphs();
+      onGraphSaved?.(data.id);
       return data;
     } catch {
       setActionError("Failed to save graph");
@@ -561,7 +596,17 @@ function GraphCanvasInner() {
     } finally {
       setAction("idle");
     }
-  }, [edges, graphName, graphs, nodes, refreshGraphs, savedGraphId]);
+  }, [
+    createClient,
+    edges,
+    graphName,
+    graphs,
+    nodes,
+    onGraphSaved,
+    refreshGraphs,
+    savedGraphId,
+    syncGraphQueryParam,
+  ]);
 
   const runGraph = useCallback(async () => {
     let graphId = savedGraphId;
@@ -576,7 +621,7 @@ function GraphCanvasInner() {
     setRun(null);
     const idempotencyKey = crypto.randomUUID();
     try {
-      const { data, error } = await createApiClient().POST(
+      const { data, error } = await createClient().POST(
         "/graphs/{graphId}/run",
         {
           params: { path: { graphId } },
@@ -593,7 +638,7 @@ function GraphCanvasInner() {
     } finally {
       setAction("idle");
     }
-  }, [dirty, saveGraph, savedGraphId]);
+  }, [createClient, dirty, saveGraph, savedGraphId]);
 
   const deleteGraph = useCallback(async () => {
     if (!savedGraphId) return;
@@ -606,7 +651,7 @@ function GraphCanvasInner() {
     setAction("deleting");
     setActionError(null);
     try {
-      const { error } = await createApiClient().DELETE("/graphs/{graphId}", {
+      const { error } = await createClient().DELETE("/graphs/{graphId}", {
         params: { path: { graphId: savedGraphId } },
       });
       if (error) {
@@ -621,14 +666,16 @@ function GraphCanvasInner() {
       setSelectedNodeId(null);
       setRun(null);
       setResultPanelVisible(false);
-      replaceGraphQuery(null);
+      if (syncGraphQueryParam) {
+        replaceGraphQuery(null);
+      }
       refreshGraphs();
     } catch {
       setActionError("Failed to delete graph");
     } finally {
       setAction("idle");
     }
-  }, [refreshGraphs, savedGraphId, setEdges, setNodes]);
+  }, [createClient, refreshGraphs, savedGraphId, setEdges, setNodes, syncGraphQueryParam]);
 
   const sendRunSignal = useCallback(
     async (signal: string, payload: unknown | undefined) => {
@@ -637,7 +684,7 @@ function GraphCanvasInner() {
       }
       const body: components["schemas"]["SignalRunRequest"] =
         payload === undefined ? { signal } : { signal, payload };
-      const { data, error } = await createApiClient().POST(
+      const { data, error } = await createClient().POST(
         "/runs/{runId}/signal",
         {
           params: { path: { runId } },
@@ -648,14 +695,14 @@ function GraphCanvasInner() {
         throw new Error(apiErrorMessage(error, "Failed to send signal"));
       }
       // Resume polling with a fresh GET so currentWait clears promptly.
-      const refreshed = await createApiClient().GET("/runs/{runId}", {
+      const refreshed = await createClient().GET("/runs/{runId}", {
         params: { path: { runId } },
       });
       if (refreshed.data) {
         setRun(refreshed.data);
       }
     },
-    [runId],
+    [createClient, runId],
   );
 
   const onOpenGraphFromLibrary = useCallback(
@@ -683,8 +730,10 @@ function GraphCanvasInner() {
     setResultPanelVisible(false);
     setActionError(null);
     setBannerDismissed(null);
-    replaceGraphQuery(null);
-  }, [dirty, setEdges, setNodes]);
+    if (syncGraphQueryParam) {
+      replaceGraphQuery(null);
+    }
+  }, [dirty, setEdges, setNodes, syncGraphQueryParam]);
 
   const onDismissErrorBanner = useCallback(() => {
     if (!banner) return;
@@ -728,7 +777,10 @@ function GraphCanvasInner() {
 
   return (
     <NodeTypeRegistryProvider nodeTypes={registryNodeTypes}>
-    <div data-testid="graph-editor" className="flex h-full w-full">
+    <div
+      data-testid="graph-editor"
+      className={`flex h-full w-full ${className ?? ""}`.trim()}
+    >
       <NodePalette
         onAddNodeType={onAddNodeType}
         nodeTypes={registryNodeTypes}
@@ -1012,11 +1064,25 @@ function GraphCanvasInner() {
   );
 }
 
-/** Workflow canvas with registry palette and save/run/reopen integration. */
-export function GraphCanvas() {
+/**
+ * Embeddable workflow builder (palette + canvas + save/run).
+ * Preferred export for Module Federation hosts — see docs/embedding-canvas-mf.md.
+ */
+export function WorkflowBuilder(props: WorkflowBuilderProps = {}) {
   return (
-    <ReactFlowProvider>
-      <GraphCanvasInner />
-    </ReactFlowProvider>
+    <ApiClientProvider
+      apiBaseUrl={props.apiBaseUrl}
+      authToken={props.authToken}
+      getAccessToken={props.getAccessToken}
+    >
+      <ReactFlowProvider>
+        <GraphCanvasInner {...props} />
+      </ReactFlowProvider>
+    </ApiClientProvider>
   );
+}
+
+/** @deprecated Prefer WorkflowBuilder — kept for the reference app. */
+export function GraphCanvas(props: WorkflowBuilderProps = {}) {
+  return <WorkflowBuilder {...props} />;
 }

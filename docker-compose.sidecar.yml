@@ -1,0 +1,91 @@
+# Sidecar stack against an existing Postgres (no bundled postgresql container).
+#
+#   export DATABASE_URL='postgres://USER:PASS@host.docker.internal:5432/temflowral?sslmode=disable'
+#   export TEMPORAL_POSTGRES_SEEDS=host.docker.internal
+#   export TEMPORAL_POSTGRES_USER=...
+#   export TEMPORAL_POSTGRES_PWD=...
+#   docker compose -f docker-compose.sidecar.yml up
+#   # or: make run-sidecar-external-db
+#
+# Create databases first: docker/postgres/init-host-sidecar.sql
+# Full docs: docs/sidecar.md
+name: temflowral-sidecar
+
+services:
+  temporal:
+    image: temporalio/auto-setup:1.28.1
+    container_name: temflowral-temporal
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_SEEDS: ${TEMPORAL_POSTGRES_SEEDS:-host.docker.internal}
+      POSTGRES_USER: ${TEMPORAL_POSTGRES_USER:-temporal}
+      POSTGRES_PWD: ${TEMPORAL_POSTGRES_PWD:-temporal}
+      DBNAME: ${TEMPORAL_DBNAME:-temporal}
+      VISIBILITY_DBNAME: ${TEMPORAL_VISIBILITY_DBNAME:-temporal_visibility}
+    ports:
+      - "7233:7233"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  temporal-ui:
+    image: temporalio/ui:2.34.0
+    container_name: temflowral-temporal-ui
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: ${TEMPORAL_CORS_ORIGINS:-http://localhost:3000}
+    ports:
+      - "8233:8080"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: temflowral-backend
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
+      TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-temflowral}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to your Postgres temflowral database}
+      HTTP_ALLOWED_HOSTS: ${HTTP_ALLOWED_HOSTS:-}
+      API_AUTH_TOKEN: ${API_AUTH_TOKEN:-}
+      API_CORS_ORIGINS: ${API_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+    container_name: temflowral-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+  # Optional: static Module Federation remote (WorkflowBuilder).
+  # docker compose -f docker-compose.sidecar.yml --profile canvas-remote up
+  canvas-remote:
+    profiles: ["canvas-remote"]
+    build:
+      context: .
+      dockerfile: packages/canvas-remote/Dockerfile
+    container_name: temflowral-canvas-remote
+    ports:
+      - "3002:80"

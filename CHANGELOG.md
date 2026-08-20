@@ -10,6 +10,18 @@ Detailed per-session progress lives in [`DEVLOG.md`](DEVLOG.md).
 
 ### Added
 
+- Sidecar consumption: BYO Postgres via `docker-compose.sidecar.yml`, host
+  init SQL, and [`docs/sidecar.md`](docs/sidecar.md)
+  (`make run-sidecar-external-db`).
+- Module Federation canvas remote (`packages/canvas-remote`) exporting
+  `WorkflowBuilder`, plus [`docs/embedding-canvas-mf.md`](docs/embedding-canvas-mf.md)
+  and ADR-002 (amends ADR-001).
+- Embeddable `WorkflowBuilder` props (`apiBaseUrl`, auth, `initialGraphId`,
+  callbacks) with `ApiClientProvider`.
+- `backend/pkg/version` constants for Go consumers.
+
+### Added (prior)
+
 - Accessibility baseline for the reference canvas (#114): keyboard Escape
   layers, focus-visible rings, typing-safe node delete, skip link, and
   `docs/canvas-accessibility.md` (verified checklist + known gaps).
