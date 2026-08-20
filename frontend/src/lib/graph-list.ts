@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { createApiClient } from "@/api";
 import type { GraphSummary } from "@/lib/graph-canvas";
 import { apiErrorMessage } from "@/lib/graph-canvas";
+import { useCreateApiClient } from "@/lib/api-client-context";
 
 export type GraphListState = {
   graphs: GraphSummary[];
@@ -17,6 +17,7 @@ export type GraphListState = {
  * Load saved graph summaries from `GET /graphs` for the reopen picker (#90).
  */
 export function useGraphList(enabled = true): GraphListState {
+  const createClient = useCreateApiClient();
   const [graphs, setGraphs] = useState<GraphSummary[]>([]);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export function useGraphList(enabled = true): GraphListState {
 
     let cancelled = false;
     setLoading(true);
-    const client = createApiClient();
+    const client = createClient();
 
     client
       .GET("/graphs")
@@ -60,7 +61,7 @@ export function useGraphList(enabled = true): GraphListState {
     return () => {
       cancelled = true;
     };
-  }, [enabled, tick]);
+  }, [enabled, tick, createClient]);
 
   return { graphs, loading, error, refresh };
 }

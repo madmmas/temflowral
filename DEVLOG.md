@@ -5,6 +5,23 @@ doesn't need to be daily.
 
 ---
 
+## 2026-08-19 — Sidecar + Module Federation canvas
+
+**Did:**
+- Compose overlay for bring-your-own Postgres + `docs/sidecar.md` / init SQL.
+- `WorkflowBuilder` props + `ApiClientProvider`; ADR-002 amends canvas packaging.
+- `packages/canvas-remote` Rspack MF remote (`remoteEntry.js`); embedding guide;
+  CI builds remote; `backend/pkg/version`; Makefile `run-sidecar-external-db`
+  / `canvas-remote-build`.
+
+**Verified:**
+- canvas-remote production build; frontend tsc/vitest (pending in session).
+
+**Next:**
+- Cut tagged Go module releases; optional Temporal-Cloud-only compose snippet.
+
+---
+
 ## 2026-08-09 — Accessibility baseline (#114)
 
 **Did:**

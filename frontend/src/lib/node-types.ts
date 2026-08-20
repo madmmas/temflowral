@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-import { createApiClient } from "@/api";
 import type { components } from "@/api";
+import { useCreateApiClient } from "@/lib/api-client-context";
 
 export type NodeType = components["schemas"]["NodeType"];
 
@@ -43,6 +43,7 @@ export type NodeTypesState = {
  * backend node type appears without a frontend change.
  */
 export function useNodeTypes(): NodeTypesState {
+  const createClient = useCreateApiClient();
   const [state, setState] = useState<NodeTypesState>({
     nodeTypes: [],
     loading: true,
@@ -51,7 +52,7 @@ export function useNodeTypes(): NodeTypesState {
 
   useEffect(() => {
     let cancelled = false;
-    const client = createApiClient();
+    const client = createClient();
 
     client
       .GET("/node-types")
@@ -79,7 +80,7 @@ export function useNodeTypes(): NodeTypesState {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [createClient]);
 
   return state;
 }

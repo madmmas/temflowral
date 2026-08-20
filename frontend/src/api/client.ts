@@ -12,6 +12,8 @@ export type ApiClient = ReturnType<typeof createApiClient>;
 export type CreateApiClientOptions = {
   /** Shared secret for `Authorization: Bearer` when the API has API_AUTH_TOKEN set. */
   authToken?: string;
+  /** Async/sync token provider for hosts that refresh credentials. */
+  getAccessToken?: () => string | Promise<string | undefined>;
 };
 
 /**
@@ -25,9 +27,10 @@ export type CreateApiClientOptions = {
  * `NEXT_PUBLIC_*` — see SECURITY.md.
  */
 export function createApiClient(
-  baseUrl: string = getApiBaseUrl(),
+  baseUrl?: string,
   options: CreateApiClientOptions = {},
 ) {
+  const resolvedBase = baseUrl ?? getApiBaseUrl();
   const token =
     options.authToken?.trim() ||
     process.env.TEMFLOWRAL_API_TOKEN?.trim() ||
@@ -36,5 +39,19 @@ export function createApiClient(
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-  return createClient<paths>({ baseUrl, headers });
+  const client = createClient<paths>({ baseUrl: resolvedBase, headers });
+  if (options.getAccessToken) {
+    const getAccessToken = options.getAccessToken;
+    client.use({
+      async onRequest({ request }) {
+        const next = await getAccessToken();
+        const trimmed = next?.trim();
+        if (trimmed) {
+          request.headers.set("Authorization", `Bearer ${trimmed}`);
+        }
+        return request;
+      },
+    });
+  }
+  return client;
 }

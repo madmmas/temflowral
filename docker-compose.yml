@@ -6,6 +6,10 @@
 # creates the temporal/temporal_visibility databases and schema on first boot.
 # The backend stores graph/run metadata in a separate `temflowral` database on
 # the same Postgres instance (DATABASE_URL).
+#
+# Bring-your-own Postgres (no bundled postgresql container):
+#   docker compose -f docker-compose.sidecar.yml up
+#   See docs/sidecar.md.
 name: temflowral
 
 services:

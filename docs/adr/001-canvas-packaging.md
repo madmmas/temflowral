@@ -1,6 +1,6 @@
 # ADR-001: Canvas packaging
 
-- **Status:** Accepted
+- **Status:** Accepted (amended by [ADR-002](002-module-federation-canvas.md))
 - **Date:** 2026-07-21
 - **Issue:** [#65](https://github.com/madmmas/temflowral/issues/65)
 - **Tags:** `canvas`, `decision`
@@ -17,60 +17,49 @@ or re-implement a canvas from scratch without a clear integration contract.
 
 ## Decision
 
-**Reference-only for now. No shared canvas package and no embeddable canvas
-service.**
+**Reference-only for a general npm component SDK. No iframe embed service.**
 
-The supported way to build (or replace) a canvas is:
+The supported ways to build (or replace) a canvas are:
 
 1. Treat `api/openapi.yaml` as the HTTP contract (typed clients via codegen).
 2. Drive the palette and node metadata from `GET /node-types` (and the shared
    `pkg/nodetype` registry on the worker), not from a hardcoded frontend list.
 3. Persist and run graphs with `POST /graphs` and `POST /graphs/{id}/run` using
    the same `Node` / `Edge` shapes the reference UI uses.
+4. **(ADR-002)** Optionally load the official **Module Federation remote** that
+   exports `WorkflowBuilder` — not a broad npm React SDK.
 
-`frontend/` is a working reference app in this repository. It may be copied or
-forked as a starting point. It is **not** a versioned, publishable UI SDK.
-There is no guarantee of a stable React component API, CSS contract, or iframe
-embedding protocol.
+`frontend/` remains a working reference app. There is no guarantee of a stable
+deep React component tree API or CSS contract beyond the documented MF props.
 
 ## Alternatives considered
 
 | Option | Why not (now) |
 | --- | --- |
-| **Importable package** (e.g. `@temflowral/canvas`) | The canvas is still tightly coupled to this Next.js app (routing, env, save/run chrome). Extracting a stable component surface would force API design work we do not need yet and would freeze UI choices prematurely. |
-| **Embeddable service** (hosted iframe / micro-frontend) | Implies auth, tenancy, hosting, and a cross-origin postMessage protocol. Out of scope while the product has no tenant isolation and is a demonstration stack (see SECURITY.md / upcoming #66). |
-
-"No shared package yet — build against the node-type registry API" is the
-intentional product answer, not a deferral.
+| **Importable package** (e.g. `@temflowral/canvas` npm SDK) | Freezing a full component API early; MF remote covers the embed case without a deep public React surface. |
+| **Embeddable service** (hosted iframe / micro-frontend product) | Implies auth, tenancy, hosting, and a cross-origin postMessage protocol. Out of scope while the product has no tenant isolation (see SECURITY.md). |
 
 ## Consequences
 
 **Positive**
 
 - One integration surface for any UI: OpenAPI + `GET /node-types`.
-- Backend extensibility (#55) stays useful without waiting on a published canvas.
-- We can evolve the reference UI without semver commitments to external apps.
+- Backend extensibility stays useful without waiting on a published canvas SDK.
+- MF (ADR-002) gives a practical embed path without iframe tenancy.
 
 **Negative / accepted costs**
 
-- External products that want a designer must build or fork their own UI.
-- Type-specific config forms and multi-handle renderers remain reference-app
-  concerns (see `docs/adding-a-node-type.md` §7).
+- External products that want a designer must use MF, fork, or build their own UI.
+- Type-specific config forms remain driven by `configSchema` in the shared builder.
 
 ## When to revisit
 
-Reopen this ADR if any of the following become true:
-
-- Two or more first-party or partner UIs need the same canvas behavior.
-- A product requirement demands embedding the designer in a third-party app.
-- The reference UI has a clear, tested component boundary (palette + canvas +
-  graph serialization) with no Next.js-only dependencies.
-
-Until then, do not publish an npm canvas package or document an embed protocol.
+- Multiple hosts need a documented npm package with a deeper React API.
+- A product requirement demands iframe embedding with postMessage.
 
 ## Related
 
-- `GET /node-types` in [`api/openapi.yaml`](../api/openapi.yaml)
+- `GET /node-types` in [`api/openapi.yaml`](../../api/openapi.yaml)
 - Frontend discovery: `frontend/src/lib/node-types.ts`
-- Adding node types (incl. UI notes): [`docs/adding-a-node-type.md`](adding-a-node-type.md)
-- External node-type registration: `backend/pkg/nodetype` (#55)
+- [ADR-002: Module Federation canvas remote](002-module-federation-canvas.md)
+- Adding node types: [`docs/adding-a-node-type.md`](../adding-a-node-type.md)

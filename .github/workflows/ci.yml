@@ -34,6 +34,9 @@ jobs:
               - 'go.work'
             frontend:
               - 'frontend/**'
+              - 'packages/canvas-remote/**'
+              - 'docs/embedding-canvas-mf.md'
+              - 'docs/sidecar.md'
 
   # ─── OpenAPI lint ─────────────────────────────────────────────
   openapi-lint:
@@ -178,6 +181,14 @@ jobs:
         if: needs.changes.outputs.frontend == 'true' && steps.pkgjson.outputs.exists == 'true'
         working-directory: frontend
         run: npm test -- --reporter=verbose
+
+      - name: Build Module Federation canvas remote
+        if: needs.changes.outputs.frontend == 'true'
+        working-directory: packages/canvas-remote
+        run: |
+          npm install
+          NODE_ENV=production npm run build
+          test -f dist/remoteEntry.js
 
   # ─── contract-conformance ────────────────────────────────────
   # Validates API responses against api/openapi.yaml schemas. Runs against the

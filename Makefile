@@ -1,4 +1,5 @@
-.PHONY: generate test test-contract test-contract-live lint lint-backend lint-frontend run build clean hooks temporal-dev temporal-down temporal-smoke seed-demo e2e e2e-live
+.PHONY: generate test test-contract test-contract-live lint lint-backend lint-frontend run run-sidecar-external-db build clean hooks temporal-dev temporal-down temporal-smoke seed-demo e2e e2e-live canvas-remote-build
+
 
 # Temporal service name in docker-compose.yml.
 TEMPORAL_SERVICE ?= temporal
@@ -45,6 +46,16 @@ lint-frontend:
 # Temporal Web UI: http://localhost:8233.
 run:
 	docker compose up
+
+# Sidecar against an existing Postgres (no bundled postgresql container).
+# Requires DATABASE_URL (and Temporal Postgres env — see docs/sidecar.md).
+run-sidecar-external-db:
+	@test -n "$${DATABASE_URL}" || (echo "DATABASE_URL is required" >&2; exit 1)
+	docker compose -f docker-compose.sidecar.yml up
+
+# Build the Module Federation canvas remote (static remoteEntry.js).
+canvas-remote-build:
+	cd packages/canvas-remote && npm install && npm run build
 
 # Start only Temporal (server + Web UI) for backend development. Postgres is
 # pulled in automatically via depends_on. Serves gRPC on :7233 and the Web UI

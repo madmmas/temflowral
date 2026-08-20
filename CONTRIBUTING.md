@@ -136,6 +136,13 @@ service name). To allow HTTP activity nodes to reach an external host, set
 `Ctrl+C`, then `make temporal-down` to remove the containers; the Postgres
 volume persists across restarts. Use `docker compose down -v` to wipe it.
 
+To run the sidecar against an **existing** Postgres (no bundled `postgresql`
+container), see [`docs/sidecar.md`](docs/sidecar.md) and
+`make run-sidecar-external-db` (`docker-compose.sidecar.yml`). Embed the
+workflow builder via Module Federation:
+[`docs/embedding-canvas-mf.md`](docs/embedding-canvas-mf.md) and
+`make canvas-remote-build`.
+
 ## Run the backend with Temporal
 
 Prefer developing the backend outside a container? Temporal still runs from

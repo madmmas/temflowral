@@ -1,4 +1,4 @@
-import { GraphCanvas } from "@/components/graph-canvas";
+import { WorkflowBuilder } from "@/components/graph-canvas";
 
 export default function Home() {
   return (
@@ -18,7 +18,7 @@ export default function Home() {
         </span>
       </header>
       <div className="min-h-0 flex-1">
-        <GraphCanvas />
+        <WorkflowBuilder />
       </div>
     </main>
   );

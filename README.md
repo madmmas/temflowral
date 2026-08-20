@@ -28,10 +28,15 @@ server types and the TypeScript client are generated from it, so the two sides
 never drift by hand. See [`docs/adding-a-node-type.md`](docs/adding-a-node-type.md)
 for the contract-first workflow.
 
-The React Flow UI under `frontend/` is a **reference canvas**, not a published
-npm package or embeddable service. Build or fork your own designer against
-`GET /node-types` and the graph/run APIs — decision recorded in
-[`docs/adr/001-canvas-packaging.md`](docs/adr/001-canvas-packaging.md).
+The React Flow UI under `frontend/` is a **reference canvas**. Host apps can
+embed the builder via Module Federation (`packages/canvas-remote`,
+[`docs/embedding-canvas-mf.md`](docs/embedding-canvas-mf.md)) or build their
+own UI against `GET /node-types` and the graph/run APIs — see
+[`docs/adr/001-canvas-packaging.md`](docs/adr/001-canvas-packaging.md) and
+[ADR-002](docs/adr/002-module-federation-canvas.md).
+
+Run the engine as a **sidecar** next to another app (optional bring-your-own
+Postgres): [`docs/sidecar.md`](docs/sidecar.md).
 
 ## Quickstart
 

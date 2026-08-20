@@ -18,6 +18,8 @@ frontend/build/
 frontend/test-results/
 frontend/playwright-report/
 frontend/.turbo/
+packages/canvas-remote/node_modules/
+packages/canvas-remote/dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

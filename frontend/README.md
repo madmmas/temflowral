@@ -2,10 +2,12 @@
 
 Next.js (App Router) + TypeScript UI for authoring and running workflow graphs.
 
-This app is a **reference implementation** of a temflowral canvas. It is not
-published as an npm package and is not an embeddable hosted designer. If you
-need a canvas in another product, integrate against the OpenAPI contract and
-`GET /node-types` (see [`docs/adr/001-canvas-packaging.md`](../docs/adr/001-canvas-packaging.md)).
+This app is a **reference host** for the temflowral canvas. Embed the builder
+in another product via Module Federation
+([`docs/embedding-canvas-mf.md`](../docs/embedding-canvas-mf.md),
+[ADR-002](../docs/adr/002-module-federation-canvas.md)) or integrate against
+OpenAPI + `GET /node-types`. Run the engine as a sidecar with
+[`docs/sidecar.md`](../docs/sidecar.md).
 
 ## Prerequisites
 
